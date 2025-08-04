@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical">
+
+    <ScrollView
+            android:id="@+id/scroll_view_output"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#000000"
+            android:padding="8dp">
+
+        <com.fox2code.androidansi.AnsiTextView
+                android:id="@+id/text_view_output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:typeface="monospace"
+                android:clickable="true"
+                android:scrollbars="vertical"
+                android:textIsSelectable="true"
+                android:selectAllOnFocus="false" />
+
+    </ScrollView>
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp">
+
+        <EditText
+                android:id="@+id/edit_text_command"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="输入命令..."
+                android:imeOptions="actionSend"
+                android:singleLine="true"
+                android:inputType="text"
+                android:minHeight="48dp"/>
+
+        <Button
+                android:id="@+id/button_send"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="发送" />
+
+    </LinearLayout>
+
+</LinearLayout>

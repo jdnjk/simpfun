@@ -35,11 +35,11 @@ public class AuthActivity extends AppCompatActivity {
         TextView textViewAgreement = findViewById(R.id.textViewAgreement);
         String htmlText = "我已阅读并同意《<a href='https://www.yuque.com/simpfun/sfe/tos'>简幻欢用户协议</a>》和《<a href='https://github.com/jdnjk/simpfun/blob/master/eula/README.md'>隐私政策</a>》";
         textViewAgreement.setText(Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT));
-        textViewAgreement.setMovementMethod(LinkMovementMethod.getInstance()); // 使链接可点击
+        textViewAgreement.setMovementMethod(LinkMovementMethod.getInstance());
 
         initViews();
         setupClickListeners();
-        setLoginMode(); // 默认登录
+        setLoginMode();
     }
 
     private void initViews() {
@@ -102,7 +102,6 @@ public class AuthActivity extends AppCompatActivity {
             return;
         }
 
-        // 开始请求
         showLoading(true);
 
         GetToken getToken = new GetToken(this);
@@ -139,7 +138,6 @@ public class AuthActivity extends AppCompatActivity {
 
     private void onAuthSuccess(String msg) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-        // 跳转主页
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);

@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
 import androidx.annotation.Nullable;
 import okhttp3.*;
 
@@ -91,11 +90,8 @@ public class GetToken {
         sendRequest(request, callback);
     }
 
-    /**
-     * 发送请求（共用）
-     */
     private void sendRequest(Request request, Callback callback) {
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client = ApiClient.getInstance().getClient();
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
@@ -140,9 +136,6 @@ public class GetToken {
         });
     }
 
-    /**
-     * 保存 token 到 SharedPreferences
-     */
     private void saveToken(String token) {
         SharedPreferences sp = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
         sp.edit().putString(TOKEN_KEY, token).apply();

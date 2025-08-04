@@ -27,11 +27,10 @@ public class UserApi {
     }
 
     public void UserInfo(String authorizationToken) {
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client = ApiClient.getInstance().getClient();
 
         Request request = new Request.Builder()
                 .url("https://api.simpfun.cn/api/auth/info")
-                .header("User-Agent", "SimpfunAPP/1.1")
                 .header("Authorization", authorizationToken)
                 .build();
 

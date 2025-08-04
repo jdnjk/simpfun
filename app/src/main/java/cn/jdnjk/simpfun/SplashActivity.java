@@ -8,12 +8,14 @@ import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
+import com.tencent.bugly.crashreport.CrashReport;
 
 public class SplashActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        initBugly();
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             SharedPreferences sp = getSharedPreferences("token", MODE_PRIVATE);
@@ -28,5 +30,14 @@ public class SplashActivity extends AppCompatActivity {
                 finish();
             }
         }, 1500);
+    }
+
+    private void initBugly() {
+        String deviceInfo = android.os.Build.BRAND + ":" +
+                android.os.Build.MODEL + ":" +
+                android.os.Build.VERSION.RELEASE;
+        CrashReport.UserStrategy strategy = new CrashReport.UserStrategy(this);
+        strategy.setDeviceModel(deviceInfo);
+        CrashReport.initCrashReport(getApplicationContext(), "bb4476237b", false, strategy);
     }
 }

@@ -37,10 +37,12 @@ android {
 dependencies {
     implementation 'com.tencent.bugly:crashreport:latest.release'
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'
+    implementation 'com.github.Fox2Code.AndroidANSI:library:1.2.0'
 
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.9.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.1'
     implementation 'androidx.navigation:navigation-fragment:2.6.0'
