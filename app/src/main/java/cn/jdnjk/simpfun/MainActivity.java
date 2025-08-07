@@ -12,7 +12,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
-import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -78,10 +77,6 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(JSONObject data) {
                 try {
                     instanceList = data.getJSONArray("list");
-
-                    SharedPreferences sp = getSharedPreferences("server_data", Context.MODE_PRIVATE);
-                    sp.edit().putString("instance_list", instanceList.toString()).apply();
-
                     Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
                     if (currentFragment instanceof ServerFragment) {
                         ((ServerFragment) currentFragment).updateInstanceList(instanceList);

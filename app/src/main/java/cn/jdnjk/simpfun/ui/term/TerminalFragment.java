@@ -79,7 +79,7 @@ public class TerminalFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                mainHandler.post(() -> appendOutput("获取连接信息失败: " + errorMsg + "\n"));
+                mainHandler.post(() -> appendOutput("连接到终端失败: " + errorMsg + "\n"));
             }
         });
     }
@@ -95,6 +95,7 @@ public class TerminalFragment extends Fragment {
             @Override
             public void onOpen(@NonNull WebSocket webSocket, @NonNull Response response) {
                 mainHandler.post(() -> appendOutput("已连接到服务器\n"));
+                mainHandler.post(() -> appendOutput("感谢你使用 简幻欢\n"));
                 sendAuthMessage();
                 sendLogMessage();
             }
@@ -114,7 +115,8 @@ public class TerminalFragment extends Fragment {
                                 line = line.replaceAll("\u001b\\[\\?1h\u001b=", "")
                                         .replaceAll("\u001b\\[\\?2004h", "")
                                         .replaceAll("\u001b\\[K", "")
-                                        .replaceAll(">....", "");;
+                                        .replaceAll(">\\r\\n", "")
+                                        .replaceAll(">....", "");
                                 ansiBuffer.append(line).append("\n");
                             }
                             if (!isBufferUpdateScheduled) {
@@ -125,9 +127,44 @@ public class TerminalFragment extends Fragment {
                                     isBufferUpdateScheduled = false;
                                 }, RENDER_DELAY);
                             }
+                        } else if ("status".equals(event)) {
+                            JSONArray args = msg.optJSONArray("args");
+                            if (args != null && args.length() > 0) {
+                                String status = args.getString(0);
+                                if ("offline".equalsIgnoreCase(status)) {
+                                    appendOutput("服务器已停止。\n");
+                                }
+                            }
+                        } else if ("token expiring".equals(event)) {
+                            refreshTokenAndReAuth();
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
+                    }
+                });
+            }
+            private void refreshTokenAndReAuth() {
+                SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+                int deviceId = sp.getInt("device_id", -1);
+
+                new TermApi().getWebSocketInfo(requireContext(), deviceId, new TermApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        try {
+                            requestToken = data.getString("token");
+
+                            mainHandler.post(() -> {
+                                sendAuthMessage();
+                            });
+
+                        } catch (Exception e) {
+                            mainHandler.post(() -> appendOutput("Token 续期失败: " + e.getMessage() + "\n"));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        mainHandler.post(() -> appendOutput("Token 获取失败: " + errorMsg + "\n"));
                     }
                 });
             }

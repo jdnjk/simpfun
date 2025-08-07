@@ -56,7 +56,6 @@ public class PowerApi {
 
         Request request = new Request.Builder()
                 .url(url)
-                .post(RequestBody.create("", null))
                 .header("Authorization", token)
                 .build();
 
@@ -72,11 +71,6 @@ public class PowerApi {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 mainHandler.post(() -> {
-                    if (!response.isSuccessful()) {
-                        invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
-                        return;
-                    }
-
                     // 读取响应体
                     String responseBody = null;
                     try {

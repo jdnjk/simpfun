@@ -106,11 +106,6 @@ public class TermApi {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    if (!response.isSuccessful()) {
-                        invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
-                        return;
-                    }
-
                     String responseBody = null;
                     try {
                         responseBody = Objects.requireNonNull(response.body()).string();
@@ -121,15 +116,21 @@ public class TermApi {
                             // 提取 data 对象
                             JSONObject data = json.getJSONObject("data");
                             invokeCallback(callback, data, true, null);
+                        } else if (code == 500){
+                            String msg = ("由于当前节点负载已到达预设上限，无剩余可用资源，简幻欢官方拒绝了本次的连接，请稍后再试。");
+                            invokeCallback(callback, null, false, msg);
                         } else {
                             String msg = json.optString("msg", "操作失败");
                             invokeCallback(callback, null, false, msg);
                         }
                     } catch (JSONException e) {
+                        e.printStackTrace();
                         invokeCallback(callback, null, false, "数据解析错误");
                     } catch (Exception e) {
+                        e.printStackTrace();
                         invokeCallback(callback, null, false, "未知错误");
                     }
+
                 });
             }
         });

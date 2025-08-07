@@ -1,0 +1,7 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@+id/action_start" android:title="开机" app:showAsAction="never"/>
+    <item android:id="@+id/action_restart" android:title="重启" app:showAsAction="never"/>
+    <item android:id="@+id/action_stop" android:title="关机" app:showAsAction="never"/>
+    <item android:id="@+id/action_kill" android:title="强制关机" app:showAsAction="never"/>
+</menu>
+

@@ -3,6 +3,7 @@ package cn.jdnjk.simpfun.ui.server;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import cn.jdnjk.simpfun.api.MainApi;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
@@ -42,7 +44,6 @@ public class ServerFragment extends Fragment {
         adapter = new ServerAdapter(serverItems, token, (MainActivity) requireActivity());
         recyclerView.setAdapter(adapter);
 
-        // 设置下拉刷新监听器
         swipeRefreshLayout.setOnRefreshListener(this::refreshInstanceList);
 
         return root;
@@ -55,11 +56,24 @@ public class ServerFragment extends Fragment {
     private void refreshInstanceList() {
         swipeRefreshLayout.setRefreshing(true);
 
-        serverItems.clear();
-        adapter.notifyDataSetChanged();
+        MainApi api = new MainApi(requireContext());
+        api.getInstanceList(getToken(), new MainApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                JSONArray list = data.optJSONArray("list");
+                updateInstanceList(list);
+            }
 
-        updateInstanceList(null);
+            @Override
+            public void onFailure(String errorMsg) {
+                Log.e("ServerFragment", "刷新失败: " + errorMsg);
+                if (swipeRefreshLayout.isRefreshing()) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
+            }
+        });
     }
+
 
     public void updateInstanceList(@Nullable JSONArray list) {
         MainActivity activity = (MainActivity) getActivity();
@@ -78,9 +92,15 @@ public class ServerFragment extends Fragment {
             for (int i = 0; i < instanceList.length(); i++) {
                 try {
                     JSONObject obj = instanceList.getJSONObject(i);
+                    String name;
+                    if (obj.isNull("name") || obj.optString("name").trim().isEmpty()) {
+                        name = "未命名实例";
+                    } else {
+                        name = obj.getString("name");
+                    }
                     ServerItem item = new ServerItem(
                             obj.getInt("id"),
-                            obj.optString("name", "实例" + obj.getInt("id")),
+                            name,
                             obj.getString("cpu"),
                             obj.getString("ram"),
                             obj.getString("disk")
@@ -91,6 +111,7 @@ public class ServerFragment extends Fragment {
                 }
             }
         }
+
 
         if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
             swipeRefreshLayout.setRefreshing(false);
