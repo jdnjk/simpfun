@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
+import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import cn.jdnjk.simpfun.api.MainApi;
 import org.json.JSONArray;
@@ -31,9 +32,9 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
             if (itemId == R.id.navigation_server) {
                 fragment = new ServerFragment();
-            }/* else if (itemId == R.id.navigation_profile) {
+            } else if (itemId == R.id.navigation_profile) {
                 fragment = new ProfileFragment();
-            }*/
+            }
 
             if (fragment != null) {
                 loadFragment(fragment);

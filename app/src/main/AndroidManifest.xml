@@ -36,6 +36,14 @@
                 android:name=".ui.auth.AuthActivity"
                 android:exported="true">
         </activity>
+        <activity
+                android:name=".BuyPointActivity"
+                android:exported="true">
+        </activity>
+        <activity
+                android:name=".ui.setting.SettingsActivity"
+                android:exported="true">
+        </activity>
     </application>
 
 </manifest>

@@ -1,0 +1,37 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/option_container"
+              android:layout_width="match_parent"
+              android:layout_height="52dp"
+              android:orientation="horizontal"
+              android:gravity="center_vertical"
+              android:paddingStart="16dp"
+              android:paddingEnd="12dp"
+              android:background="?attr/selectableItemBackground"
+              android:clickable="true"
+              android:focusable="true">
+
+    <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="选项名称"
+            android:textSize="16sp"
+            android:textColor="#000" />
+
+    <TextView
+            android:id="@+id/tv_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="14sp"
+            android:textColor="#757575"
+            android:layout_marginEnd="4dp" />
+
+    <ImageView
+            android:id="@+id/iv_arrow"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_arrow_forward"
+            android:contentDescription="更多" />
+</LinearLayout>

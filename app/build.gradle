@@ -7,13 +7,15 @@ android {
     compileSdk 35
 
     defaultConfig {
+        buildConfigField "String", "VERSION_NAME", "\"1.0.0\""
+        buildConfigField 'int', 'VERSION_CODE', "1000"
         applicationId "cn.jdnjk.simpfun"
         minSdk 25
         targetSdk 35
         versionCode 1000
-        versionName "1.0"
+        versionName "1.0.0"
         ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -31,16 +33,23 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 }
 
 dependencies {
+    //implementation "com.tencent.shiply:shiplyintegration:$shiply_integration_version"
+    //implementation("com.tencent.shiply:upgrade:$upgrade_version")
+    //implementation("com.tencent.shiply:upgrade-ui:$upgrade_version")
+    //implementation("com.tencent.shiply:upgrade-diff-pkg-patch:$upgrade_version")
+
     implementation 'com.tencent.bugly:crashreport:latest.release'
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'
     implementation 'com.github.Fox2Code.AndroidANSI:library:1.2.0'
 
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.9.1'

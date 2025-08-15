@@ -5,8 +5,8 @@
             android:icon="@android:drawable/ic_dialog_dialer"
             android:title="服务器" />
 
-<!--    <item-->
-<!--            android:id="@+id/navigation_profile"-->
-<!--            android:icon="@android:drawable/ic_menu_manage"-->
-<!--            android:title="个人中心" />-->
+    <item
+            android:id="@+id/navigation_profile"
+            android:icon="@android:drawable/ic_menu_manage"
+            android:title="个人中心" />
 </menu>

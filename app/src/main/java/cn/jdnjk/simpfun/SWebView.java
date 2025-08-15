@@ -10,22 +10,17 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 public class SWebView extends AppCompatActivity {
-
     private WebView webView;
     private static final String DEFAULT_URL = "https://cn.bing.com";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_webview);
-
         webView = findViewById(R.id.webview);
-
         WebSettings webSettings = webView.getSettings();
         webSettings.setDomStorageEnabled(true);
         webSettings.setJavaScriptEnabled(true);
         webSettings.setUserAgentString("Mozilla/5.0 (Linux; U; Android; zh-cn;) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/138.0.0.0 MQQBrowser/9.1 Mobile Safari/537.36 SimpfunAPP/1.0");
-
         webView.setWebViewClient(new WebViewClient());
         loadUrlFromIntent();
     }
@@ -42,7 +37,6 @@ public class SWebView extends AppCompatActivity {
             webView.loadUrl(DEFAULT_URL);
         }
     }
-
     private boolean isValidUrl(String urlString) {
         try {
             new URL(urlString);
@@ -51,7 +45,6 @@ public class SWebView extends AppCompatActivity {
             return false;
         }
     }
-
     @Override
     public void onBackPressed() {
         if (webView.canGoBack()) {

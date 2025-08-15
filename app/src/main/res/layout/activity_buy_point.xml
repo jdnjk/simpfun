@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:padding="16dp"
+              android:background="#FFFFFF">
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="充值积分"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"
+            android:layout_gravity="center" />
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="选择充值档位"
+            android:textSize="16sp"
+            android:textColor="#555"
+            android:layout_marginBottom="12dp" />
+
+    <RadioGroup
+            android:id="@+id/radio_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+        <RadioButton android:id="@+id/radio_0" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="200积分 · ¥6" />
+        <RadioButton android:id="@+id/radio_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="600积分 · ¥30" />
+        <RadioButton android:id="@+id/radio_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="3300积分 · ¥158" />
+        <RadioButton android:id="@+id/radio_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="12000积分 · ¥588" />
+        <RadioButton android:id="@+id/radio_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="40000积分 · ¥1888" />
+    </RadioGroup>
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="选择支付方式"
+            android:textSize="16sp"
+            android:textColor="#555"
+            android:layout_marginBottom="8dp" />
+
+    <RadioGroup
+            android:id="@+id/radio_payment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+        <RadioButton
+                android:id="@+id/radio_alipay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="支付宝支付(减免0.5%)" />
+
+        <RadioButton
+                android:id="@+id/radio_wechat"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="微信支付（需手动打开）" />
+    </RadioGroup>
+
+    <Button
+            android:id="@+id/btn_pay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="支付"
+            android:textSize="16sp"
+            android:padding="14dp"
+            android:backgroundTint="#00796B"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="12dp" />
+
+    <Button
+            android:id="@+id/btn_copy_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="复制支付链接"
+            android:textSize="14sp"
+            android:padding="12dp"
+            android:backgroundTint="#757575"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
+    <TextView
+            android:id="@+id/tv_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提示：微信支付需复制链接后在微信中打开"
+            android:textSize="12sp"
+            android:textColor="#888"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+
+</LinearLayout>

@@ -9,6 +9,7 @@ import android.widget.Toast;
 
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
+import com.tencent.bugly.crashreport.CrashReport;
 import okhttp3.*;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -90,6 +91,7 @@ public class UserApi {
         try {
             editor.putInt("uid", userInfo.getInt("id"));
             editor.putString("username", userInfo.getString("username"));
+            CrashReport.setUserId(userInfo.getString("username") + "/" + userInfo.getInt("id"));
             editor.putInt("point", userInfo.getInt("point"));
             editor.putInt("diamond", userInfo.getInt("diamond"));
             editor.putLong("queue_time", userInfo.getLong("queue_time"));
@@ -99,7 +101,6 @@ public class UserApi {
             editor.putLong("qq", userInfo.getLong("qq"));
             editor.putBoolean("pro", userInfo.getBoolean("is_pro"));
             editor.putBoolean("pro_valid", userInfo.getBoolean("pro_valid"));
-
             JSONObject announcement = userInfo.getJSONObject("announcement");
             editor.putString("announcement_title", announcement.getString("title"));
             editor.putString("announcement_text", announcement.getString("text"));

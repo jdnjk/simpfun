@@ -1,23 +1,188 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:gravity="center"
-              android:orientation="vertical"
-              android:padding="16dp">
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/swipe_refresh"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="个人中心"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+        <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
 
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="11111"
-            android:textColor="#555" />
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
-</LinearLayout>
+            <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#CCCCCC" />
+
+            <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginVertical="12dp">
+
+                <TextView
+                        android:id="@+id/tv_username"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="用户名：加载中"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#000" />
+
+                <TextView
+                        android:id="@+id/tv_uid"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="UID: 0"
+                        android:textSize="16sp"
+                        android:textColor="#555" />
+            </LinearLayout>
+
+            <TextView
+                    android:id="@+id/tv_qq"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="QQ: 未绑定"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp"
+                    android:textColor="#555" />
+
+            <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#CCCCCC" />
+
+            <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginVertical="12dp">
+
+                <LinearLayout
+                        android:id="@+id/layout_click_point"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:padding="8dp">
+
+                    <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="积分"
+                            android:textSize="14sp"
+                            android:textColor="#555" />
+
+                    <TextView
+                            android:id="@+id/tv_point"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                </LinearLayout>
+
+                <View
+                        android:layout_width="1dp"
+                        android:layout_height="40dp"
+                        android:background="#CCCCCC" />
+
+                <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="8dp">
+
+                    <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="钻石"
+                            android:textSize="14sp"
+                            android:textColor="#555" />
+
+                    <TextView
+                            android:id="@+id/tv_diamond"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="#E91E63" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#CCCCCC" />
+
+            <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="公告"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="8dp"
+                    android:textColor="#333" />
+
+            <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="4dp"
+                    app:cardBackgroundColor="#F9F9F9"
+                    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+                <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                    <TextView
+                            android:id="@+id/tv_announcement_title"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="暂无公告"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#1A73E8" />
+
+                    <TextView
+                            android:id="@+id/tv_announcement_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="暂无内容"
+                            android:textSize="14sp"
+                            android:textColor="#555"
+                            android:lineSpacingExtra="4dp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <Button
+                    android:id="@+id/btn_settings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="设置"
+                    android:textSize="16sp"
+                    android:padding="12dp" />
+
+        </LinearLayout>
+    </ScrollView>
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#F5F5F5"
+            android:paddingTop="8dp">
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="24dp"
+                android:text="设置"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#000000" />
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="当前版本："
+                android:textSize="14sp"
+                android:textColor="#777" />
+
+        <TextView
+                android:id="@+id/tv_version"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="24dp"
+                android:text="v1.0.0"
+                android:textSize="14sp"
+                android:textColor="#555" />
+
+        <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+            <include
+                    android:id="@+id/option_update_source"
+                    android:tag="update_source"
+                    layout="@layout/item_settings_option" />
+
+            <View
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:background="#F5F5F5" />
+
+            <include
+                    layout="@layout/item_settings_option"
+                    android:id="@+id/option_check_update"
+                    android:tag="check_update" />
+
+            <include
+                    layout="@layout/item_settings_option"
+                    android:id="@+id/option_login_browser"
+                    android:tag="login_browser" />
+
+            <View
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:background="#F5F5F5" />
+
+            <include
+                    layout="@layout/item_settings_option"
+                    android:id="@+id/option_logout"
+                    android:tag="logout" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
