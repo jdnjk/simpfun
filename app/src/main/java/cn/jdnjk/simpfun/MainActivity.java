@@ -1,7 +1,9 @@
 package cn.jdnjk.simpfun;
 
+import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,9 +17,7 @@ import org.json.JSONObject;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
 
 public class MainActivity extends AppCompatActivity {
-
     private JSONArray instanceList;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

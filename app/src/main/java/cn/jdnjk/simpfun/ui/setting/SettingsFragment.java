@@ -14,8 +14,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
+import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
+
+import java.io.File;
 
 public class SettingsFragment extends Fragment {
 
@@ -43,7 +46,7 @@ public class SettingsFragment extends Fragment {
 
         tvUpdateSourceTitle.setText("更新源");
 
-        String currentSource = updateSp.getString("update_channel", "china");
+        String currentSource = updateSp.getString("update_channel", "github");
         tvUpdateSourceSub.setText(currentSource.equals("github") ? "GitHub 源" : "国内源");
 
         optionUpdateSource.setOnClickListener(v -> showUpdateSourceDialog(tvUpdateSourceSub));
@@ -55,8 +58,49 @@ public class SettingsFragment extends Fragment {
         optionCheckUpdate.findViewById(R.id.tv_subtitle).setVisibility(View.GONE);
 
         optionCheckUpdate.setOnClickListener(v -> {
-            Toast.makeText(requireContext(), "正在检查更新...", Toast.LENGTH_SHORT).show();
-            // TODO: 实现检查更新逻辑
+            final UpdateHelper[] helperRef = new UpdateHelper[1];
+
+            UpdateHelper.UpdateListener listener = new UpdateHelper.UpdateListener() {
+                @Override
+                public void onChecking() {
+                    Toast.makeText(requireContext(), "正在检查更新...", Toast.LENGTH_SHORT).show();
+                }
+                @Override
+                public void onNoUpdate() {
+                    Toast.makeText(requireContext(), "当前已是最新版本", Toast.LENGTH_SHORT).show();
+                }
+                @Override
+                public void onFoundNewVersion(String version, String downloadUrl) {
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("发现新版本")
+                            .setMessage("检测到新版本：" + version + "\n\n是否下载更新？\n\n文件将保存到缓存目录。")
+                            .setPositiveButton("立即下载", (d, w) -> {
+                                if (helperRef[0] != null) {
+                                    helperRef[0].downloadApk(downloadUrl);
+                                }
+                            })
+                            .setNegativeButton("稍后再说", null)
+                            .show();
+                }
+                @Override
+                public void onDownloadStart() {
+                    Toast.makeText(requireContext(), "开始下载...", Toast.LENGTH_SHORT).show();
+                }
+                @Override
+                public void onDownloadSuccess(File apkFile) {
+                    Toast.makeText(requireContext(), "下载完成，准备安装", Toast.LENGTH_SHORT).show();
+                    UpdateHelper.installApk(requireContext(), apkFile);
+                }
+                @Override
+                public void onDownloadError(String error) {
+                    Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
+                }
+            };
+            helperRef[0] = new UpdateHelper(requireContext(), listener);
+
+            String currentVersion = BuildConfig.VERSION_NAME;
+            String updateChannel = updateSp.getString("update_channel", "china");
+            helperRef[0].checkForUpdate(currentVersion, updateChannel);
         });
 
         View optionLoginBrowser = root.findViewById(R.id.option_login_browser);
