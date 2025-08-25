@@ -91,7 +91,7 @@ public class UserApi {
         try {
             editor.putInt("uid", userInfo.getInt("id"));
             editor.putString("username", userInfo.getString("username"));
-            //CrashReport.setUserId(userInfo.getString("username") + "/" + userInfo.getInt("id"));
+            CrashReport.setUserId(userInfo.getString("username") + "/" + userInfo.getInt("id"));
             editor.putInt("point", userInfo.getInt("point"));
             editor.putInt("diamond", userInfo.getInt("diamond"));
             editor.putLong("queue_time", userInfo.getLong("queue_time"));

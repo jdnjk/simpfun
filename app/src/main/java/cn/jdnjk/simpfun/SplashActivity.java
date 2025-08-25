@@ -10,12 +10,13 @@ import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import com.tencent.bugly.crashreport.CrashReport;
 
+import static cn.jdnjk.simpfun.BuildConfig.BUGLY_ID;
+
 public class SplashActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        initBugly();
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             SharedPreferences sp = getSharedPreferences("token", MODE_PRIVATE);
@@ -24,6 +25,7 @@ public class SplashActivity extends AppCompatActivity {
             Intent intent;
             if (token != null && !token.isEmpty()) {
                 new UserApi(this).UserInfo(token);
+                initBugly();
             } else {
                 intent = new Intent(SplashActivity.this, AuthActivity.class);
                 startActivity(intent);
@@ -38,6 +40,6 @@ public class SplashActivity extends AppCompatActivity {
                 android.os.Build.VERSION.RELEASE;
         CrashReport.UserStrategy strategy = new CrashReport.UserStrategy(this);
         strategy.setDeviceModel(deviceInfo);
-        CrashReport.initCrashReport(getApplicationContext(), "bb4476237b", false, strategy);
+        CrashReport.initCrashReport(getApplicationContext(), BUGLY_ID, false, strategy);
     }
 }
