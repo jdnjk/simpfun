@@ -1,19 +1,30 @@
 plugins {
     id 'com.android.application'
 }
+def isGithubActions = System.getenv('GITHUB_ACTIONS') == 'true'
+
+def signingProps = new Properties()
+def hasSignConfig = false
+if (!isGithubActions) {
+    def signFile = rootProject.file('sign.properties')
+    if (signFile.exists()) {
+        signFile.withInputStream { stream -> signingProps.load(stream) }
+        hasSignConfig = true
+    }
+}
 
 android {
     namespace 'cn.jdnjk.simpfun'
     compileSdk 35
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.0.0\""
-        buildConfigField 'int', 'VERSION_CODE', "1000"
+        buildConfigField "String", "VERSION_NAME", "\"1.0.1\""
+        buildConfigField 'int', 'VERSION_CODE', "1010"
         applicationId "cn.jdnjk.simpfun"
         minSdk 25
         targetSdk 35
-        versionCode 1000
-        versionName "1.0.0"
+        versionCode 1011
+        versionName "1.0.1"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
@@ -26,19 +37,55 @@ android {
         } else {
             buildConfigField "String", "BUGLY_ID", "null"
         }
+        def shiplyID = project.hasProperty("shiply_id") ? project.getProperty("shiply_id") : null
+        if (shiplyID != null) {
+            buildConfigField "String", "SHIPLY_ID", "\"${shiplyID}\""
+        } else {
+            buildConfigField "String", "SHIPLY_ID", "null"
+        }
+        def shiplyKey = project.hasProperty("shiply_key") ? project.getProperty("shiply_key") : null
+        if (shiplyKey != null) {
+            buildConfigField "String", "SHIPLY_KEY", "\"${shiplyKey}\""
+        } else {
+            buildConfigField "String", "SHIPLY_KEY", "null"
+        }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasSignConfig) {
+            release {
+                storeFile file(signingProps['storeFile'])
+                storePassword signingProps['storePassword']
+                keyAlias signingProps['keyAlias']
+                keyPassword signingProps['keyPassword']
+            }
+            debug {
+                storeFile file(signingProps['storeFile'])
+                storePassword signingProps['storePassword']
+                keyAlias signingProps['keyAlias']
+                keyPassword signingProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasSignConfig) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            if (hasSignConfig) {
+                signingConfig signingConfigs.debug
+            }
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     buildFeatures {
         viewBinding true
@@ -47,12 +94,12 @@ android {
 }
 
 dependencies {
-    //implementation "com.tencent.shiply:shiplyintegration:$shiply_integration_version"
-    //implementation("com.tencent.shiply:upgrade:$upgrade_version")
-    //implementation("com.tencent.shiply:upgrade-ui:$upgrade_version")
-    //implementation("com.tencent.shiply:upgrade-diff-pkg-patch:$upgrade_version")
-
+    implementation "com.tencent.shiply:shiplyintegration:$shiply_integration_version"
+    implementation("com.tencent.shiply:upgrade:$upgrade_version")
+    implementation("com.tencent.shiply:upgrade-ui:$upgrade_version")
+    implementation("com.tencent.shiply:upgrade-diff-pkg-patch:$upgrade_version")
     implementation 'com.tencent.bugly:crashreport:latest.release'
+
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'
     implementation 'com.github.Fox2Code.AndroidANSI:library:1.2.0'
 

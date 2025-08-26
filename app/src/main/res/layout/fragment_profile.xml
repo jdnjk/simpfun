@@ -35,7 +35,7 @@
                         android:text="用户名：加载中"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="#000" />
+                        android:textColor="@color/black" />
 
                 <TextView
                         android:id="@+id/tv_uid"
@@ -152,7 +152,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:padding="12dp"
+                        android:background="@color/white">
 
                     <TextView
                             android:id="@+id/tv_announcement_title"
@@ -170,7 +171,7 @@
                             android:layout_marginTop="4dp"
                             android:text="暂无内容"
                             android:textSize="14sp"
-                            android:textColor="#555"
+                            android:textColor="@color/black"
                             android:lineSpacingExtra="4dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

@@ -23,13 +23,11 @@ import java.io.File;
 public class SettingsFragment extends Fragment {
 
     private SharedPreferences sp;
-    private SharedPreferences updateSp;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sp = requireContext().getSharedPreferences("token", 0);
-        updateSp = requireContext().getSharedPreferences("settings", 0);
     }
 
     @Nullable
@@ -38,24 +36,15 @@ public class SettingsFragment extends Fragment {
         View root = inflater.inflate(R.layout.fragment_settings, container, false);
 
         SharedPreferences sp = requireContext().getSharedPreferences("token", 0);
-        SharedPreferences updateSp = requireContext().getSharedPreferences("settings", 0);
-
-        View optionUpdateSource = root.findViewById(R.id.option_update_source);
-        TextView tvUpdateSourceTitle = optionUpdateSource.findViewById(R.id.tv_title);
-        TextView tvUpdateSourceSub = optionUpdateSource.findViewById(R.id.tv_subtitle);
-
-        tvUpdateSourceTitle.setText("更新源");
-
-        String currentSource = updateSp.getString("update_channel", "github");
-        tvUpdateSourceSub.setText(currentSource.equals("github") ? "GitHub 源" : "国内源");
-
-        optionUpdateSource.setOnClickListener(v -> showUpdateSourceDialog(tvUpdateSourceSub));
 
         View optionCheckUpdate = root.findViewById(R.id.option_check_update);
         TextView tvCheckUpdate = optionCheckUpdate.findViewById(R.id.tv_title);
         tvCheckUpdate.setText("检查更新");
         optionCheckUpdate.findViewById(R.id.iv_arrow).setVisibility(View.VISIBLE);
-        optionCheckUpdate.findViewById(R.id.tv_subtitle).setVisibility(View.GONE);
+        TextView tvCheckUpdateSubtitle = optionCheckUpdate.findViewById(R.id.tv_subtitle);
+        String currentVersion = BuildConfig.VERSION_NAME;
+        tvCheckUpdateSubtitle.setVisibility(View.VISIBLE);
+        tvCheckUpdateSubtitle.setText("当前版本：" + currentVersion);
 
         optionCheckUpdate.setOnClickListener(v -> {
             final UpdateHelper[] helperRef = new UpdateHelper[1];
@@ -98,8 +87,7 @@ public class SettingsFragment extends Fragment {
             };
             helperRef[0] = new UpdateHelper(requireContext(), listener);
 
-            String currentVersion = BuildConfig.VERSION_NAME;
-            String updateChannel = updateSp.getString("update_channel", "china");
+            String updateChannel = "github";
             helperRef[0].checkForUpdate(currentVersion, updateChannel);
         });
 
@@ -133,27 +121,5 @@ public class SettingsFragment extends Fragment {
         });
 
         return root;
-    }
-    private void showUpdateSourceDialog(TextView tvUpdateSourceSub) {
-        String[] sources = {"GitHub 源", "国内源"};
-        String[] values = {"github", "china"};
-        String current = updateSp.getString("update_channel", "china");
-        int checkedItem = current.equals("china") ? 1 : 0;
-
-        new AlertDialog.Builder(requireContext())
-                .setTitle("选择更新源")
-                .setSingleChoiceItems(sources, checkedItem, null)
-                .setPositiveButton("确定", (dialog, which) -> {
-                    int selectedPos = ((AlertDialog) dialog).getListView().getCheckedItemPosition();
-                    String selectedValue = values[selectedPos];
-                    // 保存
-                    updateSp.edit().putString("update_channel", selectedValue).apply();
-                    // 更新 UI
-                    tvUpdateSourceSub.setText(sources[selectedPos]);
-                    Toast.makeText(requireContext(), "已切换到：" + sources[selectedPos], Toast.LENGTH_SHORT).show();
-                    dialog.dismiss();
-                })
-                .setNegativeButton("取消", null)
-                .show();
     }
 }

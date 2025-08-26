@@ -21,39 +21,10 @@
                 android:textStyle="bold"
                 android:textColor="#000000" />
 
-        <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginBottom="8dp"
-                android:text="当前版本："
-                android:textSize="14sp"
-                android:textColor="#777" />
-
-        <TextView
-                android:id="@+id/tv_version"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginBottom="24dp"
-                android:text="v1.0.0"
-                android:textSize="14sp"
-                android:textColor="#555" />
-
         <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
-
-            <include
-                    android:id="@+id/option_update_source"
-                    android:tag="update_source"
-                    layout="@layout/item_settings_option" />
-
-            <View
-                    android:layout_width="match_parent"
-                    android:layout_height="8dp"
-                    android:background="#F5F5F5" />
 
             <include
                     layout="@layout/item_settings_option"

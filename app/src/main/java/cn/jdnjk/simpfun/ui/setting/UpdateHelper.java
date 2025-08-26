@@ -3,13 +3,15 @@ package cn.jdnjk.simpfun.ui.setting;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.widget.Toast;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import android.util.Log;
 import cn.jdnjk.simpfun.api.ApiClient;
+import com.tencent.upgrade.core.UpgradeManager;
+import com.tencent.upgrade.core.UpgradeReqCallbackForUserManualCheck;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
@@ -42,8 +44,6 @@ public class UpdateHelper {
     public void checkForUpdate(String currentVersion, String updateChannel) {
         if ("github".equals(updateChannel)) {
             fetchGitHubRelease(currentVersion);
-        } else {
-            Toast.makeText(context, "国内源暂未支持检查更新", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -73,6 +73,8 @@ public class UpdateHelper {
                 try {
                     JSONArray releases = new JSONArray(response.body().string());
                     if (releases.length() == 0) {
+                        Log.d("UpdateHelper", "没有可用的更新");
+                        UpgradeManager.getInstance().checkUpgrade(true, null, new UpgradeReqCallbackForUserManualCheck());
                         postToUi(() -> listener.onNoUpdate());
                         return;
                     }
@@ -81,6 +83,8 @@ public class UpdateHelper {
                     boolean isPreRelease = latestRelease.getBoolean("prerelease");
                     String latestVersion = tagName.startsWith("v") ? tagName.substring(1) : tagName;
                     if (!isVersionNewer(latestVersion, currentVersion)) {
+                        Log.d("UpdateHelper", "当前版本已是最新版本");
+                        UpgradeManager.getInstance().checkUpgrade(true, null, new UpgradeReqCallbackForUserManualCheck());
                         postToUi(() -> listener.onNoUpdate());
                         return;
                     }
