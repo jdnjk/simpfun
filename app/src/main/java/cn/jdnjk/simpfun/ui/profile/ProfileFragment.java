@@ -103,11 +103,19 @@ public class ProfileFragment extends Fragment {
         if (token == null || token.isEmpty()) {
             Toast.makeText(context, "未登录，请重新登录", Toast.LENGTH_SHORT).show();
             swipeRefresh.setRefreshing(false);
-            navigateToLogin();
             return;
         }
+
         UserApi userApi = new UserApi(context);
         userApi.UserInfo(token);
+        new Handler().postDelayed(() -> {
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    loadUserInfo();
+                    stopRefresh();
+                });
+            }
+        }, 2000);
 
         new Handler().postDelayed(this::stopRefresh, 10000);
     }

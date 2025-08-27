@@ -10,8 +10,8 @@ import java.io.InputStream;
 
 import android.util.Log;
 import cn.jdnjk.simpfun.api.ApiClient;
-import com.tencent.upgrade.core.UpgradeManager;
-import com.tencent.upgrade.core.UpgradeReqCallbackForUserManualCheck;
+//import com.tencent.upgrade.core.UpgradeManager;
+//import com.tencent.upgrade.core.UpgradeReqCallbackForUserManualCheck;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
@@ -74,7 +74,7 @@ public class UpdateHelper {
                     JSONArray releases = new JSONArray(response.body().string());
                     if (releases.length() == 0) {
                         Log.d("UpdateHelper", "没有可用的更新");
-                        UpgradeManager.getInstance().checkUpgrade(true, null, new UpgradeReqCallbackForUserManualCheck());
+                        //UpgradeManager.getInstance().checkUpgrade(true, null, new UpgradeReqCallbackForUserManualCheck());
                         postToUi(() -> listener.onNoUpdate());
                         return;
                     }
@@ -84,7 +84,7 @@ public class UpdateHelper {
                     String latestVersion = tagName.startsWith("v") ? tagName.substring(1) : tagName;
                     if (!isVersionNewer(latestVersion, currentVersion)) {
                         Log.d("UpdateHelper", "当前版本已是最新版本");
-                        UpgradeManager.getInstance().checkUpgrade(true, null, new UpgradeReqCallbackForUserManualCheck());
+                        //UpgradeManager.getInstance().checkUpgrade(true, null, new UpgradeReqCallbackForUserManualCheck());
                         postToUi(() -> listener.onNoUpdate());
                         return;
                     }

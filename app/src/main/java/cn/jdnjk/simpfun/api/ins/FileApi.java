@@ -238,7 +238,7 @@ public class FileApi {
                 .build();
 
         OkHttpClient client = ApiClient.getInstance().getClient();
-        
+
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -252,6 +252,70 @@ public class FileApi {
                 if (!response.isSuccessful()) {
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                         if (downloadCallback != null) downloadCallback.onFailure("HTTP 错误: " + response.code());
+                    });
+                    return;
+                }
+
+                try {
+                    if (response.body() != null) {
+                        String responseString = response.body().string();
+
+                        JSONObject jsonResponse = new JSONObject(responseString);
+                        int code = jsonResponse.optInt("code", -1);
+
+                        if (code == 200) {
+                            String downloadLink = jsonResponse.optString("link", null);
+                            if (downloadLink != null && !downloadLink.isEmpty()) {
+                                downloadFromDirectLink(downloadLink, localFile, downloadCallback);
+                            } else {
+                                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                    if (downloadCallback != null) downloadCallback.onFailure("响应中没有下载链接");
+                                });
+                            }
+                        } else {
+                            String errorMsg = jsonResponse.optString("message", "未知错误");
+                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                if (downloadCallback != null) downloadCallback.onFailure("服务器错误: " + errorMsg);
+                            });
+                        }
+                    } else {
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                            if (downloadCallback != null) downloadCallback.onFailure("空的响应体");
+                        });
+                    }
+                } catch (JSONException e) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        if (downloadCallback != null) downloadCallback.onFailure("响应解析失败: " + e.getMessage());
+                    });
+                } catch (Exception e) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        if (downloadCallback != null) downloadCallback.onFailure("下载失败: " + e.getMessage());
+                    });
+                }
+            }
+        });
+    }
+
+    private void downloadFromDirectLink(String downloadUrl, java.io.File localFile, DownloadCallback downloadCallback) {
+        OkHttpClient client = ApiClient.getInstance().getClient();
+
+        Request request = new Request.Builder()
+                .url(downloadUrl)
+                .build();
+
+        client.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    if (downloadCallback != null) downloadCallback.onFailure("文件下载失败: " + e.getMessage());
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        if (downloadCallback != null) downloadCallback.onFailure("文件下载HTTP错误: " + response.code());
                     });
                     return;
                 }
@@ -294,7 +358,7 @@ public class FileApi {
                         });
                     } else {
                         new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                            if (downloadCallback != null) downloadCallback.onFailure("空的响应体");
+                            if (downloadCallback != null) downloadCallback.onFailure("文件内容为空");
                         });
                     }
                 } catch (Exception e) {

@@ -5,12 +5,15 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ScrollView;
+import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -50,6 +53,30 @@ public class TerminalFragment extends Fragment {
         scrollViewOutput = root.findViewById(R.id.scroll_view_output);
 
         buttonSend.setOnClickListener(v -> sendCommand());
+
+        editTextCommand.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_GO ||
+                    actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_NULL) {
+                    sendCommand();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        editTextCommand.setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEvent event) {
+                if (keyCode == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
+                    sendCommand();
+                    editTextCommand.requestFocus();
+                    return true;
+                }
+                return false;
+            }
+        });
 
         connectToTerminal();
         textViewOutput.setTextIsSelectable(true);

@@ -1,35 +1,129 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/swipe_refresh_layout"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-    <LinearLayout
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipe_refresh_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
-        <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler_view_files"
+            android:layout_height="match_parent">
+
+        <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+            <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_view_files"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
 
-        <ProgressBar
-                android:id="@+id/progress_bar"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:visibility="gone" />
+            <ProgressBar
+                    android:id="@+id/progress_bar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="gone" />
 
-        <TextView
-                android:id="@+id/empty_view"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="加载中..."
-                android:textSize="16sp"
-                android:visibility="gone" />
+            <TextView
+                    android:id="@+id/empty_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="加载中..."
+                    android:textSize="16sp"
+                    android:visibility="gone" />
 
-    </LinearLayout>
+        </LinearLayout>
 
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_main"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@android:drawable/ic_input_add"
+            app:backgroundTint="@android:color/holo_blue_bright" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_new_folder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="88dp"
+            android:src="@android:drawable/ic_menu_add"
+            android:visibility="gone"
+            app:backgroundTint="@android:color/holo_orange_light"
+            app:fabSize="mini" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_new_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="144dp"
+            android:src="@android:drawable/ic_menu_edit"
+            android:visibility="gone"
+            app:backgroundTint="@android:color/holo_green_light"
+            app:fabSize="mini" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_upload_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="200dp"
+            android:src="@android:drawable/ic_menu_upload"
+            android:visibility="gone"
+            app:backgroundTint="@android:color/holo_purple"
+            app:fabSize="mini" />
+
+    <TextView
+            android:id="@+id/tv_new_folder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="72dp"
+            android:layout_marginBottom="96dp"
+            android:background="@android:color/black"
+            android:padding="8dp"
+            android:text="新建文件夹"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+    <TextView
+            android:id="@+id/tv_new_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="72dp"
+            android:layout_marginBottom="152dp"
+            android:background="@android:color/black"
+            android:padding="8dp"
+            android:text="新建文件"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+    <TextView
+            android:id="@+id/tv_upload_file"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="72dp"
+            android:layout_marginBottom="208dp"
+            android:background="@android:color/black"
+            android:padding="8dp"
+            android:text="上传文件"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

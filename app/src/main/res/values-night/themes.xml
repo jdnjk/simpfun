@@ -12,5 +12,21 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
+        <item name="popupMenuStyle">@style/CustomPopupMenu</item>
+    </style>
+    <style name="Theme.Simpfun.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="Theme.Simpfun.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
+        <item name="android:textColorPrimary">@color/black</item>
+        <item name="android:textColorSecondary">@color/black</item>
+        <item name="actionMenuTextColor">@color/black</item>
+    </style>
+    <style name="Theme.Simpfun.PopupOverlay" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="android:textColor">@color/black</item>
+    </style>
+    <style name="CustomPopupMenu" parent="@style/Widget.AppCompat.PopupMenu">
+        <item name="android:textColor">@color/black</item>
     </style>
 </resources>

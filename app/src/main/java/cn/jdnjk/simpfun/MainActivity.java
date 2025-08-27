@@ -1,12 +1,16 @@
 package cn.jdnjk.simpfun;
 
-import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -21,7 +25,30 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(lp);
+        }
+
         setContentView(R.layout.activity_server);
+
+        View rootView = findViewById(android.R.id.content);
+        ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+
+            View appBarLayout = findViewById(R.id.app_bar_layout);
+            if (appBarLayout != null) {
+                appBarLayout.setPadding(
+                    appBarLayout.getPaddingLeft(),
+                    statusBarHeight,
+                    appBarLayout.getPaddingRight(),
+                    appBarLayout.getPaddingBottom());
+            }
+
+            return insets;
+        });
 
         BottomNavigationView navView = findViewById(R.id.nav_view);
 
@@ -47,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
                     instanceList = new JSONArray(cachedJson);
                     updateCurrentFragment();
                 } catch (JSONException e) {
-                    e.printStackTrace();
+                    Log.e("MainActivity", "Failed to parse cached instance list", e);
                 }
             }
 
@@ -83,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
                         ((ServerFragment) currentFragment).updateInstanceList(instanceList);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.e("MainActivity", "Failed to parse instance list from API response", e);
                     Toast.makeText(MainActivity.this, "解析数据失败", Toast.LENGTH_SHORT).show();
                 }
             }

@@ -52,7 +52,15 @@ public class ServerFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        loadCachedDataIfAvailable();
     }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        loadCachedDataIfAvailable();
+    }
+
     private void refreshInstanceList() {
         swipeRefreshLayout.setRefreshing(true);
 
@@ -123,5 +131,42 @@ public class ServerFragment extends Fragment {
     private String getToken() {
         SharedPreferences sp = requireContext().getSharedPreferences("token", Context.MODE_PRIVATE);
         return sp.getString("token", null);
+    }
+
+    /**
+     * 尝试从MainActivity或缓存中加载数据
+     */
+    private void loadCachedDataIfAvailable() {
+        MainActivity activity = (MainActivity) getActivity();
+        if (activity != null) {
+            JSONArray cachedList = activity.getInstanceList();
+            if (cachedList != null && cachedList.length() > 0) {
+                updateInstanceList(cachedList);
+                return;
+            }
+        }
+
+        loadFromSharedPreferences();
+    }
+
+    /**
+     * 从SharedPreferences加载缓存的服务器数据
+     */
+    private void loadFromSharedPreferences() {
+        Context context = getContext();
+        if (context != null) {
+            SharedPreferences sp = context.getSharedPreferences("server_data", Context.MODE_PRIVATE);
+            String cachedJson = sp.getString("instance_list", null);
+            if (cachedJson != null) {
+                try {
+                    JSONArray cachedList = new JSONArray(cachedJson);
+                    if (cachedList.length() > 0) {
+                        updateInstanceList(cachedList);
+                    }
+                } catch (Exception e) {
+                    Log.e("ServerFragment", "解析缓存数据失败", e);
+                }
+            }
+        }
     }
 }
