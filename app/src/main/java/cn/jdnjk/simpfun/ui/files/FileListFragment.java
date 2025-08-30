@@ -18,6 +18,8 @@ import android.webkit.MimeTypeMap;
 import android.widget.*;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -48,21 +50,45 @@ public class FileListFragment extends Fragment {
     private FloatingActionButton fabNewFolder;
     private FloatingActionButton fabNewFile;
     private FloatingActionButton fabUploadFile;
+    private FloatingActionButton fabToolbox;
+
+    private FloatingActionButton fabCompress;
+    private FloatingActionButton fabExtract;
+    private FloatingActionButton fabRename;
+    private FloatingActionButton fabDelete;
+    private FloatingActionButton fabCut;
+    private FloatingActionButton fabCopy;
+    private FloatingActionButton fabPaste;
+
+    // 文本标签
     private TextView tvNewFolder;
     private TextView tvNewFile;
     private TextView tvUploadFile;
+    private TextView tvToolbox;
+    private TextView tvCompress;
+    private TextView tvExtract;
+    private TextView tvRename;
+    private TextView tvDelete;
+    private TextView tvCut;
+    private TextView tvCopy;
+    private TextView tvPaste;
+
     private boolean isFabMenuOpen = false;
 
     // 文件选择请求码
     private static final int REQUEST_PICK_FILE = 1001;
 
-    private List<FileItem> fileList = new ArrayList<>();
+    private final List<FileItem> fileList = new ArrayList<>();
     private String currentPath = "/";
     private static final String PARENT_DIR_NAME = "..";
 
+    // 剪贴板相关
+    private final List<String> cutFilesPaths = new ArrayList<>();
+    private String cutSourcePath = "";
+
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private Map<String, FileWatcher> fileWatchers = new HashMap<>();
-    private Map<String, Long> fileLastModified = new HashMap<>();
+    private final Map<String, FileWatcher> fileWatchers = new HashMap<>();
+    private final Map<String, Long> fileLastModified = new HashMap<>();
     private static final String TAG = "FileListFragment";
 
     @Nullable
@@ -77,7 +103,7 @@ public class FileListFragment extends Fragment {
 
         initFabButtons(view);
 
-        adapter = new FileAdapter(fileList, this::onFileItemClick);
+        adapter = new FileAdapter(fileList, this::onFileItemClick, this::onFileItemSelectionChanged);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerView.setAdapter(adapter);
 
@@ -93,10 +119,27 @@ public class FileListFragment extends Fragment {
         fabNewFolder = view.findViewById(R.id.fab_new_folder);
         fabNewFile = view.findViewById(R.id.fab_new_file);
         fabUploadFile = view.findViewById(R.id.fab_upload_file);
+        fabToolbox = view.findViewById(R.id.fab_toolbox);
+
+        fabCompress = view.findViewById(R.id.fab_compress);
+        fabExtract = view.findViewById(R.id.fab_extract);
+        fabRename = view.findViewById(R.id.fab_rename);
+        fabDelete = view.findViewById(R.id.fab_delete);
+        fabCut = view.findViewById(R.id.fab_cut);
+        fabCopy = view.findViewById(R.id.fab_copy);
+        fabPaste = view.findViewById(R.id.fab_paste);
 
         tvNewFolder = view.findViewById(R.id.tv_new_folder);
         tvNewFile = view.findViewById(R.id.tv_new_file);
         tvUploadFile = view.findViewById(R.id.tv_upload_file);
+        tvToolbox = view.findViewById(R.id.tv_toolbox);
+        tvCompress = view.findViewById(R.id.tv_compress);
+        tvExtract = view.findViewById(R.id.tv_extract);
+        tvRename = view.findViewById(R.id.tv_rename);
+        tvDelete = view.findViewById(R.id.tv_delete);
+        tvCut = view.findViewById(R.id.tv_cut);
+        tvCopy = view.findViewById(R.id.tv_copy);
+        tvPaste = view.findViewById(R.id.tv_paste);
 
         fabMain.setOnClickListener(v -> toggleFabMenu());
 
@@ -114,6 +157,56 @@ public class FileListFragment extends Fragment {
             closeFabMenu();
             openFileChooser();
         });
+
+        fabToolbox.setOnClickListener(v -> {
+            closeFabMenu();
+            showToolboxDialog();
+        });
+
+        // 添加选择模式相关的点击监听器
+        fabCompress.setOnClickListener(v -> {
+            closeFabMenu();
+            compressFiles(getSelectedItems());
+        });
+
+        fabExtract.setOnClickListener(v -> {
+            closeFabMenu();
+            List<FileItem> selectedItems = getSelectedItems();
+            if (!selectedItems.isEmpty()) {
+                extractFile(selectedItems.get(0));
+            }
+        });
+
+        fabRename.setOnClickListener(v -> {
+            closeFabMenu();
+            List<FileItem> selectedItems = getSelectedItems();
+            if (!selectedItems.isEmpty()) {
+                renameFile(selectedItems.get(0));
+            }
+        });
+
+        fabDelete.setOnClickListener(v -> {
+            closeFabMenu();
+            deleteFiles(getSelectedItems());
+        });
+
+        fabCut.setOnClickListener(v -> {
+            closeFabMenu();
+            cutFiles(getSelectedItems());
+        });
+
+        fabCopy.setOnClickListener(v -> {
+            closeFabMenu();
+            List<FileItem> selectedItems = getSelectedItems();
+            if (!selectedItems.isEmpty()) {
+                copyFile(selectedItems.get(0));
+            }
+        });
+
+        fabPaste.setOnClickListener(v -> {
+            closeFabMenu();
+            pasteFiles();
+        });
     }
 
     private void toggleFabMenu() {
@@ -127,19 +220,108 @@ public class FileListFragment extends Fragment {
     private void openFabMenu() {
         isFabMenuOpen = true;
 
-        fabNewFolder.setVisibility(View.VISIBLE);
-        fabNewFile.setVisibility(View.VISIBLE);
-        fabUploadFile.setVisibility(View.VISIBLE);
-        tvNewFolder.setVisibility(View.VISIBLE);
-        tvNewFile.setVisibility(View.VISIBLE);
-        tvUploadFile.setVisibility(View.VISIBLE);
+        int selectedCount = getSelectedItemsCount();
 
-        animateButton(fabNewFolder, true, 100);
-        animateButton(fabNewFile, true, 150);
-        animateButton(fabUploadFile, true, 200);
-        animateTextLabel(tvNewFolder, true, 100);
-        animateTextLabel(tvNewFile, true, 150);
-        animateTextLabel(tvUploadFile, true, 200);
+        if (selectedCount == 0) {
+            fabNewFolder.setVisibility(View.VISIBLE);
+            fabNewFile.setVisibility(View.VISIBLE);
+            fabUploadFile.setVisibility(View.VISIBLE);
+            fabToolbox.setVisibility(View.VISIBLE);
+            tvNewFolder.setVisibility(View.VISIBLE);
+            tvNewFile.setVisibility(View.VISIBLE);
+            tvUploadFile.setVisibility(View.VISIBLE);
+            tvToolbox.setVisibility(View.VISIBLE);
+
+            // 如果有剪贴文件，显示粘贴按钮
+            if (!cutFilesPaths.isEmpty()) {
+                fabPaste.setVisibility(View.VISIBLE);
+                tvPaste.setVisibility(View.VISIBLE);
+            }
+
+            long delay = 100;
+            animateButton(fabNewFolder, true, delay);
+            animateTextLabel(tvNewFolder, true, delay);
+            delay += 56;
+
+            animateButton(fabNewFile, true, delay);
+            animateTextLabel(tvNewFile, true, delay);
+            delay += 56;
+
+            animateButton(fabUploadFile, true, delay);
+            animateTextLabel(tvUploadFile, true, delay);
+            delay += 56;
+
+            if (!cutFilesPaths.isEmpty()) {
+                animateButton(fabPaste, true, delay);
+                animateTextLabel(tvPaste, true, delay);
+                delay += 56;
+            }
+
+            animateButton(fabToolbox, true, delay);
+            animateTextLabel(tvToolbox, true, delay);
+
+        } else if (selectedCount == 1) {
+            List<FileItem> selectedItems = getSelectedItems();
+            if (!selectedItems.isEmpty()) {
+                FileItem selectedItem = selectedItems.get(0);
+                fabCopy.setVisibility(View.VISIBLE);
+                fabCompress.setVisibility(View.VISIBLE);
+                fabRename.setVisibility(View.VISIBLE);
+                fabDelete.setVisibility(View.VISIBLE);
+                fabCut.setVisibility(View.VISIBLE);
+                tvCopy.setVisibility(View.VISIBLE);
+                tvCompress.setVisibility(View.VISIBLE);
+                tvRename.setVisibility(View.VISIBLE);
+                tvDelete.setVisibility(View.VISIBLE);
+                tvCut.setVisibility(View.VISIBLE);
+
+                long delay = 100;
+                animateButton(fabCopy, true, delay);
+                animateTextLabel(tvCopy, true, delay);
+                delay += 56;
+
+                animateButton(fabCompress, true, delay);
+                animateTextLabel(tvCompress, true, delay);
+                delay += 56;
+
+                if (selectedItem.isExtractable()) {
+                    fabExtract.setVisibility(View.VISIBLE);
+                    tvExtract.setVisibility(View.VISIBLE);
+                    animateButton(fabExtract, true, delay);
+                    animateTextLabel(tvExtract, true, delay);
+                    delay += 56;
+                }
+
+                animateButton(fabRename, true, delay);
+                animateTextLabel(tvRename, true, delay);
+                delay += 56;
+
+                animateButton(fabDelete, true, delay);
+                animateTextLabel(tvDelete, true, delay);
+                delay += 56;
+
+                animateButton(fabCut, true, delay);
+                animateTextLabel(tvCut, true, delay);
+            }
+        } else {
+            fabCopy.setVisibility(View.VISIBLE);
+            fabCompress.setVisibility(View.VISIBLE);
+            fabDelete.setVisibility(View.VISIBLE);
+            fabCut.setVisibility(View.VISIBLE);
+            tvCopy.setVisibility(View.VISIBLE);
+            tvCompress.setVisibility(View.VISIBLE);
+            tvDelete.setVisibility(View.VISIBLE);
+            tvCut.setVisibility(View.VISIBLE);
+
+            animateButton(fabCopy, true, 100);
+            animateButton(fabCompress, true, 156);
+            animateButton(fabDelete, true, 212);
+            animateButton(fabCut, true, 268);
+            animateTextLabel(tvCopy, true, 100);
+            animateTextLabel(tvCompress, true, 156);
+            animateTextLabel(tvDelete, true, 212);
+            animateTextLabel(tvCut, true, 268);
+        }
 
         fabMain.animate().rotation(45f).setDuration(300).start();
     }
@@ -147,12 +329,31 @@ public class FileListFragment extends Fragment {
     private void closeFabMenu() {
         isFabMenuOpen = false;
 
-        animateButton(fabNewFolder, false, 0);
-        animateButton(fabNewFile, false, 50);
-        animateButton(fabUploadFile, false, 100);
-        animateTextLabel(tvNewFolder, false, 0);
-        animateTextLabel(tvNewFile, false, 50);
-        animateTextLabel(tvUploadFile, false, 100);
+        List<FloatingActionButton> allFabs = List.of(
+                fabNewFolder, fabNewFile, fabUploadFile, fabToolbox,
+                fabCompress, fabExtract, fabRename, fabDelete, fabCut, fabCopy, fabPaste
+        );
+
+        List<TextView> allLabels = List.of(
+                tvNewFolder, tvNewFile, tvUploadFile, tvToolbox,
+                tvCompress, tvExtract, tvRename, tvDelete, tvCut, tvCopy, tvPaste
+        );
+
+        long delay = 0;
+        for (FloatingActionButton fab : allFabs) {
+            if (fab.getVisibility() == View.VISIBLE) {
+                animateButton(fab, false, delay);
+                delay += 25;
+            }
+        }
+
+        delay = 0;
+        for (TextView label : allLabels) {
+            if (label.getVisibility() == View.VISIBLE) {
+                animateTextLabel(label, false, delay);
+                delay += 25;
+            }
+        }
 
         fabMain.animate().rotation(0f).setDuration(300).start();
     }
@@ -336,9 +537,8 @@ public class FileListFragment extends Fragment {
                     mainHandler.post(() -> {
                         Toast.makeText(requireContext(), "文件上传成功", Toast.LENGTH_SHORT).show();
                         loadFileList();
-                        if (tempFile.exists()) {
-                            tempFile.delete();
-                        }
+                        //noinspection ResultOfMethodCallIgnored
+                        tempFile.delete();
                     });
                 }
 
@@ -346,9 +546,8 @@ public class FileListFragment extends Fragment {
                 public void onFailure(String errorMsg) {
                     mainHandler.post(() -> {
                         Toast.makeText(requireContext(), "上传失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                        if (tempFile.exists()) {
-                            tempFile.delete();
-                        }
+                        //noinspection ResultOfMethodCallIgnored
+                        tempFile.delete();
                     });
                 }
             });
@@ -416,11 +615,11 @@ public class FileListFragment extends Fragment {
         SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         int deviceId = sp.getInt("device_id", -1);
 
-        // 添加调试日志和错误检查
+        // ���加调试日志和错误检查
         Log.d("FileListFragment", "Loading file list for device ID: " + deviceId + ", path: " + currentPath);
 
         if (deviceId == -1) {
-            showError("设备ID无效，请重新选择服务器");
+            showError("设备ID无效，请重新选择服��器");
             return;
         }
 
@@ -482,13 +681,13 @@ public class FileListFragment extends Fragment {
                 FileItem item = new FileItem(
                         fileObj.getString("name"),
                         fileObj.getBoolean("file"),
-                        (long) fileObj.optInt("size", 0),
+                        fileObj.optLong("size", 0),
                         fileObj.getString("mime"),
                         fileObj.getString("modified_at")
                 );
                 fileList.add(item);
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e(TAG, "Error parsing file item", e);
             }
         }
         adapter.notifyDataSetChanged();
@@ -505,6 +704,10 @@ public class FileListFragment extends Fragment {
             currentPath = appendPath(currentPath, item.getName());
             loadFileList();
         }
+    }
+
+    private void onFileItemSelectionChanged() {
+        updateFabMenu();
     }
 
     private String getParentPath(String path) {
@@ -554,39 +757,80 @@ public class FileListFragment extends Fragment {
     }
 
     private class FileWatcher extends FileObserver {
-        private String filePath;
-        private String remotePath;
-        private String fileName;
+        private final String filePath;
+        private final String remotePath;
+        private final String fileName;
+        private final Handler checkHandler = new Handler(Looper.getMainLooper());
+        private Runnable periodicCheck;
+        private static final int CHECK_INTERVAL = 5000; // 5秒检查一次
 
+        @SuppressWarnings("deprecation")
         public FileWatcher(String path, String remotePath, String fileName) {
-            super(path, FileObserver.MODIFY | FileObserver.CLOSE_WRITE);
+            super(path, FileObserver.MODIFY | FileObserver.CLOSE_WRITE |
+                    FileObserver.MOVED_TO | FileObserver.CREATE | FileObserver.DELETE);
             this.filePath = path;
             this.remotePath = remotePath;
             this.fileName = fileName;
+
+            startPeriodicCheck();
         }
 
         @Override
         public void onEvent(int event, String path) {
-            if (event == FileObserver.MODIFY || event == FileObserver.CLOSE_WRITE) {
-                File file = new File(filePath);
-                if (file.exists()) {
-                    long currentModified = file.lastModified();
-                    Long lastModified = fileLastModified.get(filePath);
+            Log.d(TAG, "FileWatcher event: " + event + ", path: " + path + ", watching: " + filePath);
 
-                    // 检查文件是否真的被修改了（避免重复上传）
-                    if (lastModified == null || currentModified > lastModified) {
-                        fileLastModified.put(filePath, currentModified);
-                        // 延迟一点时间再上传，避免文件正在写入时就上传
-                        mainHandler.postDelayed(() -> {
-                            uploadModifiedFile(file, remotePath, fileName);
-                        }, 2000);
-                    }
-                }
+            if (event == FileObserver.MODIFY || event == FileObserver.CLOSE_WRITE ||
+                    event == FileObserver.MOVED_TO || event == FileObserver.CREATE) {
+
+                checkAndUploadFile();
             }
+        }
+
+        private void startPeriodicCheck() {
+            periodicCheck = new Runnable() {
+                @Override
+                public void run() {
+                    checkAndUploadFile();
+                    checkHandler.postDelayed(this, CHECK_INTERVAL);
+                }
+            };
+            checkHandler.postDelayed(periodicCheck, CHECK_INTERVAL);
+        }
+
+        private void checkAndUploadFile() {
+            File file = new File(filePath);
+            if (file.exists()) {
+                long currentModified = file.lastModified();
+                Long lastModified = fileLastModified.get(filePath);
+
+                if (lastModified == null || currentModified > lastModified) {
+                    Log.d(TAG, "File modified detected: " + fileName + ", last: " + lastModified + ", current: " + currentModified);
+                    fileLastModified.put(filePath, currentModified);
+
+                    mainHandler.removeCallbacksAndMessages(null);
+                    mainHandler.postDelayed(() -> {
+                        if (file.exists() && file.canRead()) {
+                            Log.d(TAG, "Uploading modified file: " + fileName);
+                            uploadModifiedFile(file, remotePath, fileName);
+                        }
+                    }, 1000); // 修改为1秒等待时间
+                }
+            } else {
+                Log.w(TAG, "Watched file no longer exists: " + filePath);
+            }
+        }
+
+        @Override
+        public void stopWatching() {
+            super.stopWatching();
+            if (checkHandler != null && periodicCheck != null) {
+                checkHandler.removeCallbacks(periodicCheck);
+            }
+            Log.d(TAG, "Stopped watching file: " + filePath);
         }
     }
 
-    // 下载并打开文件进行编辑
+    @SuppressWarnings("deprecation")
     private void downloadAndEditFile(FileItem item) {
         SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         int deviceId = sp.getInt("device_id", -1);
@@ -607,6 +851,7 @@ public class FileListFragment extends Fragment {
         File localFile = new File(requireContext().getExternalFilesDir("downloads"), item.getName());
 
         if (localFile.getParentFile() != null && !localFile.getParentFile().exists()) {
+            //noinspection ResultOfMethodCallIgnored
             localFile.getParentFile().mkdirs();
         }
 
@@ -640,22 +885,6 @@ public class FileListFragment extends Fragment {
         });
     }
 
-    private void startFileWatcher(String localFilePath, String remoteFilePath, String fileName) {
-        stopFileWatcher(localFilePath);
-        FileWatcher watcher = new FileWatcher(localFilePath, remoteFilePath, fileName);
-        watcher.startWatching();
-        fileWatchers.put(localFilePath, watcher);
-
-        Log.d(TAG, "Started watching file: " + localFilePath);
-    }
-
-    private void stopFileWatcher(String localFilePath) {
-        FileWatcher watcher = fileWatchers.remove(localFilePath);
-        if (watcher != null) {
-            watcher.stopWatching();
-            Log.d(TAG, "Stopped watching file: " + localFilePath);
-        }
-    }
 
     private void openFileWithExternalEditor(File file) {
         if (!file.exists()) {
@@ -783,7 +1012,7 @@ public class FileListFragment extends Fragment {
             Intent chooser = Intent.createChooser(intent, "选择打开方式");
             if (chooser.resolveActivity(requireContext().getPackageManager()) != null) {
                 startActivity(chooser);
-                Toast.makeText(requireContext(), "请选择合适的应用打开文件", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "请选择合适的方式打开文件", Toast.LENGTH_SHORT).show();
             } else {
                 showFileOpenDialog(file);
             }
@@ -876,12 +1105,14 @@ public class FileListFragment extends Fragment {
             Toast.makeText(requireContext(), "文件位置: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
         }
     }
+
     public static class FileItem {
         private final String name;
         private final boolean file;
         private final long size;
         private final String mime;
         private final String modifiedAt;
+        private boolean selected = false;
 
         public FileItem(String name, boolean file, long size, String mime, String modifiedAt) {
             this.name = name;
@@ -891,27 +1122,66 @@ public class FileListFragment extends Fragment {
             this.modifiedAt = modifiedAt;
         }
 
-        public String getName() { return name; }
-        public boolean isFile() { return file; }
-        public long getSize() { return size; }
-        public String getMime() { return mime; }
-        public String getModifiedAt() { return modifiedAt; }
+        public String getName() {
+            return name;
+        }
+
+        public boolean isFile() {
+            return file;
+        }
+
+        public long getSize() {
+            return size;
+        }
+
+        public String getMime() {
+            return mime;
+        }
+
+        public String getModifiedAt() {
+            return modifiedAt;
+        }
 
         public boolean isSelected() {
-            return false;
+            return selected;
+        }
+
+        public void setSelected(boolean selected) {
+            this.selected = selected;
+        }
+
+        public boolean isArchive() {
+            if (!isFile()) return false;
+            String lowerName = name.toLowerCase();
+            return lowerName.endsWith(".zip") || lowerName.endsWith(".7z") ||
+                    lowerName.endsWith(".tar.gz") || lowerName.endsWith(".rar");
+        }
+
+        public boolean isExtractable() {
+            if (!isFile()) return false;
+            String lowerName = name.toLowerCase();
+            return lowerName.endsWith(".zip") || lowerName.endsWith(".7z") ||
+                    lowerName.endsWith(".tar.gz");
         }
     }
+
     private static class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         private final List<FileItem> items;
         private final OnItemClickListener listener;
+        private final OnItemSelectionChangedListener selectionListener;
 
         public interface OnItemClickListener {
             void onItemClick(FileItem item);
         }
 
-        public FileAdapter(List<FileItem> items, OnItemClickListener listener) {
+        public interface OnItemSelectionChangedListener {
+            void onSelectionChanged();
+        }
+
+        public FileAdapter(List<FileItem> items, OnItemClickListener listener, OnItemSelectionChangedListener selectionListener) {
             this.items = items;
             this.listener = listener;
+            this.selectionListener = selectionListener;
         }
 
         @NonNull
@@ -924,7 +1194,7 @@ public class FileListFragment extends Fragment {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             FileItem item = items.get(position);
-            holder.bind(item, listener);
+            holder.bind(item, listener, selectionListener);
         }
 
         @Override
@@ -946,33 +1216,53 @@ public class FileListFragment extends Fragment {
                 infoView = itemView.findViewById(R.id.text_view_info);
             }
 
-            public void bind(FileItem item, OnItemClickListener listener) {
+            public void bind(FileItem item, OnItemClickListener listener, OnItemSelectionChangedListener selectionListener) {
                 checkBoxSelect.setChecked(item.isSelected());
                 nameView.setText(item.getName());
 
                 if (FileListFragment.PARENT_DIR_NAME.equals(item.getName())) {
-                    iconView.setImageResource(R.drawable.folder); // 你需要准备一个向上的箭头图标
-                    infoView.setText("上级目录");
-                } else if (item.isFile()) {
-                    iconView.setImageResource(R.drawable.files);
-                    String sizeStr = formatFileSize(item.getSize());
-                    infoView.setText(sizeStr + " • " + item.getModifiedAt());
-                } else {
                     iconView.setImageResource(R.drawable.folder);
-                    infoView.setText("文件夹 • " + item.getModifiedAt());
+                    infoView.setText("上级目录");
+                    checkBoxSelect.setVisibility(View.GONE); // 上级目录不显���选择框
+                } else {
+                    checkBoxSelect.setVisibility(View.VISIBLE);
+                    if (item.isFile()) {
+                        iconView.setImageResource(R.drawable.files);
+                        String sizeStr = formatFileSize(item.getSize());
+                        infoView.setText(sizeStr + " • " + item.getModifiedAt());
+                    } else {
+                        iconView.setImageResource(R.drawable.folder);
+                        infoView.setText("文件夹 • " + item.getModifiedAt());
+                    }
                 }
-                itemView.setOnClickListener(v -> {
-//                    // 切换选中状态
-//                    boolean newSelectedState = !item.isSelected();
-//                    item.setSelected(newSelectedState); // 需要在 FileItem 类中实现 setSelected 方法
-//                    checkBoxSelect.setChecked(newSelectedState);
-//                    //可以在这里通知 Activity/Fragment 有项目被选中
-//                    if (listener != null) {
-//                        listener.onItemClick(item);
-//                    }
+
+                checkBoxSelect.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    if (!FileListFragment.PARENT_DIR_NAME.equals(item.getName())) {
+                        item.setSelected(isChecked);
+                        if (selectionListener != null) {
+                            selectionListener.onSelectionChanged();
+                        }
+                    }
                 });
 
-                itemView.setOnClickListener(v -> listener.onItemClick(item));
+                itemView.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onItemClick(item);
+                    }
+                });
+
+                itemView.setOnLongClickListener(v -> {
+                    if (!FileListFragment.PARENT_DIR_NAME.equals(item.getName())) {
+                        boolean newState = !item.isSelected();
+                        item.setSelected(newState);
+                        checkBoxSelect.setChecked(newState);
+                        if (selectionListener != null) {
+                            selectionListener.onSelectionChanged();
+                        }
+                        return true;
+                    }
+                    return false;
+                });
             }
 
             private String formatFileSize(long size) {
@@ -995,6 +1285,7 @@ public class FileListFragment extends Fragment {
         fileWatchers.clear();
         fileLastModified.clear();
     }
+
     private void uploadModifiedFile(File localFile, String remotePath, String fileName) {
         SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         int deviceId = sp.getInt("device_id", -1);
@@ -1030,5 +1321,715 @@ public class FileListFragment extends Fragment {
                 });
             }
         });
+    }
+
+    private int getSelectedItemsCount() {
+        int count = 0;
+        for (FileItem item : fileList) {
+            if (item.isSelected() && !PARENT_DIR_NAME.equals(item.getName())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private List<FileItem> getSelectedItems() {
+        List<FileItem> selectedItems = new ArrayList<>();
+        for (FileItem item : fileList) {
+            if (item.isSelected() && !PARENT_DIR_NAME.equals(item.getName())) {
+                selectedItems.add(item);
+            }
+        }
+        return selectedItems;
+    }
+
+    private void clearAllSelections() {
+        for (FileItem item : fileList) {
+            item.setSelected(false);
+        }
+        adapter.notifyDataSetChanged();
+        updateFabMenu();
+    }
+
+    private void updateFabMenu() {
+        int selectedCount = getSelectedItemsCount();
+        boolean isSelectionMode = selectedCount > 0;
+
+        if (selectedCount == 0) {
+            setupDefaultFab();
+        } else if (selectedCount == 1) {
+            setupSingleSelectionFab();
+        } else {
+            setupMultiSelectionFab();
+        }
+
+        if (isFabMenuOpen) {
+            showCurrentModeButtons();
+        }
+    }
+
+    private void setupDefaultFab() {
+        hideSelectionFabs();
+
+        fabNewFolder.setOnClickListener(v -> {
+            closeFabMenu();
+            showCreateFolderDialog();
+        });
+
+        fabNewFile.setOnClickListener(v -> {
+            closeFabMenu();
+            showCreateFileDialog();
+        });
+
+        fabUploadFile.setOnClickListener(v -> {
+            closeFabMenu();
+            openFileChooser();
+        });
+
+        fabPaste.setOnClickListener(v -> {
+            closeFabMenu();
+            pasteFiles();
+        });
+
+        fabToolbox.setOnClickListener(v -> {
+            closeFabMenu();
+            showToolboxDialog();
+        });
+    }
+
+    private void setupSingleSelectionFab() {
+        List<FileItem> selectedItems = getSelectedItems();
+        if (selectedItems.isEmpty()) return;
+
+        FileItem selectedItem = selectedItems.get(0);
+
+        hideDefaultFabs();
+
+        fabCompress.setOnClickListener(v -> {
+            closeFabMenu();
+            compressFiles(selectedItems);
+        });
+
+        if (selectedItem.isExtractable()) {
+            fabExtract.setVisibility(View.VISIBLE);
+            tvExtract.setVisibility(View.VISIBLE);
+            fabExtract.setOnClickListener(v -> {
+                closeFabMenu();
+                extractFile(selectedItem);
+            });
+        }
+
+        fabRename.setOnClickListener(v -> {
+            closeFabMenu();
+            renameFile(selectedItem);
+        });
+
+        fabDelete.setOnClickListener(v -> {
+            closeFabMenu();
+            deleteFiles(selectedItems);
+        });
+
+        fabCut.setOnClickListener(v -> {
+            closeFabMenu();
+            cutFiles(selectedItems);
+        });
+
+        if (selectedItem.isFile()) {
+            fabCopy.setVisibility(View.VISIBLE);
+            tvCopy.setVisibility(View.VISIBLE);
+            fabCopy.setOnClickListener(v -> {
+                closeFabMenu();
+                copyFile(selectedItem);
+            });
+        }
+
+        fabToolbox.setOnClickListener(v -> {
+            closeFabMenu();
+            showToolboxDialog();
+        });
+    }
+
+    private void setupMultiSelectionFab() {
+        List<FileItem> selectedItems = getSelectedItems();
+
+        hideDefaultFabs();
+        fabExtract.setVisibility(View.GONE);
+        tvExtract.setVisibility(View.GONE);
+        fabRename.setVisibility(View.GONE);
+        tvRename.setVisibility(View.GONE);
+        fabCopy.setVisibility(View.GONE);
+        tvCopy.setVisibility(View.GONE);
+
+        fabCompress.setOnClickListener(v -> {
+            closeFabMenu();
+            compressFiles(selectedItems);
+        });
+
+        fabDelete.setOnClickListener(v -> {
+            closeFabMenu();
+            deleteFiles(selectedItems);
+        });
+
+        fabCut.setOnClickListener(v -> {
+            closeFabMenu();
+            cutFiles(selectedItems);
+        });
+
+        fabToolbox.setOnClickListener(v -> {
+            closeFabMenu();
+            showToolboxDialog();
+        });
+    }
+
+    private void hideDefaultFabs() {
+        fabNewFolder.setVisibility(View.GONE);
+        fabNewFile.setVisibility(View.GONE);
+        fabUploadFile.setVisibility(View.GONE);
+        tvNewFolder.setVisibility(View.GONE);
+        tvNewFile.setVisibility(View.GONE);
+        tvUploadFile.setVisibility(View.GONE);
+    }
+
+    private void hideSelectionFabs() {
+        fabCompress.setVisibility(View.GONE);
+        fabExtract.setVisibility(View.GONE);
+        fabRename.setVisibility(View.GONE);
+        fabDelete.setVisibility(View.GONE);
+        fabCut.setVisibility(View.GONE);
+        fabCopy.setVisibility(View.GONE);
+        fabPaste.setVisibility(View.GONE);
+        tvCompress.setVisibility(View.GONE);
+        tvExtract.setVisibility(View.GONE);
+        tvRename.setVisibility(View.GONE);
+        tvDelete.setVisibility(View.GONE);
+        tvCut.setVisibility(View.GONE);
+        tvCopy.setVisibility(View.GONE);
+        tvPaste.setVisibility(View.GONE);
+    }
+
+    private void showCurrentModeButtons() {
+        hideAllButtons();
+        int selectedCount = getSelectedItemsCount();
+
+        if (selectedCount == 0) {
+            fabNewFolder.setVisibility(View.VISIBLE);
+            fabNewFile.setVisibility(View.VISIBLE);
+            fabUploadFile.setVisibility(View.VISIBLE);
+            fabToolbox.setVisibility(View.VISIBLE);
+            tvNewFolder.setVisibility(View.VISIBLE);
+            tvNewFile.setVisibility(View.VISIBLE);
+            tvUploadFile.setVisibility(View.VISIBLE);
+            tvToolbox.setVisibility(View.VISIBLE);
+
+            if (!cutFilesPaths.isEmpty()) {
+                fabPaste.setVisibility(View.VISIBLE);
+                tvPaste.setVisibility(View.VISIBLE);
+                fabPaste.setScaleX(1f);
+                fabPaste.setScaleY(1f);
+                tvPaste.setAlpha(1f);
+            }
+
+            fabNewFolder.setScaleX(1f);
+            fabNewFolder.setScaleY(1f);
+            fabNewFile.setScaleX(1f);
+            fabNewFile.setScaleY(1f);
+            fabUploadFile.setScaleX(1f);
+            fabUploadFile.setScaleY(1f);
+            fabToolbox.setScaleX(1f);
+            fabToolbox.setScaleY(1f);
+
+            tvNewFolder.setAlpha(1f);
+            tvNewFile.setAlpha(1f);
+            tvUploadFile.setAlpha(1f);
+            tvToolbox.setAlpha(1f);
+
+        } else if (selectedCount == 1) {
+            List<FileItem> selectedItems = getSelectedItems();
+            if (!selectedItems.isEmpty()) {
+                FileItem selectedItem = selectedItems.get(0);
+
+                fabCompress.setVisibility(View.VISIBLE);
+                fabRename.setVisibility(View.VISIBLE);
+                fabDelete.setVisibility(View.VISIBLE);
+                fabCut.setVisibility(View.VISIBLE);
+                fabToolbox.setVisibility(View.VISIBLE);
+                tvCompress.setVisibility(View.VISIBLE);
+                tvRename.setVisibility(View.VISIBLE);
+                tvDelete.setVisibility(View.VISIBLE);
+                tvCut.setVisibility(View.VISIBLE);
+                tvToolbox.setVisibility(View.VISIBLE);
+
+                fabCompress.setScaleX(1f);
+                fabCompress.setScaleY(1f);
+                fabRename.setScaleX(1f);
+                fabRename.setScaleY(1f);
+                fabDelete.setScaleX(1f);
+                fabDelete.setScaleY(1f);
+                fabCut.setScaleX(1f);
+                fabCut.setScaleY(1f);
+                fabToolbox.setScaleX(1f);
+                fabToolbox.setScaleY(1f);
+
+                tvCompress.setAlpha(1f);
+                tvRename.setAlpha(1f);
+                tvDelete.setAlpha(1f);
+                tvCut.setAlpha(1f);
+                tvToolbox.setAlpha(1f);
+
+                if (selectedItem.isExtractable()) {
+                    fabExtract.setVisibility(View.VISIBLE);
+                    tvExtract.setVisibility(View.VISIBLE);
+                    fabExtract.setScaleX(1f);
+                    fabExtract.setScaleY(1f);
+                    tvExtract.setAlpha(1f);
+                }
+
+                if (selectedItem.isFile()) {
+                    fabCopy.setVisibility(View.VISIBLE);
+                    tvCopy.setVisibility(View.VISIBLE);
+                    fabCopy.setScaleX(1f);
+                    fabCopy.setScaleY(1f);
+                    tvCopy.setAlpha(1f);
+                }
+            }
+        } else {
+            fabCompress.setVisibility(View.VISIBLE);
+            fabDelete.setVisibility(View.VISIBLE);
+            fabCut.setVisibility(View.VISIBLE);
+            fabToolbox.setVisibility(View.VISIBLE);
+            tvCompress.setVisibility(View.VISIBLE);
+            tvDelete.setVisibility(View.VISIBLE);
+            tvCut.setVisibility(View.VISIBLE);
+            tvToolbox.setVisibility(View.VISIBLE);
+
+            fabCompress.setScaleX(1f);
+            fabCompress.setScaleY(1f);
+            fabDelete.setScaleX(1f);
+            fabDelete.setScaleY(1f);
+            fabCut.setScaleX(1f);
+            fabCut.setScaleY(1f);
+            fabToolbox.setScaleX(1f);
+            fabToolbox.setScaleY(1f);
+
+            tvCompress.setAlpha(1f);
+            tvDelete.setAlpha(1f);
+            tvCut.setAlpha(1f);
+            tvToolbox.setAlpha(1f);
+        }
+    }
+
+    private void hideAllButtons() {
+        List<FloatingActionButton> allFabs = List.of(
+                fabNewFolder, fabNewFile, fabUploadFile, fabToolbox,
+                fabCompress, fabExtract, fabRename, fabDelete, fabCut, fabCopy, fabPaste
+        );
+
+        List<TextView> allLabels = List.of(
+                tvNewFolder, tvNewFile, tvUploadFile, tvToolbox,
+                tvCompress, tvExtract, tvRename, tvDelete, tvCut, tvCopy, tvPaste
+        );
+
+        for (FloatingActionButton fab : allFabs) {
+            fab.setVisibility(View.GONE);
+        }
+
+        for (TextView label : allLabels) {
+            label.setVisibility(View.GONE);
+        }
+    }
+
+    private void compressFiles(List<FileItem> items) {
+        String[] formats = {"ZIP", "7Z", "TAR.GZ"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("选择压缩格式");
+        builder.setItems(formats, (dialog, which) -> {
+            String format = formats[which].toLowerCase().replace(".", "");
+            showCompressNameDialog(items, format);
+        });
+        builder.show();
+    }
+
+    private void showCompressNameDialog(List<FileItem> items, String format) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("压缩文件");
+
+        EditText input = new EditText(requireContext());
+        input.setHint("请输入压缩包名称");
+        if (items.size() == 1) {
+            String baseName = items.get(0).getName();
+            int dotIndex = baseName.lastIndexOf('.');
+            if (dotIndex > 0) {
+                baseName = baseName.substring(0, dotIndex);
+            }
+            input.setText(baseName);
+        } else {
+            input.setText(getString(R.string.compressed_files_default_name));
+        }
+        builder.setView(input);
+
+        builder.setPositiveButton("压缩", (dialog, which) -> {
+            String fileName = input.getText().toString().trim();
+            if (!fileName.isEmpty()) {
+                executeCompress(items, fileName, format);
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void executeCompress(List<FileItem> items, String fileName, String format) {
+        Toast.makeText(requireContext(), "正在压缩文件...", Toast.LENGTH_SHORT).show();
+
+        List<String> fileNames = new ArrayList<>();
+        for (FileItem item : items) {
+            fileNames.add(item.getName());
+        }
+
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        StringBuilder fileListJson = new StringBuilder("[");
+        for (int i = 0; i < fileNames.size(); i++) {
+            if (i > 0) fileListJson.append(",");
+            fileListJson.append("\"").append(fileNames.get(i)).append("\"");
+        }
+        fileListJson.append("]");
+
+        new FileApi().zipFileOrFolder(requireContext(), deviceId, currentPath, fileListJson.toString(), format, new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "压缩完成: " + fileName + "." + format, Toast.LENGTH_SHORT).show();
+                    clearAllSelections();
+                    loadFileList();
+                });
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "压缩失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void extractFile(FileItem item) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("解压文件");
+        builder.setMessage("确定要解压 " + item.getName() + " 吗？");
+        builder.setPositiveButton("解压", (dialog, which) -> executeExtract(item));
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void executeExtract(FileItem item) {
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new FileApi().unzipFile(requireContext(), deviceId, currentPath, item.getName(), new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                mainHandler.post(() -> {
+                    clearAllSelections();
+                    loadFileList();
+                });
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "解压失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void renameFile(FileItem item) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("重命名");
+
+        EditText input = new EditText(requireContext());
+        input.setText(item.getName());
+        input.selectAll();
+        builder.setView(input);
+
+        builder.setPositiveButton("确定", (dialog, which) -> {
+            String newName = input.getText().toString().trim();
+            if (!newName.isEmpty() && !newName.equals(item.getName())) {
+                executeRename(item, newName);
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void executeRename(FileItem item, String newName) {
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String originPath = appendPath(currentPath, item.getName());
+        String targetPath = appendPath(currentPath, newName);
+
+        new FileApi().renameFile(requireContext(), deviceId, originPath, targetPath, new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "重命名成功", Toast.LENGTH_SHORT).show();
+                    clearAllSelections();
+                    loadFileList();
+                });
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "重命���失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void deleteFiles(List<FileItem> items) {
+        String message = items.size() == 1 ?
+                "确定要删除 " + items.get(0).getName() + " 吗？" :
+                "确定要删除选中的 " + items.size() + " 个项目吗？";
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("删除确认");
+        builder.setMessage(message);
+        builder.setPositiveButton("删除", (dialog, which) -> executeDelete(items));
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void executeDelete(List<FileItem> items) {
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        java.util.List<String> filePaths = new java.util.ArrayList<>();
+        for (FileItem item : items) {
+            String filePath = appendPath(currentPath, item.getName());
+            filePaths.add(filePath);
+        }
+
+        new FileApi().deleteFileOrFolderBatch(requireContext(), deviceId, filePaths, new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "删除完成", Toast.LENGTH_SHORT).show();
+                    clearAllSelections();
+                    loadFileList();
+                });
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "删除失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                    clearAllSelections();
+                    loadFileList();
+                });
+            }
+        });
+    }
+
+    private void cutFiles(List<FileItem> items) {
+        cutFilesPaths.clear();
+        for (FileItem item : items) {
+            String filePath = appendPath(currentPath, item.getName());
+            cutFilesPaths.add(filePath);
+        }
+        cutSourcePath = currentPath;
+
+        Toast.makeText(requireContext(), "已剪切 " + items.size() + " 个项目，请到目标文件夹粘贴", Toast.LENGTH_SHORT).show();
+        clearAllSelections();
+    }
+
+    private void copyFile(FileItem item) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("创建副本");
+
+        EditText input = new EditText(requireContext());
+        String baseName = item.getName();
+        int dotIndex = baseName.lastIndexOf('.');
+        String newName = dotIndex > 0 ?
+                baseName.substring(0, dotIndex) + "_副本" + baseName.substring(dotIndex) :
+                baseName + "_副本";
+        input.setText(newName);
+        builder.setView(input);
+
+        builder.setPositiveButton("创建", (dialog, which) -> {
+            String fileName = input.getText().toString().trim();
+            if (!fileName.isEmpty()) {
+                executeCopyFile(item, fileName);
+            }
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+    private void executeCopyFile(FileItem item, String newName) {
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String sourceFilePath = appendPath(currentPath, item.getName());
+
+        new FileApi().copyFileOrFolder(requireContext(), deviceId, sourceFilePath, new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "创建副本成功", Toast.LENGTH_SHORT).show();
+                    clearAllSelections();
+                    loadFileList();
+                });
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> {
+                    Toast.makeText(requireContext(), "创建副本失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void showToolboxDialog() {
+        String[] options = {"修复权限和中文名异常问题"};
+        boolean[] checkedItems = {true};
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("工具箱");
+
+        builder.setMultiChoiceItems(options, checkedItems, (dialog, which, isChecked) -> {
+            checkedItems[which] = isChecked;
+        });
+
+        builder.setPositiveButton("确认", (dialog, which) -> {
+            if (checkedItems[0]) {
+                executeToolboxOperation("fix_permission_and_charset");
+            }
+        });
+
+        builder.setNegativeButton("取消", null);
+        builder.show();
+    }
+
+
+    /**
+     * 执行工具箱操作
+     */
+    private void executeToolboxOperation(String action) {
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new FileApi().toolboxOperation(requireContext(), deviceId, action, new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    String message = data.optString("message", "工具箱操作执行成功");
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Toast.makeText(requireContext(), "工具箱操作失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    /**
+     * 粘贴剪切的文件到当前目录
+     */
+    private void pasteFiles() {
+        if (cutFilesPaths.isEmpty()) {
+            Toast.makeText(requireContext(), "没有可粘贴的文件", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (currentPath.equals(cutSourcePath)) {
+            Toast.makeText(requireContext(), "不能粘贴到同一文件夹", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+
+        if (deviceId == -1) {
+            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 构建JSON数组字符串
+        try {
+            org.json.JSONArray jsonArray = new org.json.JSONArray(cutFilesPaths);
+            String listString = jsonArray.toString();
+
+            new FileApi().moveFileOrFolder(requireContext(), deviceId, listString, currentPath, new FileApi.Callback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    mainHandler.post(() -> {
+                        Toast.makeText(requireContext(), "粘贴完成", Toast.LENGTH_SHORT).show();
+                        cutFilesPaths.clear();
+                        cutSourcePath = "";
+                        loadFileList();
+                    });
+                }
+
+                @Override
+                public void onFailure(String errorMsg) {
+                    mainHandler.post(() -> {
+                        if (errorMsg.contains("500")) {
+                            Toast.makeText(requireContext(), "不能粘贴到同一文件夹", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(requireContext(), "粘贴失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "构建请求数据失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startFileWatcher(String localFilePath, String remoteFilePath, String fileName) {
+        if (fileWatchers.containsKey(localFilePath)) {
+            FileWatcher existingWatcher = fileWatchers.get(localFilePath);
+            if (existingWatcher != null) {
+                existingWatcher.stopWatching();
+            }
+        }
     }
 }

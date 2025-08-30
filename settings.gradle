@@ -17,7 +17,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url 'https://jitpack.io' }
-        maven { url "https://maven.cnb.cool/tencent-tds/shiply-public/-/packages/" }
+        //maven { url "https://maven.cnb.cool/tencent-tds/shiply-public/-/packages/" }
     }
 }
 

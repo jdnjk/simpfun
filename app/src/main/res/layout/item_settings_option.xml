@@ -17,7 +17,7 @@
             android:layout_weight="1"
             android:text="选项名称"
             android:textSize="16sp"
-            android:textColor="@color/black" />
+            android:textColor="@color/md_theme_onSurface_highContrast" />
 
     <TextView
             android:id="@+id/tv_subtitle"

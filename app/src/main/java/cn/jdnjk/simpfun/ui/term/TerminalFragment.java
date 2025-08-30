@@ -41,6 +41,7 @@ public class TerminalFragment extends Fragment {
     private StringBuilder ansiBuffer = new StringBuilder();
     private boolean isBufferUpdateScheduled = false;
     private final long RENDER_DELAY = 100;
+    private boolean shouldMaintainFocus = false;
 
     @Nullable
     @Override
@@ -54,11 +55,16 @@ public class TerminalFragment extends Fragment {
 
         buttonSend.setOnClickListener(v -> sendCommand());
 
+        editTextCommand.setOnFocusChangeListener((v, hasFocus) -> {
+            shouldMaintainFocus = hasFocus;
+        });
+
         editTextCommand.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_GO ||
                     actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_NULL) {
+                    shouldMaintainFocus = true;
                     sendCommand();
                     return true;
                 }
@@ -70,8 +76,11 @@ public class TerminalFragment extends Fragment {
             @Override
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if (keyCode == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
+                    shouldMaintainFocus = true;
                     sendCommand();
-                    editTextCommand.requestFocus();
+                    mainHandler.postDelayed(() -> {
+                        editTextCommand.requestFocus();
+                    }, 50);
                     return true;
                 }
                 return false;
@@ -149,8 +158,7 @@ public class TerminalFragment extends Fragment {
                             if (!isBufferUpdateScheduled) {
                                 isBufferUpdateScheduled = true;
                                 mainHandler.postDelayed(() -> {
-                                    AnsiParser.setAnsiText(textViewOutput, ansiBuffer.toString(), 0);
-                                    scrollViewOutput.post(() -> scrollViewOutput.fullScroll(View.FOCUS_DOWN));
+                                    updateOutputWithFocusPreservation();
                                     isBufferUpdateScheduled = false;
                                 }, RENDER_DELAY);
                             }
@@ -236,6 +244,8 @@ public class TerminalFragment extends Fragment {
             return;
         }
 
+        shouldMaintainFocus = true;
+
         try {
             JSONObject cmdMsg = new JSONObject();
             cmdMsg.put("event", "send command");
@@ -247,6 +257,11 @@ public class TerminalFragment extends Fragment {
                 appendOutput("发送命令失败\n");
             } else {
                 editTextCommand.setText("");
+                mainHandler.postDelayed(() -> {
+                    if (shouldMaintainFocus && editTextCommand != null) {
+                        editTextCommand.requestFocus();
+                    }
+                }, 100);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -254,8 +269,23 @@ public class TerminalFragment extends Fragment {
     }
     private void appendOutput(String text) {
         ansiBuffer.append(text);
+        updateOutputWithFocusPreservation();
+    }
+
+    private void updateOutputWithFocusPreservation() {
+        boolean hadFocus = editTextCommand != null && editTextCommand.hasFocus();
+
         AnsiParser.setAnsiText(textViewOutput, ansiBuffer.toString(), 0);
-        scrollViewOutput.post(() -> scrollViewOutput.fullScroll(View.FOCUS_DOWN));
+        scrollViewOutput.post(() -> {
+            scrollViewOutput.fullScroll(View.FOCUS_DOWN);
+
+            if ((hadFocus || shouldMaintainFocus) && editTextCommand != null) {
+                editTextCommand.post(() -> {
+                    editTextCommand.requestFocus();
+                    shouldMaintainFocus = false;
+                });
+            }
+        });
     }
 
     @Override

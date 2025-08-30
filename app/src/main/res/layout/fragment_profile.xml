@@ -8,13 +8,14 @@
         <ScrollView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true">
+                android:scrollbars="vertical">
 
         <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="16dp"
+                android:paddingBottom="32dp">
 
             <View
                     android:layout_width="match_parent"
@@ -35,7 +36,7 @@
                         android:text="用户名：加载中"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@color/black" />
+                        android:textColor="@color/md_theme_onSurface_highContrast" />
 
                 <TextView
                         android:id="@+id/tv_uid"
@@ -153,7 +154,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:padding="12dp"
-                        android:background="@color/white">
+                        android:background="@color/md_theme_inverseOnSurface_highContrast">
 
                     <TextView
                             android:id="@+id/tv_announcement_title"
@@ -171,7 +172,7 @@
                             android:layout_marginTop="4dp"
                             android:text="暂无内容"
                             android:textSize="14sp"
-                            android:textColor="@color/black"
+                            android:textColor="@color/md_theme_onSurface_highContrast"
                             android:lineSpacingExtra="4dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

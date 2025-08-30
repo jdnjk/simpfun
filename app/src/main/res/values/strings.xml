@@ -7,4 +7,16 @@
     <string name="nav_header_desc">Navigation header</string>
     <string name="action_settings">Settings</string>
     <string name="menu_slideshow">Slideshow</string>
+
+    <!-- File list related strings -->
+    <string name="error_format">错误: %s</string>
+    <string name="file_info_format">%s • %s</string>
+    <string name="folder_info_format">文件夹 • %s</string>
+    <string name="compressed_files_default_name">compressed_files</string>
+    
+    <!-- Additional strings for FileListFragment -->
+    <string name="error_message">错误: %s</string>
+    <string name="file_info">%s • %s</string>
+    <string name="folder_info">文件夹 • %s</string>
+    <string name="default_archive_name">compressed_files</string>
 </resources>

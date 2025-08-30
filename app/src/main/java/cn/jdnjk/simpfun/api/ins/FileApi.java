@@ -157,6 +157,33 @@ public class FileApi {
             return;
         }
 
+        final String finalPath = path;
+
+        getUploadLink(context, serverId, new Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                try {
+                    String uploadLink = data.getString("link");
+                    uploadFileToLink(uploadLink, finalPath, file, callback);
+                } catch (Exception e) {
+                    invokeCallback(callback, null, false, "解析上传链接失败: " + e.getMessage());
+                }
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                invokeCallback(callback, null, false, "获取上传地址失败: " + errorMsg);
+            }
+        });
+    }
+
+    /**
+     * 获取上传地址
+     * @param context Context
+     * @param serverId 服务器ID
+     * @param callback 回调
+     */
+    private void getUploadLink(Context context, int serverId, Callback callback) {
         SharedPreferences sp = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
         String token = sp.getString(TOKEN_KEY, null);
         if (token == null || token.isEmpty()) {
@@ -170,23 +197,160 @@ public class FileApi {
             return;
         }
 
-        url = url.newBuilder()
-                .addQueryParameter("path", path)
-                .build();
-
-        RequestBody requestBody = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("file", file.getName(),
-                        RequestBody.create(MediaType.parse("application/octet-stream"), file))
-                .build();
-
         Request request = new Request.Builder()
                 .url(url)
                 .header("Authorization", token)
-                .post(requestBody)
+                .get() // 使用GET请求获取上传地址
                 .build();
 
         sendRequest(context, request, callback);
+    }
+
+    /**
+     * 使用获取到的链接上传文件
+     * @param uploadLink 上传链接
+     * @param path 目标目录路径
+     * @param file 要上传的文件
+     * @param callback 回调
+     */
+    private void uploadFileToLink(String uploadLink, String path, java.io.File file, Callback callback) {
+        try {
+            HttpUrl url = HttpUrl.parse(uploadLink);
+            if (url == null) {
+                invokeCallback(callback, null, false, "上传链接解析错误");
+                return;
+            }
+
+            // 确保path格式正确
+            String formattedPath = path;
+            if (formattedPath == null || formattedPath.isEmpty()) {
+                formattedPath = "/";
+            }
+            if (!formattedPath.startsWith("/")) {
+                formattedPath = "/" + formattedPath;
+            }
+            if (!formattedPath.endsWith("/") && !formattedPath.equals("/")) {
+                formattedPath = formattedPath + "/";
+            }
+
+            url = url.newBuilder()
+                    .addQueryParameter("directory", formattedPath)
+                    .build();
+
+            String mimeType = getMimeType(file.getName());
+
+            RequestBody requestBody = new MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("files", file.getName(),
+                            RequestBody.create(MediaType.parse(mimeType), file))
+                    .build();
+
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build();
+
+            OkHttpClient client = ApiClient.getInstance().getClient();
+
+            client.newCall(request).enqueue(new okhttp3.Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        invokeCallback(callback, null, false, "文件上传失败: " + e.getMessage());
+                    });
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                        if (!response.isSuccessful()) {
+                            try {
+                                String errorBody = response.body() != null ? response.body().string() : "";
+                                invokeCallback(callback, null, false, "文件上传HTTP错误: " + response.code() + " - " + errorBody);
+                            } catch (Exception e) {
+                                invokeCallback(callback, null, false, "文件上传HTTP错误: " + response.code());
+                            }
+                            return;
+                        }
+
+                        try {
+                            String responseBody = response.body() != null ? response.body().string() : "";
+                            if (responseBody.isEmpty()) {
+                                JSONObject successResponse = new JSONObject();
+                                successResponse.put("code", 200);
+                                successResponse.put("message", "文件上传成功");
+                                invokeCallback(callback, successResponse, true, null);
+                            } else {
+                                JSONObject jsonResponse = new JSONObject(responseBody);
+                                int code = jsonResponse.optInt("code", 200);
+                                if (code == 200) {
+                                    invokeCallback(callback, jsonResponse, true, null);
+                                } else {
+                                    String errorMsg = jsonResponse.optString("message", "上传失败");
+                                    invokeCallback(callback, null, false, errorMsg);
+                                }
+                            }
+                        } catch (Exception e) {
+                            // 如果JSON解析失败，但HTTP状态码成功，认为上传成功
+                            try {
+                                JSONObject successResponse = new JSONObject();
+                                successResponse.put("code", 200);
+                                successResponse.put("message", "文件上传成功");
+                                invokeCallback(callback, successResponse, true, null);
+                            } catch (Exception jsonException) {
+                                invokeCallback(callback, null, false, "响应解析失败: " + e.getMessage());
+                            }
+                        }
+                    });
+                }
+            });
+
+        } catch (Exception e) {
+            invokeCallback(callback, null, false, "准备上传请求失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 根据文件扩展名获取MIME类型
+     */
+    private String getMimeType(String fileName) {
+        if (fileName == null) return "application/octet-stream";
+
+        String extension = "";
+        int i = fileName.lastIndexOf('.');
+        if (i > 0) {
+            extension = fileName.substring(i + 1).toLowerCase();
+        }
+
+        switch (extension) {
+            case "txt":
+            case "log":
+                return "text/plain";
+            case "json":
+                return "application/json";
+            case "xml":
+                return "application/xml";
+            case "yml":
+            case "yaml":
+                return "text/yaml";
+            case "properties":
+                return "text/plain";
+            case "jar":
+                return "application/java-archive";
+            case "zip":
+                return "application/zip";
+            case "7z":
+                return "application/x-7z-compressed";
+            case "png":
+                return "image/png";
+            case "jpg":
+            case "jpeg":
+                return "image/jpeg";
+            case "pdf":
+                return "application/pdf";
+            default:
+                return "application/octet-stream";
+        }
     }
 
     /**
@@ -371,13 +535,13 @@ public class FileApi {
     }
 
     /**
-     * 删除指定文件或文件夹
+     * 批量删除指定的文件或文件夹
      * @param context Context
      * @param serverId 服务器ID
-     * @param path 要删除的文件或文件夹路径，例如 "/plugins/config.yml" 或 "/plugins/"
+     * @param filePaths 要删除的文件路径列表，例如 ["/plugins/file1.jar", "/plugins/file2.jar"]
      * @param callback 回调
      */
-    public void deleteFileOrFolder(Context context, int serverId, String path, Callback callback) {
+    public void deleteFileOrFolderBatch(Context context, int serverId, java.util.List<String> filePaths, Callback callback) {
         if (context == null) {
             invokeCallback(callback, null, false, "Context 不能为空");
             return;
@@ -386,8 +550,8 @@ public class FileApi {
             invokeCallback(callback, null, false, "无效的服务器ID");
             return;
         }
-        if (path == null || path.isEmpty()) {
-            invokeCallback(callback, null, false, "文件路径不能为空");
+        if (filePaths == null || filePaths.isEmpty()) {
+            invokeCallback(callback, null, false, "文件路径列表不能为空");
             return;
         }
 
@@ -404,17 +568,24 @@ public class FileApi {
             return;
         }
 
-        RequestBody formBody = new FormBody.Builder()
-                .add("path", path)
-                .build();
+        try {
+            org.json.JSONArray jsonArray = new org.json.JSONArray(filePaths);
+            String listString = jsonArray.toString();
 
-        Request request = new Request.Builder()
-                .url(url)
-                .header("Authorization", token)
-                .post(formBody)
-                .build();
+            RequestBody formBody = new FormBody.Builder()
+                    .add("list", listString)
+                    .build();
 
-        sendRequest(context, request, callback);
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("Authorization", token)
+                    .post(formBody)
+                    .build();
+
+            sendRequest(context, request, callback);
+        } catch (Exception e) {
+            invokeCallback(callback, null, false, "构建请求数据失败: " + e.getMessage());
+        }
     }
 
     /**
@@ -678,6 +849,59 @@ public class FileApi {
         sendRequest(context, request, callback);
     }
 
+    /**
+     * 重命名文件或文件夹
+     * @param context Context
+     * @param serverId 服务器ID
+     * @param origin 源文件路径，例如 "/plugins/114514.jar"
+     * @param target 新文件路径，例如 "/plugins/114.jar"
+     * @param callback 回调
+     */
+    public void renameFile(Context context, int serverId, String origin, String target, Callback callback) {
+        if (context == null) {
+            invokeCallback(callback, null, false, "Context 不能为空");
+            return;
+        }
+        if (serverId <= 0) {
+            invokeCallback(callback, null, false, "无效的服务器ID");
+            return;
+        }
+        if (origin == null || origin.isEmpty()) {
+            invokeCallback(callback, null, false, "源文件路径不能为空");
+            return;
+        }
+        if (target == null || target.isEmpty()) {
+            invokeCallback(callback, null, false, "目标文件路径不能为空");
+            return;
+        }
+
+        SharedPreferences sp = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
+        String token = sp.getString(TOKEN_KEY, null);
+        if (token == null || token.isEmpty()) {
+            invokeCallback(callback, null, false, "未登录，请先登录");
+            return;
+        }
+
+        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/rename");
+        if (url == null) {
+            invokeCallback(callback, null, false, "URL 解析错误");
+            return;
+        }
+
+        RequestBody formBody = new FormBody.Builder()
+                .add("origin", origin)
+                .add("target", target)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(url)
+                .header("Authorization", token)
+                .post(formBody)
+                .build();
+
+        sendRequest(context, request, callback);
+    }
+
     private void sendRequest(Context context, Request request, Callback callback) {
         OkHttpClient client = ApiClient.getInstance().getClient();
 
@@ -692,14 +916,20 @@ public class FileApi {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                    if (!response.isSuccessful()) {
-                        invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
-                        return;
-                    }
-
                     String responseBody = null;
                     try {
                         responseBody = response.body() != null ? response.body().string() : "";
+                        
+                        if (!response.isSuccessful()) {
+                            // 处理HTTP错误状态码
+                            if (response.code() == 500) {
+                                invokeCallback(callback, null, false, "HTTP 错误: 500");
+                            } else {
+                                invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
+                            }
+                            return;
+                        }
+
                         JSONObject json = new JSONObject(responseBody);
                         int code = json.getInt("code");
 
