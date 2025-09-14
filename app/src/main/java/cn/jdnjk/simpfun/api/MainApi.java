@@ -6,6 +6,7 @@ import android.os.Looper;
 import android.util.Log;
 import okhttp3.*;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -38,7 +39,6 @@ public class MainApi {
             return;
         }
 
-        // 构建带 Authorization 头部的请求
         Request request = new Request.Builder()
                 .url(BASE_URL + "ins/list")
                 .header("Authorization", token)
@@ -78,13 +78,13 @@ public class MainApi {
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 Log.e(TAG, "Request failed", e);
                 mainHandler.post(() -> invokeCallback(callback, false, "网络请求失败: " + e.getMessage()));
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 mainHandler.post(() -> {
                     if (!response.isSuccessful()) {
                         invokeCallback(callback, false, "HTTP 错误: " + response.code());

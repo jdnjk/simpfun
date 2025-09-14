@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.Nullable;
 import cn.jdnjk.simpfun.api.ApiClient;
 import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -21,21 +22,18 @@ public class FileBaseApi {
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                    invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage());
-                });
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage()));
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                     String responseBody = null;
                     try {
                         responseBody = response.body() != null ? response.body().string() : "";
 
                         if (!response.isSuccessful()) {
-                            // 处理HTTP错误状态码
                             if (response.code() == 500) {
                                 invokeCallback(callback, null, false, "HTTP 错误: 500");
                             } else {
@@ -88,34 +86,19 @@ public class FileBaseApi {
             extension = fileName.substring(i + 1).toLowerCase();
         }
 
-        switch (extension) {
-            case "txt":
-            case "log":
-                return "text/plain";
-            case "json":
-                return "application/json";
-            case "xml":
-                return "application/xml";
-            case "yml":
-            case "yaml":
-                return "text/yaml";
-            case "properties":
-                return "text/plain";
-            case "jar":
-                return "application/java-archive";
-            case "zip":
-                return "application/zip";
-            case "7z":
-                return "application/x-7z-compressed";
-            case "png":
-                return "image/png";
-            case "jpg":
-            case "jpeg":
-                return "image/jpeg";
-            case "pdf":
-                return "application/pdf";
-            default:
-                return "application/octet-stream";
-        }
+        return switch (extension) {
+            case "txt", "log" -> "text/plain";
+            case "json" -> "application/json";
+            case "xml" -> "application/xml";
+            case "yml", "yaml" -> "text/yaml";
+            case "properties" -> "text/plain";
+            case "jar" -> "application/java-archive";
+            case "zip" -> "application/zip";
+            case "7z" -> "application/x-7z-compressed";
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "pdf" -> "application/pdf";
+            default -> "application/octet-stream";
+        };
     }
 }

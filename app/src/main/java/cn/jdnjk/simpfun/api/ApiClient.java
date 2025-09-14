@@ -4,6 +4,7 @@ import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 
@@ -30,7 +31,7 @@ public class ApiClient {
     }
     private static class UserAgentInterceptor implements Interceptor {
         @Override
-        public Response intercept(Chain chain) throws IOException {
+        public @NotNull Response intercept(Chain chain) throws IOException {
             Request originalRequest = chain.request();
             Request requestWithUserAgent = originalRequest.newBuilder()
                     .header("User-Agent", USER_AGENT)

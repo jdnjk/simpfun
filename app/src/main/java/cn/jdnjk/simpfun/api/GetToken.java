@@ -7,6 +7,7 @@ import android.os.Looper;
 import androidx.annotation.Nullable;
 import okhttp3.*;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -95,14 +96,12 @@ public class GetToken {
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                mainHandler.post(() -> {
-                    invokeCallback(callback, false, "网络请求失败: " + e.getMessage());
-                });
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                mainHandler.post(() -> invokeCallback(callback, false, "网络请求失败: " + e.getMessage()));
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 mainHandler.post(() -> {
                     if (!response.isSuccessful()) {
                         invokeCallback(callback, false, "HTTP 错误: " + response.code());
@@ -117,7 +116,6 @@ public class GetToken {
 
                         if (code == 200) {
                             String token = json.getString("token");
-                            // 保存 token 到 SP
                             saveToken(token);
                             invokeCallback(callback, true, null, token);
                         } else {
