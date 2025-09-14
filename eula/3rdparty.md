@@ -8,13 +8,4 @@
 处理的个人信息类型：手机型号、手机品牌、Android系统版本、Android系统api等级、厂商系统版本、cpu架构类型、设备是否root、磁盘空间占用大小、sdcard空间占用大小、内存空间占用大小、网络类型、应用当前正在运行的进程名和PID   
 第三方SDK隐私政策链接：https://privacy.qq.com/document/preview/fc748b3d96224fdb825ea79e132c1a56   
 第三方SDK官网链接：https://bugly.qq.com/v2/   
-处理方式：通过加密传输和处理的安全处理方式   
-
-第三方SDK名称：Shiply专业版SDK   
-第三方SDK提供方的公司名称：深圳市腾讯计算机系统有限公司   
-使用目的及功能场景：为开发者提供应用内升级能力   
-处理的个人信息类型：用户ID、设备型号、设备厂商、设备操作系统版本、设备是否是64位处理器、APP应用版本号、APP渠道信息   
-实现SDK产品功能所需的权限：网络访问权限   
-第三方SDK隐私政策链接：https://privacy.qq.com/document/preview/2425a93212a847b7a2605d5d2299030d   
-第三方SDK官网链接：https://shiply.tds.qq.com/   
-处理方式：1、采用SSL协议加密及HTTPS传输加密技术保障安全；2、采取加密、去标识化等安全措施脱敏处理   
+处理方式：通过加密传输和处理的安全处理方式

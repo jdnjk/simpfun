@@ -1,10 +1,13 @@
 package cn.jdnjk.simpfun;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
@@ -13,6 +16,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import cn.jdnjk.simpfun.api.MainApi;
 import org.json.JSONArray;
@@ -33,6 +37,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         setContentView(R.layout.activity_server);
+
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        toolbar.setOnMenuItemClickListener(this::onOptionsItemSelected);
 
         View rootView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
@@ -134,5 +142,27 @@ public class MainActivity extends AppCompatActivity {
     }
     public JSONArray getInstanceList() {
         return instanceList;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_documentation) {
+            openDocumentation();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void openDocumentation() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse("https://www.yuque.com/simpfox/simpdoc/main"));
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "无法打开文档链接", Toast.LENGTH_SHORT).show();
+        }
     }
 }

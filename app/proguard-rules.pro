@@ -19,5 +19,77 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
--dontwarn com.tencent.bugly.**
+-keepattributes Signature
+-keepattributes Exceptions
+-keepclasseswithmembers class * {
+    @retrofit2.http.* <methods>;
+}
+-keepclassmembers,allowobfuscation interface * {
+    @retrofit2.* <fields>;
+}
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**
+-keep class okhttp3.** { *; }
+-keep class retrofit2.** { *; }
+
+-keep class org.json.** { *; }
+
+# Keep all classes in our base package and its subpackages
+-keep class cn.jdnjk.simpfun.** { *; }
+
+-keep public class * extends android.app.Activity
+-keep public class * extends androidx.fragment.app.Fragment
+-keep public class * extends android.view.View {
+    public <init>(android.content.Context);
+    public <init>(android.content.Context, android.util.AttributeSet);
+    public <init>(android.content.Context, android.util.AttributeSet, int);
+}
+
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+-keepclassmembers class cn.jdnjk.simpfun.model.* {
+    <fields>;
+    <init>(...);
+    <methods>;
+}
+
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+-keepattributes *Annotation*
+
+-keepclassmembers class **.R$* {
+    public static <fields>;
+}
+
+-keepnames class * implements java.io.Serializable
+-keepclassmembers class * implements java.io.Serializable {
+    static final long serialVersionUID;
+    private static final java.io.ObjectStreamField[] serialPersistentFields;
+    !static !transient <fields>;
+    !private <fields>;
+    !private <methods>;
+    private void writeObject(java.io.ObjectOutputStream);
+    private void readObject(java.io.ObjectInputStream);
+    java.lang.Object writeReplace();
+    java.lang.Object readResolve();
+}
+
+# Keep AndroidX classes
+-keep class androidx.** { *; }
+-dontwarn androidx.**
+
+# Keep support library classes
+-keep class android.support.** { *; }
+-dontwarn android.support.**
+
+# Keep Gson classes
+-keep class com.google.gson.** { *; }
+-dontwarn com.google.gson.**
+
+# Keep Bugly classes
 -keep public class com.tencent.bugly.**{*;}

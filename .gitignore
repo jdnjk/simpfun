@@ -4,3 +4,4 @@ app/build/
 build/
 app/release/
 /sign.properties
+/local.properties

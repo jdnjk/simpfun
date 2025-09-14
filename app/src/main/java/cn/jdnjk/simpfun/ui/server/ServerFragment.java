@@ -28,6 +28,7 @@ public class ServerFragment extends Fragment {
     private ServerAdapter adapter;
     private List<ServerItem> serverItems;
     private SwipeRefreshLayout swipeRefreshLayout;
+    private View emptyStateLayout;
 
     @Nullable
     @Override
@@ -36,6 +37,8 @@ public class ServerFragment extends Fragment {
 
         swipeRefreshLayout = root.findViewById(R.id.swipe_refresh_layout);
         recyclerView = root.findViewById(R.id.recycler_view_servers);
+        emptyStateLayout = root.findViewById(R.id.empty_state_layout);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         serverItems = new ArrayList<>();
@@ -120,6 +123,14 @@ public class ServerFragment extends Fragment {
             }
         }
 
+        // 根据列表是否为空来显示相应的状态
+        if (serverItems.isEmpty()) {
+            recyclerView.setVisibility(View.GONE);
+            emptyStateLayout.setVisibility(View.VISIBLE);
+        } else {
+            recyclerView.setVisibility(View.VISIBLE);
+            emptyStateLayout.setVisibility(View.GONE);
+        }
 
         if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
             swipeRefreshLayout.setRefreshing(false);
@@ -160,12 +171,13 @@ public class ServerFragment extends Fragment {
             if (cachedJson != null) {
                 try {
                     JSONArray cachedList = new JSONArray(cachedJson);
-                    if (cachedList.length() > 0) {
-                        updateInstanceList(cachedList);
-                    }
+                    updateInstanceList(cachedList);
                 } catch (Exception e) {
                     Log.e("ServerFragment", "解析缓存数据失败", e);
+                    updateInstanceList(null);
                 }
+            } else {
+                updateInstanceList(null);
             }
         }
     }

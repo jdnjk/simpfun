@@ -8,4 +8,5 @@
         android:elevation="4dp"
         app:title="服务器管理"
         app:titleTextColor="#FFFFFF"
+        app:menu="@menu/main_menu"
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />

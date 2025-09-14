@@ -24,7 +24,7 @@ android {
         minSdk 25
         targetSdk 35
         versionCode 1011
-        versionName "1.0.1_Preview"
+        versionName "1.0.1"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
@@ -59,10 +59,11 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSignConfig) {
                 signingConfig signingConfigs.release
+                minifyEnabled true
+                shrinkResources true
             }
         }
         debug {
@@ -82,10 +83,6 @@ android {
 }
 
 dependencies {
-    //implementation "com.tencent.shiply:shiplyintegration:$shiply_integration_version"
-    //implementation("com.tencent.shiply:upgrade:$upgrade_version")
-    //implementation("com.tencent.shiply:upgrade-ui:$upgrade_version")
-    //implementation("com.tencent.shiply:upgrade-diff-pkg-patch:$upgrade_version")
     implementation 'com.tencent.bugly:crashreport:latest.release'
 
     implementation 'com.squareup.okhttp3:okhttp:5.1.0'

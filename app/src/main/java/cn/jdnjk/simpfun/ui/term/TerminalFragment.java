@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ApiClient;
 import cn.jdnjk.simpfun.api.ins.TermApi;
+import cn.jdnjk.simpfun.ui.setting.TerminalColorUtils;
 import com.fox2code.androidansi.AnsiParser;
 import com.fox2code.androidansi.AnsiTextView;
 import okhttp3.*;
@@ -52,6 +53,8 @@ public class TerminalFragment extends Fragment {
         buttonSend = root.findViewById(R.id.button_send);
         textViewOutput = root.findViewById(R.id.text_view_output);
         scrollViewOutput = root.findViewById(R.id.scroll_view_output);
+
+        applyTerminalColors();
 
         buttonSend.setOnClickListener(v -> sendCommand());
 
@@ -296,5 +299,18 @@ public class TerminalFragment extends Fragment {
             webSocket = null;
         }
         ansiBuffer.setLength(0);
+    }
+
+    private void applyTerminalColors() {
+        if (getContext() == null) return;
+
+        TerminalColorUtils.applyTerminalColors(getContext(), textViewOutput);
+        TerminalColorUtils.applyTerminalBackgroundColor(getContext(), scrollViewOutput);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        applyTerminalColors();
     }
 }

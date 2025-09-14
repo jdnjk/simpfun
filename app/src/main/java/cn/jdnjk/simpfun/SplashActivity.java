@@ -8,6 +8,7 @@ import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
+import cn.jdnjk.simpfun.ui.setting.ThemeManager;
 import com.tencent.bugly.crashreport.CrashReport;
 
 //import android.os.Build;
@@ -21,6 +22,7 @@ public class SplashActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ThemeManager.getInstance(this).initializeTheme();
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             SharedPreferences sp = getSharedPreferences("token", MODE_PRIVATE);
