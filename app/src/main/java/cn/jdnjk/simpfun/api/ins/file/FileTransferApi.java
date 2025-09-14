@@ -3,6 +3,7 @@ package cn.jdnjk.simpfun.api.ins.file;
 import android.content.Context;
 import cn.jdnjk.simpfun.api.ApiClient;
 import okhttp3.*;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -137,14 +138,12 @@ public class FileTransferApi extends FileBaseApi {
 
             client.newCall(request).enqueue(new okhttp3.Callback() {
                 @Override
-                public void onFailure(Call call, IOException e) {
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                        invokeCallback(callback, null, false, "文件上传失败: " + e.getMessage());
-                    });
+                public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "文件上传失败: " + e.getMessage()));
                 }
 
                 @Override
-                public void onResponse(Call call, Response response) throws IOException {
+                public void onResponse(@NotNull Call call, @NotNull Response response) {
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                         if (!response.isSuccessful()) {
                             try {
@@ -244,14 +243,14 @@ public class FileTransferApi extends FileBaseApi {
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                     if (downloadCallback != null) downloadCallback.onFailure("网络请求失败: " + e.getMessage());
                 });
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 if (!response.isSuccessful()) {
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                         if (downloadCallback != null) downloadCallback.onFailure("HTTP 错误: " + response.code());
@@ -308,14 +307,14 @@ public class FileTransferApi extends FileBaseApi {
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                     if (downloadCallback != null) downloadCallback.onFailure("文件下载失败: " + e.getMessage());
                 });
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 if (!response.isSuccessful()) {
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                         if (downloadCallback != null) downloadCallback.onFailure("文件下载HTTP错误: " + response.code());

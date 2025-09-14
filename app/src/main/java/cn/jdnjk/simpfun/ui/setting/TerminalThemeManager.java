@@ -39,41 +39,29 @@ public class TerminalThemeManager {
     }
 
     public String getTerminalThemeName(int themeMode) {
-        switch (themeMode) {
-            case TERMINAL_THEME_FORCE_LIGHT:
-                return "强制浅色";
-            case TERMINAL_THEME_FORCE_DARK:
-                return "强制深色";
-            case TERMINAL_THEME_FOLLOW_SYSTEM:
-            default:
-                return "跟随主题";
-        }
+        return switch (themeMode) {
+            case TERMINAL_THEME_FORCE_LIGHT -> "强制浅色";
+            case TERMINAL_THEME_FORCE_DARK -> "强制深色";
+            default -> "跟随主题";
+        };
     }
 
     public int getTerminalBackgroundColor() {
         int themeMode = getTerminalThemeMode();
-        switch (themeMode) {
-            case TERMINAL_THEME_FORCE_LIGHT:
-                return LIGHT_BACKGROUND_COLOR;
-            case TERMINAL_THEME_FORCE_DARK:
-                return DARK_BACKGROUND_COLOR;
-            case TERMINAL_THEME_FOLLOW_SYSTEM:
-            default:
-                return isSystemInDarkMode() ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
-        }
+        return switch (themeMode) {
+            case TERMINAL_THEME_FORCE_LIGHT -> LIGHT_BACKGROUND_COLOR;
+            case TERMINAL_THEME_FORCE_DARK -> DARK_BACKGROUND_COLOR;
+            default -> isSystemInDarkMode() ? DARK_BACKGROUND_COLOR : LIGHT_BACKGROUND_COLOR;
+        };
     }
 
     public int getTerminalTextColor() {
         int themeMode = getTerminalThemeMode();
-        switch (themeMode) {
-            case TERMINAL_THEME_FORCE_LIGHT:
-                return LIGHT_TEXT_COLOR;
-            case TERMINAL_THEME_FORCE_DARK:
-                return DARK_TEXT_COLOR;
-            case TERMINAL_THEME_FOLLOW_SYSTEM:
-            default:
-                return isSystemInDarkMode() ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR;
-        }
+        return switch (themeMode) {
+            case TERMINAL_THEME_FORCE_LIGHT -> LIGHT_TEXT_COLOR;
+            case TERMINAL_THEME_FORCE_DARK -> DARK_TEXT_COLOR;
+            default -> isSystemInDarkMode() ? DARK_TEXT_COLOR : LIGHT_TEXT_COLOR;
+        };
     }
 
     private boolean isSystemInDarkMode() {

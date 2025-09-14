@@ -476,9 +476,7 @@ public class FileListFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                mainHandler.post(() -> {
-                    Toast.makeText(requireContext(), "创建失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                });
+                mainHandler.post(() -> Toast.makeText(requireContext(), "创建失败: " + errorMsg, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -503,9 +501,7 @@ public class FileListFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                mainHandler.post(() -> {
-                    Toast.makeText(requireContext(), "创建失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                });
+                mainHandler.post(() -> Toast.makeText(requireContext(), "创建失败: " + errorMsg, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -553,14 +549,6 @@ public class FileListFragment extends Fragment {
         } catch (Exception e) {
             Toast.makeText(requireContext(), "文件处理失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void createFileIntent(File file) {
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        Uri uri = FileProvider.getUriForFile(requireContext(), requireContext().getPackageName() + ".fileprovider", file);
-        intent.setDataAndType(uri, getMimeType(file.getAbsolutePath()));
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(intent);
     }
 
     private String getMimeType(String filePath) {
@@ -1710,9 +1698,7 @@ public class FileListFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                mainHandler.post(() -> {
-                    Toast.makeText(requireContext(), "压缩失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                });
+                mainHandler.post(() -> Toast.makeText(requireContext(), "压缩失败: " + errorMsg, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -1746,9 +1732,7 @@ public class FileListFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                mainHandler.post(() -> {
-                    Toast.makeText(requireContext(), "解压失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                });
+                mainHandler.post(() -> Toast.makeText(requireContext(), "解压失败: " + errorMsg, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -1797,7 +1781,7 @@ public class FileListFragment extends Fragment {
             @Override
             public void onFailure(String errorMsg) {
                 mainHandler.post(() -> {
-                    Toast.makeText(requireContext(), "重命���失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(requireContext(), "重命名失败: " + errorMsg, Toast.LENGTH_SHORT).show();
                 });
             }
         });
@@ -1910,9 +1894,7 @@ public class FileListFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                mainHandler.post(() -> {
-                    Toast.makeText(requireContext(), "创建副本失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                });
+                mainHandler.post(() -> Toast.makeText(requireContext(), "创建副本失败: " + errorMsg, Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -1924,9 +1906,7 @@ public class FileListFragment extends Fragment {
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         builder.setTitle("工具箱");
 
-        builder.setMultiChoiceItems(options, checkedItems, (dialog, which, isChecked) -> {
-            checkedItems[which] = isChecked;
-        });
+        builder.setMultiChoiceItems(options, checkedItems, (dialog, which, isChecked) -> checkedItems[which] = isChecked);
 
         builder.setPositiveButton("确认", (dialog, which) -> {
             if (checkedItems[0]) {
@@ -1962,9 +1942,7 @@ public class FileListFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    Toast.makeText(requireContext(), "工具箱操作失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                });
+                new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(requireContext(), "工具箱操作失败: " + errorMsg, Toast.LENGTH_SHORT).show());
             }
         });
     }

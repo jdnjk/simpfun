@@ -10,11 +10,6 @@ import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.ui.setting.ThemeManager;
 import com.tencent.bugly.crashreport.CrashReport;
-
-//import android.os.Build;
-//import com.tencent.upgrade.bean.UpgradeConfig;
-//import com.tencent.upgrade.core.UpgradeManager;
-
 import static cn.jdnjk.simpfun.BuildConfig.*;
 
 public class SplashActivity extends AppCompatActivity {

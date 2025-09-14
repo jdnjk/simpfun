@@ -51,15 +51,11 @@ public class ThemeManager {
     }
 
     public String getThemeName(int themeMode) {
-        switch (themeMode) {
-            case THEME_LIGHT:
-                return "浅色模式";
-            case THEME_DARK:
-                return "深色模式";
-            case THEME_SYSTEM:
-            default:
-                return "跟随系统";
-        }
+        return switch (themeMode) {
+            case THEME_LIGHT -> "浅色模式";
+            case THEME_DARK -> "深色模式";
+            default -> "跟随系统";
+        };
     }
 
     public void initializeTheme() {

@@ -5,7 +5,6 @@ import okhttp3.FormBody;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import org.json.JSONObject;
 
 import java.util.List;
 
@@ -29,7 +28,7 @@ public class FileManageApi extends FileBaseApi {
             invokeCallback(callback, null, false, "无效的服务器ID");
             return;
         }
-        if (mode == null || (!"file".equals(mode) && !"folder".equals(mode))) {
+        if ((!"file".equals(mode) && !"folder".equals(mode))) {
             invokeCallback(callback, null, false, "无效的 mode，必须是 'file' 或 'folder'");
             return;
         }
