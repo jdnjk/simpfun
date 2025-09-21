@@ -103,11 +103,6 @@ public class GetToken {
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 mainHandler.post(() -> {
-                    if (!response.isSuccessful()) {
-                        invokeCallback(callback, false, "HTTP 错误: " + response.code());
-                        return;
-                    }
-
                     String responseBody = null;
                     try {
                         responseBody = Objects.requireNonNull(response.body()).string();
@@ -118,6 +113,12 @@ public class GetToken {
                             String token = json.getString("token");
                             saveToken(token);
                             invokeCallback(callback, true, null, token);
+                        } else if (code == 429){
+                            String msg = json.optString("msg", "频率超过限制，请稍后再试");
+                            invokeCallback(callback, false, msg);
+                        } else if (code == 401){
+                            String msg = json.optString("msg", "请登录小程序");
+                            invokeCallback(callback, false, msg);
                         } else {
                             String msg = json.optString("msg", "未知错误");
                             invokeCallback(callback, false, msg);

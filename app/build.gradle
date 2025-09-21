@@ -21,7 +21,7 @@ android {
         buildConfigField "String", "VERSION_NAME", "\"1.0.1\""
         buildConfigField 'int', 'VERSION_CODE', "1011"
         applicationId "cn.jdnjk.simpfun"
-        minSdk 25
+        minSdk 23
         targetSdk 35
         versionCode 1011
         versionName "1.0.1"
