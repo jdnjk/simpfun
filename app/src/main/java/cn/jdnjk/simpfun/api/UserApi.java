@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.widget.Toast;
 
 import cn.jdnjk.simpfun.MainActivity;
@@ -108,7 +109,7 @@ public class UserApi {
 
             editor.apply();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e("UserApi", "保存用户信息时出错: " + e.getMessage());
             Toast.makeText(context, "保存用户信息时出错", Toast.LENGTH_SHORT).show();
         }
     }

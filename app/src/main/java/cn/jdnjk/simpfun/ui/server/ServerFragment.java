@@ -118,7 +118,7 @@ public class ServerFragment extends Fragment {
                     );
                     serverItems.add(item);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.e("ServerFragment", "解析实例数据失败: " + e.getMessage());
                 }
             }
         }

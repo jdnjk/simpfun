@@ -18,8 +18,8 @@ android {
     compileSdk 35
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.0.1\""
-        buildConfigField 'int', 'VERSION_CODE', "1011"
+        buildConfigField "String", "VERSION_NAME", "\"1.0.2\""
+        buildConfigField 'int', 'VERSION_CODE', "1020"
         applicationId "cn.jdnjk.simpfun"
         minSdk 23
         targetSdk 35
@@ -62,8 +62,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSignConfig) {
                 signingConfig signingConfigs.release
-                minifyEnabled true
-                shrinkResources true
+                minifyEnabled false
+                shrinkResources false
             }
         }
         debug {

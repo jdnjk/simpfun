@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
                         ((ServerFragment) currentFragment).updateInstanceList(instanceList);
                     }
                 } catch (Exception e) {
-                    Log.e("MainActivity", "Failed to parse instance list from API response", e);
+                    Log.e("MainActivity", "InsFail", e);
                     Toast.makeText(MainActivity.this, "解析数据失败", Toast.LENGTH_SHORT).show();
                 }
             }

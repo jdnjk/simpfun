@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun.api;
 
+import cn.jdnjk.simpfun.BuildConfig;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -12,7 +13,7 @@ public class ApiClient {
     private static ApiClient instance;
     private final OkHttpClient client;
 
-    private static final String USER_AGENT = "SimpfunAPP/1.0";
+    private static final String USER_AGENT = "SimpfunAPP/"+ BuildConfig.VERSION_NAME;
 
     private ApiClient() {
         this.client = new OkHttpClient.Builder()

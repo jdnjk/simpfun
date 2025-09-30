@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.RadioGroup;
@@ -137,7 +138,7 @@ public class BuyPointActivity extends AppCompatActivity {
                     showToast("网络错误");
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e("BuyPointActivity", "创建订单失败", e);
                 showToast("请求失败");
             } finally {
                 runOnUiThread(() -> {

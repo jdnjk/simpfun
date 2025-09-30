@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import androidx.annotation.Nullable;
 import cn.jdnjk.simpfun.api.ApiClient;
 import okhttp3.*;
@@ -116,7 +117,7 @@ public class TermApi {
                             JSONObject data = json.getJSONObject("data");
                             invokeCallback(callback, data, true, null);
                         } else if (code == 500){
-                            String msg = ("由于当前节点负载已到达预设上限，无剩余可用资源，简幻欢拒绝了本次的连接，请稍后再试。");
+                            String msg = ("由于当前节点负载已到达预设上限，无剩余可用资源，已拒绝了本次的连接，请稍后再试。");
                             invokeCallback(callback, null, false, msg);
                         } else if (code == 429) {
                             String msg = ("请求过于频繁，请稍后再试。");
@@ -126,10 +127,10 @@ public class TermApi {
                             invokeCallback(callback, null, false, msg);
                         }
                     } catch (JSONException e) {
-                        e.printStackTrace();
+                        Log.e("TermApi", "解析错误: " + e.getMessage() + ", Response: " + responseBody);
                         invokeCallback(callback, null, false, "数据解析错误");
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        Log.e("TermApi", "未知错误: " + e.getMessage() + ", Response: " + responseBody);
                         invokeCallback(callback, null, false, "未知错误");
                     }
 

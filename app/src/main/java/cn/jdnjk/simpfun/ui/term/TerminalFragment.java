@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -111,7 +112,7 @@ public class TerminalFragment extends Fragment {
                     });
 
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.e("TerminalFragment", "连接失败" + e.getMessage());
                     mainHandler.post(() -> appendOutput("解析连接信息失败: " + e.getMessage() + "\n"));
                 }
             }
@@ -177,7 +178,7 @@ public class TerminalFragment extends Fragment {
                             refreshTokenAndReAuth();
                         }
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        Log.w("TerminalFragment", "处理消息失败: " + e.getMessage());
                     }
                 });
             }
@@ -228,7 +229,7 @@ public class TerminalFragment extends Fragment {
             authMsg.put("args", args);
             webSocket.send(authMsg.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.w("TermLogin", e.getMessage());
         }
     }
     private void sendLogMessage() {
@@ -238,7 +239,7 @@ public class TerminalFragment extends Fragment {
             logMsg.put("args", new JSONArray());
             webSocket.send(logMsg.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.w("TermGetLogs", e.getMessage());
         }
     }
     private void sendCommand() {
@@ -268,6 +269,7 @@ public class TerminalFragment extends Fragment {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            Log.w("TermSendCmd", e.getMessage());
         }
     }
     private void appendOutput(String text) {

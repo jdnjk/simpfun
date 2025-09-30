@@ -104,7 +104,7 @@ public class UpdateHelper {
                     });
 
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.e("Update", "解析更新信息失败: " + e.getMessage());
                     postToUi(() -> listener.onDownloadError("检查更新失败：" + e.getMessage()));
                 }
             }
@@ -169,7 +169,7 @@ public class UpdateHelper {
                     });
 
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.w("Update", "保存失败: " + e.getMessage());
                     postToUi(() -> {
                         if (listener != null) listener.onDownloadError("保存失败");
                     });
