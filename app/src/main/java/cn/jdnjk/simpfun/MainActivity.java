@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
@@ -23,6 +24,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
+import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
 
 public class MainActivity extends AppCompatActivity {
     private JSONArray instanceList;
@@ -152,8 +154,17 @@ public class MainActivity extends AppCompatActivity {
             openDocumentation();
             return true;
         }
-
+        if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
+            return true;
+        }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
     }
 
     private void openDocumentation() {

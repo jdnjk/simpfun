@@ -6,6 +6,7 @@
             android:id="@+id/action_documentation"
             android:icon="@drawable/ic_document"
             android:title="文档"
-            app:showAsAction="always" />
+            android:orderInCategory="100"
+            app:showAsAction="ifRoom" />
 
 </menu>

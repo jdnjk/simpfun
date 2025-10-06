@@ -6,9 +6,11 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -21,7 +23,6 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
-import com.tencent.bugly.crashreport.CrashReport;
 
 public class ProfileFragment extends Fragment {
 
@@ -56,23 +57,47 @@ public class ProfileFragment extends Fragment {
         tvDiamond = root.findViewById(R.id.tv_diamond);
         tvAnnouncementTitle = root.findViewById(R.id.tv_announcement_title);
         tvAnnouncementText = root.findViewById(R.id.tv_announcement_text);
-        Button btnSettings = root.findViewById(R.id.btn_settings);
 
         loadUserInfo();
 
         swipeRefresh.setOnRefreshListener(this::refreshUserInfo);
 
-        btnSettings.setOnClickListener(v -> {
-            Intent intent = new Intent(requireContext(), SettingsActivity.class);
-            startActivity(intent);
-            //CrashReport.testJavaCrash();
-        });
         root.findViewById(R.id.layout_click_point).setOnClickListener(v -> {
             Intent intent = new Intent(context, BuyPointActivity.class);
             startActivity(intent);
         });
 
         return root;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        // 仅该页面添加设置菜单
+        inflater.inflate(R.menu.profile_menu, menu);
+        super.onCreateOptionsMenu(menu, inflater);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_settings) {
+            startActivity(new Intent(requireContext(), SettingsActivity.class));
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getActivity() != null) {
+            getActivity().invalidateOptionsMenu();
+        }
     }
 
     private void loadUserInfo() {
