@@ -1,12 +1,15 @@
 package cn.jdnjk.simpfun.ui.server;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -14,6 +17,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import cn.jdnjk.simpfun.api.MainApi;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.ArrayList;
@@ -21,6 +26,7 @@ import java.util.List;
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.model.ServerItem;
+import cn.jdnjk.simpfun.ui.create.CreateServer;
 
 public class ServerFragment extends Fragment {
 
@@ -49,6 +55,55 @@ public class ServerFragment extends Fragment {
 
         swipeRefreshLayout.setOnRefreshListener(this::refreshInstanceList);
 
+        FloatingActionButton fab = root.findViewById(R.id.fab_add_server);
+        if (fab == null) {
+            Log.w("ServerFragment", "FAB未在布局中找到, 动态创建");
+            if (root instanceof SwipeRefreshLayout) {
+                View inner = ((SwipeRefreshLayout) root).getChildAt(0);
+                if (inner instanceof FrameLayout fl) {
+                    fab = new FloatingActionButton(requireContext());
+                    fab.setId(R.id.fab_add_server);
+                    fab.setImageResource(android.R.drawable.ic_input_add);
+                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    lp.gravity = Gravity.END | Gravity.BOTTOM;
+                    lp.setMargins(0,0,20,20);
+                    fab.setLayoutParams(lp);
+                    fl.addView(fab);
+                }
+            }
+        }
+        if (fab != null) {
+            fab.setVisibility(View.VISIBLE);
+            fab.bringToFront();
+            fab.setOnClickListener(v -> {
+                Log.d("ServerFragment", "FAB点击, 跳转创建");
+                Intent intent = new Intent(requireContext(), CreateServer.class);
+                startActivity(intent);
+            });
+            // 动态上移避免被底栏遮挡
+            BottomNavigationView nav = requireActivity().findViewById(R.id.nav_view);
+            if (nav != null) {
+                FloatingActionButton finalFab = fab;
+                nav.post(() -> {
+                    int h = nav.getHeight();
+                    ViewGroup.LayoutParams lp0 = finalFab.getLayoutParams();
+                    if (lp0 instanceof FrameLayout.LayoutParams lp) {
+                        int base = dp(16);
+                        lp.bottomMargin = h + base; // 底栏高度 + 16dp
+                        lp.rightMargin = Math.max(lp.rightMargin, base);
+                        finalFab.setLayoutParams(lp);
+                    }
+                    // 列表底部留出空间
+                    if (recyclerView != null && recyclerView.getPaddingBottom() < h) {
+                        recyclerView.setPadding(recyclerView.getPaddingLeft(), recyclerView.getPaddingTop(), recyclerView.getPaddingRight(), h + dp(80));
+                        recyclerView.setClipToPadding(false);
+                    }
+                });
+            }
+        } else {
+            Log.e("ServerFragment", "仍未能创建FAB");
+        }
+
         return root;
     }
 
@@ -56,6 +111,8 @@ public class ServerFragment extends Fragment {
     public void onResume() {
         super.onResume();
         loadCachedDataIfAvailable();
+        // 创建新实例后回来刷新一次
+        refreshInstanceList();
     }
 
     @Override
@@ -181,4 +238,6 @@ public class ServerFragment extends Fragment {
             }
         }
     }
+
+    private int dp(int v){ return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
 }

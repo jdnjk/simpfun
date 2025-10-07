@@ -191,11 +191,7 @@ public class TerminalFragment extends Fragment {
                     public void onSuccess(JSONObject data) {
                         try {
                             requestToken = data.getString("token");
-
-                            mainHandler.post(() -> {
-                                sendAuthMessage();
-                            });
-
+                            mainHandler.post(TerminalFragment.this::sendAuthMessage);
                         } catch (Exception e) {
                             mainHandler.post(() -> appendOutput("Token 续期失败: " + e.getMessage() + "\n"));
                         }

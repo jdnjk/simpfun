@@ -27,6 +27,12 @@
 
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="simpfun" />
+            </intent-filter>
         </activity>
         <activity
                 android:name=".MainActivity"
@@ -48,6 +54,9 @@
                 android:name=".ui.setting.SettingsActivity"
                 android:exported="true">
         </activity>
+        <activity
+                android:name=".ui.create.CreateServer"
+                android:exported="false" />
         <provider
                 android:name="androidx.core.content.FileProvider"
                 android:authorities="${applicationId}.fileprovider"

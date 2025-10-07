@@ -1,16 +1,14 @@
 package cn.jdnjk.simpfun.api;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
-import cn.jdnjk.simpfun.MainActivity;
-import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import com.tencent.bugly.crashreport.CrashReport;
+
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
@@ -23,6 +21,11 @@ public class UserApi {
     private Handler mainHandler;
     private SharedPreferences UserInfo;
 
+    public interface AuthCallback {
+        void onSuccess();
+        void onFailure();
+    }
+
     public UserApi(Context context) {
         this.context = context;
         this.mainHandler = new Handler(Looper.getMainLooper());
@@ -30,6 +33,10 @@ public class UserApi {
     }
 
     public void UserInfo(String authorizationToken) {
+        UserInfo(authorizationToken, null);
+    }
+
+    public void UserInfo(String authorizationToken, AuthCallback callback) {
         OkHttpClient client = ApiClient.getInstance().getClient();
 
         Request request = new Request.Builder()
@@ -42,7 +49,7 @@ public class UserApi {
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 mainHandler.post(() -> {
                     Toast.makeText(context, "请求失败，请稍后再试", Toast.LENGTH_SHORT).show();
-                    navigateToLogin();
+                    if (callback != null) callback.onFailure();
                 });
             }
 
@@ -58,30 +65,30 @@ public class UserApi {
                             if (code == 200) {
                                 try {
                                     saveUserInfo(jsonObject.getJSONObject("info"));
-                                    navigateToHomePage();
+                                    if (callback != null) callback.onSuccess();
                                 } catch (JSONException e) {
                                     Toast.makeText(context, "用户信息解析失败", Toast.LENGTH_SHORT).show();
-                                    navigateToLogin();
+                                    if (callback != null) callback.onFailure();
                                 }
                             } else if (code == 403) {
                                 Toast.makeText(context, "账号验证失败，请重新登录", Toast.LENGTH_SHORT).show();
-                                navigateToLogin();
+                                if (callback != null) callback.onFailure();
                             } else {
                                 String msg = jsonObject.optString("msg", "未知错误");
                                 Toast.makeText(context, "错误: " + msg, Toast.LENGTH_SHORT).show();
-                                navigateToLogin();
+                                if (callback != null) callback.onFailure();
                             }
                         });
                     } catch (JSONException e) {
                         mainHandler.post(() -> {
                             Toast.makeText(context, "数据解析错误", Toast.LENGTH_SHORT).show();
-                            navigateToLogin();
+                            if (callback != null) callback.onFailure();
                         });
                     }
                 } else {
                     mainHandler.post(() -> {
                         Toast.makeText(context, "网络错误，请稍后再试", Toast.LENGTH_SHORT).show();
-                        navigateToLogin();
+                        if (callback != null) callback.onFailure();
                     });
                 }
             }
@@ -112,17 +119,5 @@ public class UserApi {
             Log.e("UserApi", "保存用户信息时出错: " + e.getMessage());
             Toast.makeText(context, "保存用户信息时出错", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void navigateToLogin() {
-        Intent intent = new Intent(context, AuthActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        context.startActivity(intent);
-    }
-
-    private void navigateToHomePage() {
-        Intent intent = new Intent(context, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        context.startActivity(intent);
     }
 }

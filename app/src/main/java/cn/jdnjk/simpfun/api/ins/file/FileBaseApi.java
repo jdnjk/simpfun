@@ -23,22 +23,17 @@ public class FileBaseApi {
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage()));
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, buildMsg("网络请求失败", e)));
             }
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                    String responseBody = null;
                     try {
-                        responseBody = response.body() != null ? response.body().string() : "";
+                        String responseBody = response.body() != null ? response.body().string() : "";
 
                         if (!response.isSuccessful()) {
-                            if (response.code() == 500) {
-                                invokeCallback(callback, null, false, "HTTP 错误: 500");
-                            } else {
-                                invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
-                            }
+                            invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
                             return;
                         }
 
@@ -46,20 +41,30 @@ public class FileBaseApi {
                         int code = json.getInt("code");
 
                         if (code == 200) {
-                            // 这里直接返回整个 json，由调用者解析 "list" 数组
                             invokeCallback(callback, json, true, null);
                         } else {
                             String msg = json.optString("msg", "操作失败");
+                            if (msg == null || msg.trim().isEmpty() || "null".equalsIgnoreCase(msg.trim())) {
+                                msg = "操作失败";
+                            }
                             invokeCallback(callback, null, false, msg);
                         }
                     } catch (JSONException e) {
-                        invokeCallback(callback, null, false, "数据解析错误: " + e.getMessage());
+                        invokeCallback(callback, null, false, buildMsg("数据解析错误", e));
                     } catch (Exception e) {
-                        invokeCallback(callback, null, false, "未知错误: " + e.getMessage());
+                        invokeCallback(callback, null, false, buildMsg("未知错误", e));
                     }
                 });
             }
         });
+    }
+
+    private String buildMsg(String prefix, Exception e) {
+        String m = (e == null ? null : e.getMessage());
+        if (m == null || m.trim().isEmpty() || "null".equalsIgnoreCase(m.trim())) {
+            return prefix;
+        }
+        return prefix + ": " + m;
     }
 
     protected String getToken(Context context) {
@@ -72,6 +77,9 @@ public class FileBaseApi {
             if (success) {
                 callback.onSuccess(data);
             } else {
+                if (errorMsg == null || errorMsg.trim().isEmpty() || "null".equalsIgnoreCase(errorMsg.trim()) || errorMsg.endsWith(": null")) {
+                    errorMsg = "操作失败";
+                }
                 callback.onFailure(errorMsg);
             }
         }

@@ -1,6 +1,7 @@
 package cn.jdnjk.simpfun.ui.auth;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
 import android.text.TextUtils;
@@ -8,7 +9,6 @@ import android.text.method.LinkMovementMethod;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,6 +17,10 @@ import com.google.android.material.textfield.TextInputLayout;
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.GetToken;
+import cn.jdnjk.simpfun.ServerManages;
+import cn.jdnjk.simpfun.SplashActivity;
+
+import java.util.Objects;
 
 public class AuthActivity extends AppCompatActivity {
 
@@ -27,6 +31,7 @@ public class AuthActivity extends AppCompatActivity {
     private Button buttonSubmit;
 
     private boolean isRegisterMode = false;
+    private int pendingServerId = -1; // 待跳转服务器ID（来自深链）
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,8 +39,13 @@ public class AuthActivity extends AppCompatActivity {
         setContentView(R.layout.activity_auth);
         TextView textViewAgreement = findViewById(R.id.textViewAgreement);
         String htmlText = "我已阅读并同意《<a href='https://www.yuque.com/simpfun/sfe/tos'>简幻欢用户协议</a>》和《<a href='https://github.com/jdnjk/simpfun/blob/master/eula/README.md'>软件许可协议</a>》";
-        textViewAgreement.setText(Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            textViewAgreement.setText(Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT));
+        }
         textViewAgreement.setMovementMethod(LinkMovementMethod.getInstance());
+
+        // 读取深链待跳转数据
+        pendingServerId = getIntent().getIntExtra(SplashActivity.EXTRA_DEEP_SERVER_ID, -1);
 
         initViews();
         setupClickListeners();
@@ -81,9 +91,9 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void onSubmit() {
-        String username = editTextUsername.getText().toString().trim();
-        String password = editTextPassword.getText().toString().trim();
-        String inviteCode = isRegisterMode ? editTextInviteCode.getText().toString().trim() : null;
+        String username = Objects.requireNonNull(editTextUsername.getText()).toString().trim();
+        String password = Objects.requireNonNull(editTextPassword.getText()).toString().trim();
+        String inviteCode = isRegisterMode ? Objects.requireNonNull(editTextInviteCode.getText()).toString().trim() : null;
 
         if (TextUtils.isEmpty(username)) {
             editTextUsername.setError("请输入账户");
@@ -138,7 +148,13 @@ public class AuthActivity extends AppCompatActivity {
 
     private void onAuthSuccess(String msg) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-        Intent intent = new Intent(this, MainActivity.class);
+        Intent intent;
+        if (pendingServerId != -1) {
+            intent = new Intent(this, ServerManages.class);
+            intent.putExtra(ServerManages.EXTRA_DEVICE_ID, pendingServerId);
+        } else {
+            intent = new Intent(this, MainActivity.class);
+        }
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
         finish();
