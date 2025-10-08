@@ -57,6 +57,10 @@
         <activity
                 android:name=".ui.create.CreateServer"
                 android:exported="false" />
+        <activity
+                android:name=".ui.files.FileEditorActivity"
+                android:exported="false"
+                android:windowSoftInputMode="stateHidden|adjustResize" />
         <provider
                 android:name="androidx.core.content.FileProvider"
                 android:authorities="${applicationId}.fileprovider"

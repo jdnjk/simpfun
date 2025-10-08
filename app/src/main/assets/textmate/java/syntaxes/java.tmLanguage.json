@@ -1,0 +1,11 @@
+{
+  "name": "Java",
+  "scopeName": "source.java",
+  "patterns": [
+    { "match": "\\b(class|interface|enum|extends|implements|public|private|protected|static|final|void|int|float|double|boolean|if|else|for|while|return|new|this|package|import|try|catch|throw|throws)\\b", "name": "keyword.control.java" },
+    { "match": "\"([^\"\\\\]|\\\\.)*\"", "name": "string.quoted.double.java" },
+    { "match": "//.*$", "name": "comment.line.double-slash.java" },
+    { "begin": "/\\*", "end": "\\*/", "name": "comment.block.java" }
+  ]
+}
+
