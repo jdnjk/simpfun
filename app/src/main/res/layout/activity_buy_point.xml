@@ -28,11 +28,11 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp">
 
-        <RadioButton android:id="@+id/radio_0" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="200积分 · ¥6" />
-        <RadioButton android:id="@+id/radio_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="600积分 · ¥30" />
-        <RadioButton android:id="@+id/radio_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="3300积分 · ¥158" />
-        <RadioButton android:id="@+id/radio_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="12000积分 · ¥588" />
-        <RadioButton android:id="@+id/radio_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="40000积分 · ¥1888" />
+        <RadioButton android:id="@+id/radio_0" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="200积分 · ¥5" />
+        <RadioButton android:id="@+id/radio_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="600积分 · ¥12" />
+        <RadioButton android:id="@+id/radio_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="3300积分 · ¥60" />
+        <RadioButton android:id="@+id/radio_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="12000积分 · ¥200" />
+        <RadioButton android:id="@+id/radio_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="40000积分 · ¥600" />
     </RadioGroup>
 
     <TextView

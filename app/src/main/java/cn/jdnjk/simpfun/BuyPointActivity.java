@@ -4,7 +4,6 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,7 +34,7 @@ public class BuyPointActivity extends AppCompatActivity {
     private int selectedPointIndex = 0;
     private String selectedPaymentMethod = "ali_pay_1";
 
-    private Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,14 +113,9 @@ public class BuyPointActivity extends AppCompatActivity {
                                 tvHint.setVisibility(View.VISIBLE);
 
                                 if ("ali_pay_1".equals(selectedPaymentMethod)) {
-                                    try {
-                                        String aliUrl = "alipays://platformapi/startapp?appId=20000917&url=" + Uri.encode(payUrl);
-                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(aliUrl)));
-                                        showToast("打开支付宝...");
-                                    } catch (Exception e) {
-                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(payUrl)));
-                                        showToast("支付宝未安装，已打开网页");
-                                    }
+                                    Intent intent = new Intent(BuyPointActivity.this, SWebView.class);
+                                    intent.putExtra("url", payUrl);
+                                    startActivity(intent);
                                 } else {
                                     showToast("请复制链接在微信中打开");
                                 }

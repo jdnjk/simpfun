@@ -61,6 +61,9 @@
                 android:name=".ui.files.FileEditorActivity"
                 android:exported="false"
                 android:windowSoftInputMode="stateHidden|adjustResize" />
+        <activity
+                android:name=".SWebView"
+                android:exported="false"/>
         <provider
                 android:name="androidx.core.content.FileProvider"
                 android:authorities="${applicationId}.fileprovider"
