@@ -8,6 +8,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
@@ -69,6 +70,7 @@ public class CreateServer extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_create_server);
         recyclerView = findViewById(R.id.recycler_view);
         progressBar = findViewById(R.id.progress);

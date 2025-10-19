@@ -83,7 +83,7 @@ public class SplashActivity extends AppCompatActivity {
             }
             try {
                 deepLinkDeviceId = Integer.parseInt(idStr);
-                Log.d("SplashActivity", "深链服务器ID=" + deepLinkDeviceId);
+                Log.d("SplashActivity", "服务器ID=" + deepLinkDeviceId);
             } catch (NumberFormatException e) {
                 deepLinkError = true; // ID格式错误
             }

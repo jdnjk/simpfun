@@ -18,15 +18,15 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import cn.jdnjk.simpfun.api.ApiClient;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class BuyPointActivity extends AppCompatActivity {
 
-    private RadioGroup radioGroup, radioPayment;
     private Button btnPay, btnCopyUrl;
     private TextView tvHint;
 
@@ -42,8 +42,8 @@ public class BuyPointActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_buy_point);
 
-        radioGroup = findViewById(R.id.radio_group);
-        radioPayment = findViewById(R.id.radio_payment);
+        RadioGroup radioGroup = findViewById(R.id.radio_group);
+        RadioGroup radioPayment = findViewById(R.id.radio_payment);
         btnPay = findViewById(R.id.btn_pay);
         btnCopyUrl = findViewById(R.id.btn_copy_url);
         tvHint = findViewById(R.id.tv_hint);
@@ -58,9 +58,7 @@ public class BuyPointActivity extends AppCompatActivity {
             }
         });
 
-        radioPayment.setOnCheckedChangeListener((group, checkedId) -> {
-            selectedPaymentMethod = checkedId == R.id.radio_alipay ? "ali_pay_1" : "wx_pay_2";
-        });
+        radioPayment.setOnCheckedChangeListener((group, checkedId) -> selectedPaymentMethod = checkedId == R.id.radio_alipay ? "ali_pay_1" : "wx_pay_2");
 
         btnPay.setOnClickListener(v -> createOrder());
 
@@ -88,54 +86,52 @@ public class BuyPointActivity extends AppCompatActivity {
                     return;
                 }
 
-                URL url = new URL("https://api.simpfun.cn/api/recharge");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
-                conn.setRequestProperty("authorization", token);
-                conn.setDoOutput(true);
+                // 使用 ApiClient + OkHttp 发起请求
+                OkHttpClient client = ApiClient.getInstance().getClient();
 
                 int point = POINT_OPTIONS[selectedPointIndex];
-                String params = "point=" + point + "&method=" + selectedPaymentMethod;
+                RequestBody formBody = new FormBody.Builder()
+                        .add("point", String.valueOf(point))
+                        .add("method", selectedPaymentMethod)
+                        .build();
 
-                OutputStream os = conn.getOutputStream();
-                os.write(params.getBytes("UTF-8"));
-                os.flush();
-                os.close();
+                Request request = new Request.Builder()
+                        .url("https://api.simpfun.cn/api/recharge")
+                        .post(formBody)
+                        .addHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                        .addHeader("authorization", token)
+                        .build();
 
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
-                    reader.close();
+                try (Response response = client.newCall(request).execute()) {
+                    if (response.isSuccessful()) {
+                        String body = response.body().string();
+                        JSONObject json = new JSONObject(body);
+                        if (json.optInt("code") == 200) {
+                            payUrl = json.optString("url", null);
 
-                    JSONObject json = new JSONObject(sb.toString());
-                    if (json.getInt("code") == 200) {
-                        payUrl = json.getString("url");
+                            runOnUiThread(() -> {
+                                btnCopyUrl.setVisibility(View.VISIBLE);
+                                tvHint.setVisibility(View.VISIBLE);
 
-                        runOnUiThread(() -> {
-                            btnCopyUrl.setVisibility(View.VISIBLE);
-                            tvHint.setVisibility(View.VISIBLE);
-
-                            if ("ali_pay_1".equals(selectedPaymentMethod)) {
-                                try {
-                                    String aliUrl = "alipays://platformapi/startapp?appId=20000917&url=" + Uri.encode(payUrl);
-                                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(aliUrl)));
-                                    showToast("打开支付宝...");
-                                } catch (Exception e) {
-                                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(payUrl)));
-                                    showToast("支付宝未安装，已打开网页");
+                                if ("ali_pay_1".equals(selectedPaymentMethod)) {
+                                    try {
+                                        String aliUrl = "alipays://platformapi/startapp?appId=20000917&url=" + Uri.encode(payUrl);
+                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(aliUrl)));
+                                        showToast("打开支付宝...");
+                                    } catch (Exception e) {
+                                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(payUrl)));
+                                        showToast("支付宝未安装，已打开网页");
+                                    }
+                                } else {
+                                    showToast("请复制链接在微信中打开");
                                 }
-                            } else {
-                                showToast("请复制链接在微信中打开");
-                            }
-                        });
+                            });
+                        } else {
+                            showToast("失败：" + json.optString("msg", "未知错误"));
+                        }
                     } else {
-                        showToast("失败：" + json.optString("msg", "未知错误"));
+                        showToast("网络错误");
                     }
-                } else {
-                    showToast("网络错误");
                 }
             } catch (Exception e) {
                 Log.e("BuyPointActivity", "创建订单失败", e);
