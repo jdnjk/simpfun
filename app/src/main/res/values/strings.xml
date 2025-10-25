@@ -6,7 +6,6 @@
     <string name="nav_header_subtitle">android.studio@android.com</string>
     <string name="nav_header_desc">Navigation header</string>
     <string name="action_settings">设置</string>
-    <string name="menu_slideshow">Slideshow</string>
 
     <!-- File list related strings -->
     <string name="error_format">错误: %s</string>
@@ -19,4 +18,22 @@
     <string name="file_info">%s • %s</string>
     <string name="folder_info">文件夹 • %s</string>
     <string name="default_archive_name">compressed_files</string>
+
+    <!-- Task related strings -->
+    <string name="tasks_overview">队列概览</string>
+    <string name="tasks_counts">运行中: %1$d, 等待: %2$d, 首个等待: %3$d</string>
+    <string name="tasks_counts_pro">Pro运行中: %1$d, Pro等待: %2$d, Pro首个等待: %3$d%4$s</string>
+    <string name="tasks_pro_suffix"> (此服务器为Pro)</string>
+    <string name="tasks_empty_desc">暂无任务</string>
+    <string name="tasks_empty_cd">任务空态</string>
+
+    <string name="task_id_format">#%1$d</string>
+    <string name="task_status_format">状态: %1$d</string>
+    <string name="task_status_text_format">状态: %1$s</string>
+    <string name="task_status_running">运行中</string>
+    <string name="task_status_waiting">等待中</string>
+    <string name="task_status_done">已完成</string>
+    <string name="task_status_error">运行错误</string>
+    <string name="task_comment_placeholder">任务描述</string>
+    <string name="task_time_placeholder">2025-01-01T00:00:00Z</string>
 </resources>

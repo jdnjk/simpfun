@@ -1,30 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
               android:orientation="vertical">
 
-    <ScrollView
-            android:id="@+id/scroll_view_output"
+    <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view_output"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:background="#000000"
-            android:padding="8dp">
-
-        <com.fox2code.androidansi.AnsiTextView
-                android:id="@+id/text_view_output"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
-                android:typeface="monospace"
-                android:clickable="true"
-                android:scrollbars="vertical"
-                android:textIsSelectable="true"
-                android:selectAllOnFocus="false" />
-
-    </ScrollView>
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="false"/>
 
     <LinearLayout
             android:layout_width="match_parent"

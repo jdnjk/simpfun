@@ -9,3 +9,8 @@
 第三方SDK隐私政策链接：https://privacy.qq.com/document/preview/fc748b3d96224fdb825ea79e132c1a56   
 第三方SDK官网链接：https://bugly.qq.com/v2/   
 处理方式：通过加密传输和处理的安全处理方式
+
+第三方 SDK 名称：App 支付宝客户端 SDK
+第三方名称：支付宝支付科技有限公司 
+收集的个人信息类型：Android ID、OAID、AAID、SSID、BSSID；系统设置、系统属性、设备型号、设备品牌、操作系统；IP 地址、网络类型、运营商信息、Wi-Fi 状态、Wi-Fi 参数、Wi-Fi 列表。
+SDK 隐私说明链接：[App 支付宝客户端 SDK 隐私说明](https://opendocs.alipay.com/common/02kiq3)

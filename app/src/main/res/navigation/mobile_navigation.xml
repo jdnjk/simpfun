@@ -19,7 +19,7 @@
 
     <fragment
             android:id="@+id/nav_slideshow"
-            android:name="cn.jdnjk.simpfun.ui.slideshow.SlideshowFragment"
-            android:label="@string/menu_slideshow"
-            tools:layout="@layout/fragment_slideshow"/>
+            android:name="cn.jdnjk.simpfun.ui.tasks.TasksFragment"
+            android:label="任务"
+            tools:layout="@layout/fragment_tasks"/>
 </navigation>
