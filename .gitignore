@@ -3,5 +3,6 @@
 app/build/
 build/
 app/release/
+app/debug/
 /sign.properties
 /local.properties

@@ -100,13 +100,11 @@ public class UserApi {
         try {
             editor.putInt("uid", userInfo.getInt("id"));
             editor.putString("username", userInfo.getString("username"));
-            CrashReport.setUserId(userInfo.getString("username") + "/" + userInfo.getInt("id"));
             editor.putInt("point", userInfo.getInt("point"));
             editor.putInt("diamond", userInfo.getInt("diamond"));
             editor.putLong("queue_time", userInfo.getLong("queue_time"));
             editor.putBoolean("verified", userInfo.getBoolean("verified"));
             editor.putBoolean("dev", userInfo.getBoolean("is_dev"));
-            editor.putLong("create_time", userInfo.getLong("create_time"));
             editor.putLong("qq", userInfo.getLong("qq"));
             editor.putBoolean("pro", userInfo.getBoolean("is_pro"));
             editor.putBoolean("pro_valid", userInfo.getBoolean("pro_valid"));

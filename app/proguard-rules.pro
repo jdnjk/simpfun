@@ -93,3 +93,10 @@
 
 # Keep Bugly classes
 -keep public class com.tencent.bugly.**{*;}
+-dontwarn com.tencent.bugly.**
+
+-keep class com.alipay.**{*;}
+-dontwarn com.alipay.**
+
+-keep class io.github.rosemoe.sora.** { *; }
+-dontwarn io.github.rosemoe.sora.**

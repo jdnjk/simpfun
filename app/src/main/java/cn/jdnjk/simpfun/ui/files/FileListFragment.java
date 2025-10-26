@@ -543,6 +543,10 @@ public class FileListFragment extends Fragment {
             Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
             return;
         }
+        if (item.size >= 5242880) { // 5MB
+            Toast.makeText(requireContext(), "文件过大，请使用其他方式打开", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         ProgressDialog progressDialog = new ProgressDialog(requireContext());
         progressDialog.setMessage("正在下载文件...");
@@ -825,7 +829,7 @@ public class FileListFragment extends Fragment {
                 if (FileListFragment.PARENT_DIR_NAME.equals(item.getName())) {
                     iconView.setImageResource(R.drawable.folder);
                     infoView.setText("上级目录");
-                    checkBoxSelect.setVisibility(View.GONE); // 上级目录不显���选择框
+                    checkBoxSelect.setVisibility(View.GONE);
                 } else {
                     checkBoxSelect.setVisibility(View.VISIBLE);
                     if (item.isFile()) {
