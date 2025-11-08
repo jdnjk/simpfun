@@ -10,13 +10,13 @@
     <!-- File list related strings -->
     <string name="error_format">错误: %s</string>
     <string name="file_info_format">%s • %s</string>
-    <string name="folder_info_format">文件夹 • %s</string>
+    <string name="folder_info_format">%s</string>
     <string name="compressed_files_default_name">compressed_files</string>
     
     <!-- Additional strings for FileListFragment -->
     <string name="error_message">错误: %s</string>
     <string name="file_info">%s • %s</string>
-    <string name="folder_info">文件夹 • %s</string>
+    <string name="folder_info"> %s</string>
     <string name="default_archive_name">compressed_files</string>
 
     <!-- Task related strings -->
@@ -36,4 +36,22 @@
     <string name="task_status_error">运行错误</string>
     <string name="task_comment_placeholder">任务描述</string>
     <string name="task_time_placeholder">2025-01-01T00:00:00Z</string>
+
+    <!-- Download and icon related strings -->
+    <string name="download_in_progress">下载中...</string>
+    <string name="download_failed_format">下载失败: %s</string>
+    <string name="open_editor_failed_format">无法打开编辑器: %s</string>
+    <string name="percent_format">%1$d%%</string>
+    <string name="file_name_placeholder">文件名</string>
+    <string name="file_time_placeholder">1970-01-01 00:00:00</string>
+    <string name="folder_icon_desc">文件或文件夹图标</string>
+    <string name="parent_directory">上级目录</string>
+
+    <!-- Dialog and prompt related strings -->
+    <string name="jump_path_title">跳转路径</string>
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
+    <string name="invalid_device_id">设备ID无效</string>
+    <string name="file_too_large">文件过大，暂不支持</string>
+    <string name="empty_directory">空目录</string>
 </resources>

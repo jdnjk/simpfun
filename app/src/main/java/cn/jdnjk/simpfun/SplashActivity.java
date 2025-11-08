@@ -125,7 +125,7 @@ public class SplashActivity extends AppCompatActivity {
         SharedPreferences sp = getSharedPreferences("user_info", MODE_PRIVATE);
         String username = sp.getString("username", null);
         SharedPreferences sp1 = getSharedPreferences("user_info", MODE_PRIVATE);
-        String uid = sp1.getString("uid", null);
+        String uid = String.valueOf(sp1.getInt("uid",-1));
         CrashReport.setUserId(username + "/" + uid);
     }
 }
