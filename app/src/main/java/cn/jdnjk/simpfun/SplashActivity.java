@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -106,6 +107,8 @@ public class SplashActivity extends AppCompatActivity {
 
     private void navigateAfterAuth() {
         if (deepLinkDeviceId != -1) {
+            SharedPreferences sp = getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+            sp.edit().putInt("device_id", deepLinkDeviceId).apply();
             Intent sm = new Intent(this, ServerManages.class);
             sm.putExtra(ServerManages.EXTRA_DEVICE_ID, deepLinkDeviceId);
             startActivity(sm);

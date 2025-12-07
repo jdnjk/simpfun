@@ -1,0 +1,53 @@
+{
+  "languages": [
+    {
+      "grammar": "editor/textmate/yaml/syntaxes/yaml.tmLanguage.json",
+      "name": "yaml",
+      "scopeName": "source.yaml",
+      "languageConfiguration": "editor/textmate/yaml/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/json/syntaxes/json.tmLanguage.json",
+      "name": "json",
+      "scopeName": "source.json",
+      "languageConfiguration": "editor/textmate/json/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/xml/syntaxes/xml.tmLanguage.json",
+      "name": "xml",
+      "scopeName": "text.xml",
+      "languageConfiguration": "editor/textmate/xml/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/log/syntaxes/log.tmLanguage.json",
+      "name": "log",
+      "scopeName": "text.log"
+    },
+    {
+      "grammar": "editor/textmate/html/syntaxes/html.tmLanguage.json",
+      "name": "html",
+      "scopeName": "text.html.basic",
+      "languageConfiguration": "editor/textmate/html/language-configuration.json",
+      "embeddedLanguages": {
+        "source.js": "javascript"
+      }
+    },
+    {
+      "grammar": "editor/textmate/javascript/syntaxes/JavaScript.tmLanguage.json",
+      "name": "javascript",
+      "scopeName": "source.js",
+      "languageConfiguration": "editor/textmate/javascript/language-configuration.json"
+    },
+    {
+      "name": "markdown",
+      "scopeName": "text.html.markdown",
+      "grammar": "editor/textmate/markdown/syntaxes/markdown.tmLanguage.json",
+      "languageConfiguration": "editor/textmate/markdown/language-configuration.json",
+      "embeddedLanguages": {
+        "meta.embedded.block.html": "html",
+        "source.js": "javascript",
+        "meta.embedded.block.xml": "xml"
+      }
+    }
+  ]
+}

@@ -12,6 +12,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,6 +22,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.FileApi;
+import cn.jdnjk.simpfun.api.ins.file.FileCallback;
+import cn.jdnjk.simpfun.api.ins.file.FileTransferApi;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
@@ -43,6 +47,8 @@ public class FilePaneFragment extends Fragment {
     private static final String PARENT_DIR_NAME = "..";
     private static final String ARG_INITIAL_PATH = "initial_path";
     private static final String TAG = "FilePaneFragment";
+
+    private ActivityResultLauncher<android.content.Intent> editorLauncher;
 
     public static FilePaneFragment newInstance(String initialPath) {
         FilePaneFragment f = new FilePaneFragment();
@@ -82,6 +88,32 @@ public class FilePaneFragment extends Fragment {
 
         pathView.setText(currentPath);
         loadFileList();
+
+        // 注册编辑器结果回调
+        editorLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
+                android.content.Intent data = result.getData();
+                String localPath = data.getStringExtra("local_path");
+                String remotePath = data.getStringExtra("remote_path");
+                int serverId = data.getIntExtra("server_id", -1);
+                if (localPath != null && remotePath != null && serverId > 0) {
+                    java.io.File file = new java.io.File(localPath);
+                    // 提取目录部分作为上传目标目录
+                    String remoteDir = getParentPath(remotePath);
+                    new FileTransferApi().uploadFile(requireContext(), serverId, remoteDir, file, new FileCallback() {
+                        @Override public void onSuccess(org.json.JSONObject resp) {
+                            Toast.makeText(requireContext(), "上传成功", Toast.LENGTH_SHORT).show();
+                        }
+                        @Override public void onFailure(String errorMsg) {
+                            Toast.makeText(requireContext(), "上传失败: " + errorMsg, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } else {
+                    Toast.makeText(requireContext(), "保存结果无上传配置", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
         return v;
     }
 
@@ -246,7 +278,7 @@ public class FilePaneFragment extends Fragment {
             intent.putExtra("remote_path", remotePath);
             intent.putExtra("file_name", file.getName());
             intent.putExtra("server_id", deviceId);
-            startActivity(intent);
+            editorLauncher.launch(intent);
         } catch (Exception e) {
             Toast.makeText(requireContext(), getString(R.string.open_editor_failed_format, e.getMessage()), Toast.LENGTH_SHORT).show();
         }
