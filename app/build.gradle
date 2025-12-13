@@ -18,13 +18,13 @@ android {
     compileSdk 35
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.0.2\""
-        buildConfigField 'int', 'VERSION_CODE', "1020"
+        buildConfigField "String", "VERSION_NAME", "\"1.0.3\""
+        buildConfigField 'int', 'VERSION_CODE', "1031"
         applicationId "cn.jdnjk.simpfun"
         minSdk 23
         targetSdk 35
-        versionCode 1020
-        versionName "1.0.2"
+        versionCode 1031
+        versionName "1.0.3"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }

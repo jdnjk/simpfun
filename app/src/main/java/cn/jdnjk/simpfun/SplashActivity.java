@@ -14,6 +14,7 @@ import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.ui.setting.ThemeManager;
 import com.tencent.bugly.crashreport.CrashReport;
+
 import static cn.jdnjk.simpfun.BuildConfig.*;
 
 public class SplashActivity extends AppCompatActivity {
@@ -21,6 +22,8 @@ public class SplashActivity extends AppCompatActivity {
     private int deepLinkDeviceId = -1; // 深链指定的服务器ID
     private boolean deepLinkError = false; // 深链是否错误
     private String deepLinkRaw = null; // 原始深链内容
+    private static final String SP_DEBUG = "debug_settings";
+    private static final String KEY_BUGLY_ENABLED = "bugly_enabled";
 
     public static final String EXTRA_DEEP_SERVER_ID = "extra_deep_server_id";
 
@@ -28,6 +31,7 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ThemeManager.getInstance(this).initializeTheme();
+        final SharedPreferences spDebug = getSharedPreferences(SP_DEBUG, Context.MODE_PRIVATE);
 
         parseDeepLink();
         if (deepLinkError) {
@@ -43,13 +47,15 @@ public class SplashActivity extends AppCompatActivity {
                 new UserApi(this).UserInfo(token, new UserApi.AuthCallback() {
                     @Override
                     public void onSuccess() {
-                        initBugly();
+                        boolean buglyEnabled = spDebug.getBoolean(KEY_BUGLY_ENABLED, true);
+                        if (buglyEnabled) {
+                            initBugly();
+                        }
                         navigateAfterAuth();
                     }
 
                     @Override
                     public void onFailure() {
-                        // 验证失败转登录（保留有效跳转信息）
                         Intent auth = new Intent(SplashActivity.this, AuthActivity.class);
                         if (deepLinkDeviceId != -1) auth.putExtra(EXTRA_DEEP_SERVER_ID, deepLinkDeviceId);
                         startActivity(auth);

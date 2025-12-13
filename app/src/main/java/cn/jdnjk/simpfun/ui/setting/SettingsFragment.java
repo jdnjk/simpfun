@@ -18,8 +18,6 @@ import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 
-import java.io.File;
-
 public class SettingsFragment extends Fragment {
 
     private SharedPreferences sp;
@@ -60,7 +58,6 @@ public class SettingsFragment extends Fragment {
     private void setupClickListeners(View root) {
         root.findViewById(R.id.option_theme).setOnClickListener(v -> showThemeDialog());
         root.findViewById(R.id.option_terminal_theme).setOnClickListener(v -> showTerminalThemeDialog());
-        root.findViewById(R.id.option_check_update).setOnClickListener(v -> checkForUpdates());
         root.findViewById(R.id.option_tutorial).setOnClickListener(v -> openTutorialDocumentation());
         root.findViewById(R.id.option_login_browser).setOnClickListener(v -> openBrowserLogin());
         root.findViewById(R.id.option_logout).setOnClickListener(v -> showLogoutDialog());
@@ -102,57 +99,6 @@ public class SettingsFragment extends Fragment {
                 })
                 .setNegativeButton("取消", null)
                 .show();
-    }
-
-    private void checkForUpdates() {
-        final UpdateHelper[] helperRef = new UpdateHelper[1];
-        String currentVersion = BuildConfig.VERSION_NAME;
-
-        UpdateHelper.UpdateListener listener = new UpdateHelper.UpdateListener() {
-            @Override
-            public void onChecking() {
-                Toast.makeText(requireContext(), "正在检查更新...", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onNoUpdate() {
-                Toast.makeText(requireContext(), "当前已是最新版本", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFoundNewVersion(String version, String downloadUrl) {
-                new MaterialAlertDialogBuilder(requireContext())
-                        .setTitle("发现新版本")
-                        .setMessage("检测到新版本：" + version + "\n\n是否下载更新？\n\n文件将保存到缓存目录。")
-                        .setPositiveButton("立即下载", (d, w) -> {
-                            if (helperRef[0] != null) {
-                                helperRef[0].downloadApk(downloadUrl);
-                            }
-                        })
-                        .setNegativeButton("稍后再说", null)
-                        .show();
-            }
-
-            @Override
-            public void onDownloadStart() {
-                Toast.makeText(requireContext(), "开始下载...", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onDownloadSuccess(File apkFile) {
-                Toast.makeText(requireContext(), "下载完成，准备安装", Toast.LENGTH_SHORT).show();
-                UpdateHelper.installApk(requireContext(), apkFile);
-            }
-
-            @Override
-            public void onDownloadError(String error) {
-                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show();
-            }
-        };
-
-        helperRef[0] = new UpdateHelper(requireContext(), listener);
-        String updateChannel = "github";
-        helperRef[0].checkForUpdate(currentVersion, updateChannel);
     }
 
     private void openBrowserLogin() {

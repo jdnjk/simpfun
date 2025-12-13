@@ -13,7 +13,7 @@ public class ApiClient {
     private static ApiClient instance;
     private final OkHttpClient client;
 
-    private static final String USER_AGENT = "SimpfunAPP/"+ BuildConfig.VERSION_NAME;
+    private static final String USER_AGENT = "Simpfun/"+ BuildConfig.VERSION_NAME;
 
     private ApiClient() {
         this.client = new OkHttpClient.Builder()

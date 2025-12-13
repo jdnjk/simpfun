@@ -187,7 +187,7 @@
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:src="@drawable/ic_update"
-                        android:contentDescription="检查更新"
+                        android:contentDescription="当前版本"
                         android:layout_marginEnd="16dp"
                         app:tint="?attr/colorOnSurfaceVariant" />
 
@@ -200,7 +200,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="检查更新"
+                            android:text="当前版本"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface" />
 
