@@ -1,9 +1,13 @@
 package cn.jdnjk.simpfun.ui.setting;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import cn.jdnjk.simpfun.R;
 import androidx.core.view.WindowCompat;
@@ -19,7 +23,14 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (windowInsetsController != null) {
+            windowInsetsController.setAppearanceLightStatusBars(true);
+        }
+
         setContentView(R.layout.activity_settings);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -33,6 +44,11 @@ public class SettingsActivity extends AppCompatActivity {
                 debugTapCount = 0;
                 openDebugPage();
             }
+        });
+        ViewCompat.setOnApplyWindowInsetsListener(toolbar, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            v.setPadding(v.getPaddingLeft(), statusBarHeight, v.getPaddingRight(), v.getPaddingBottom());
+            return insets;
         });
 
         if (savedInstanceState == null) {

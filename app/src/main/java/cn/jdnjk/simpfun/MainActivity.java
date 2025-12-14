@@ -12,9 +12,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
+import android.graphics.Color;
+import android.util.TypedValue;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -31,6 +35,14 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (windowInsetsController != null) {
+            windowInsetsController.setAppearanceLightStatusBars(false);
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             WindowManager.LayoutParams lp = getWindow().getAttributes();
@@ -50,6 +62,10 @@ public class MainActivity extends AppCompatActivity {
 
             View appBarLayout = findViewById(R.id.app_bar_layout);
             if (appBarLayout != null) {
+                TypedValue typedValue = new TypedValue();
+                getTheme().resolveAttribute(android.R.attr.colorPrimary, typedValue, true);
+                appBarLayout.setBackgroundColor(typedValue.data);
+
                 appBarLayout.setPadding(
                     appBarLayout.getPaddingLeft(),
                     statusBarHeight,

@@ -2,16 +2,18 @@ package cn.jdnjk.simpfun.ui.files;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.widget.Toast;
+import android.graphics.Color;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 import cn.jdnjk.simpfun.R;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
@@ -24,10 +26,21 @@ import io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry;
 import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver;
 import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel;
 import org.eclipse.tm4e.core.registry.IThemeSource;
+import android.widget.TextView;
+import android.widget.ImageView;
+import android.view.View;
+import io.github.rosemoe.sora.event.ContentChangeEvent;
+import io.github.rosemoe.sora.event.SelectionChangeEvent;
 
 public class FileEditorActivity extends AppCompatActivity {
 
     private CodeEditor codeEditor;
+    private TextView tvFilename;
+    private TextView tvCursorPosition;
+    private ImageView btnUndo;
+    private ImageView btnRedo;
+    private ImageView btnSave;
+    private boolean isModified = false;
     private String localPath;
     private String fileName;
     private static boolean textMateInited = false;
@@ -136,6 +149,35 @@ public class FileEditorActivity extends AppCompatActivity {
     private String remoteDir;
     private String remotePath;
 
+    private void updateUIState() {
+        // Filename
+        String displayFileName = (isModified ? "*" : "") + (fileName == null ? "" : fileName);
+        if (tvFilename != null) {
+            tvFilename.setText(displayFileName);
+        }
+
+        // Save Button
+        if (btnSave != null) {
+            btnSave.setEnabled(isModified);
+            btnSave.setColorFilter(isModified ? Color.WHITE : Color.GRAY);
+        }
+
+        // Undo/Redo
+        if (codeEditor != null) {
+            boolean canUndo = codeEditor.canUndo();
+            boolean canRedo = codeEditor.canRedo();
+
+            if (btnUndo != null) {
+                btnUndo.setEnabled(canUndo);
+                btnUndo.setColorFilter(canUndo ? Color.WHITE : Color.GRAY);
+            }
+            if (btnRedo != null) {
+                btnRedo.setEnabled(canRedo);
+                btnRedo.setColorFilter(canRedo ? Color.WHITE : Color.GRAY);
+            }
+        }
+    }
+
     private void saveFile() {
         if (localPath == null) {
             Toast.makeText(this, "路径无效", Toast.LENGTH_SHORT).show();
@@ -165,14 +207,61 @@ public class FileEditorActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (windowInsetsController != null) {
+            windowInsetsController.setAppearanceLightStatusBars(false);
+        }
+
         setContentView(R.layout.activity_file_editor);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(toolbar, (v, insets) -> {
+            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            v.setPadding(v.getPaddingLeft(), statusBarHeight, v.getPaddingRight(), v.getPaddingBottom());
+            return insets;
+        });
+
         toolbar.setNavigationIcon(R.drawable.ic_arrow_back);
         toolbar.setNavigationOnClickListener(v -> finish());
 
+        // Initialize new views
+        tvFilename = findViewById(R.id.tv_filename);
+        tvCursorPosition = findViewById(R.id.tv_cursor_position);
+        btnUndo = findViewById(R.id.btn_undo);
+        btnRedo = findViewById(R.id.btn_redo);
+        btnSave = findViewById(R.id.btn_save);
+
         codeEditor = findViewById(R.id.code_editor);
         codeEditor.setTypefaceText(Typeface.MONOSPACE);
+
+        // Setup listeners
+        btnUndo.setOnClickListener(v -> {
+            if (codeEditor != null) codeEditor.undo();
+        });
+        btnRedo.setOnClickListener(v -> {
+            if (codeEditor != null) codeEditor.redo();
+        });
+        btnSave.setOnClickListener(v -> saveFile());
+
+        codeEditor.subscribeEvent(ContentChangeEvent.class, (event, unsubscribe) -> {
+            isModified = true;
+            updateUIState();
+        });
+
+        codeEditor.subscribeEvent(SelectionChangeEvent.class, (event, unsubscribe) -> {
+            if (tvCursorPosition != null) {
+                var cursor = codeEditor.getCursor();
+                tvCursorPosition.setText((cursor.getLeftLine() + 1) + ":" + (cursor.getLeftColumn() + 1));
+            }
+        });
 
         // 设置更好的行间距
         codeEditor.setLineSpacing(2f, 1.1f);
@@ -196,11 +285,14 @@ public class FileEditorActivity extends AppCompatActivity {
         serverId = getIntent().getIntExtra("server_id", -1);
         remotePath = getIntent().getStringExtra("remote_path");
         // remoteDir 不再使用，上传交给 Pane
+
         if (fileName != null) {
-            toolbar.setTitle(fileName);
+            tvFilename.setText(fileName);
         }
+
         loadLocalFile();
         applyLanguageForCurrentFile();
+        updateUIState();
     }
 
     private void loadLocalFile() {

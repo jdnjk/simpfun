@@ -58,8 +58,6 @@ public class FilePaneFragment extends Fragment {
         return f;
     }
 
-    public String getCurrentPath() { return currentPath; }
-
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -322,9 +320,7 @@ public class FilePaneFragment extends Fragment {
     }
 
     // 数据模型
-    static class FileItem {
-        final String name; final boolean file; final long size; final String mime; final String modifiedAt;
-        FileItem(String n, boolean f, long s, String m, String ma){ name=n; file=f; size=s; mime=m; modifiedAt=ma; }
+        record FileItem(String name, boolean file, long size, String mime, String modifiedAt) {
     }
 
     // 适配器
