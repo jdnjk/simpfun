@@ -12,12 +12,10 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 public class FileBaseApi {
-    protected static final String TAG = "FileApi";
-    protected static final String BASE_URL = "https://api.simpfun.cn/api/ins/";
     protected static final String SP_NAME = "token";
     protected static final String TOKEN_KEY = "token";
 
-    protected void sendRequest(Context context, Request request, FileCallback callback) {
+    protected void sendRequest(Request request, FileCallback callback) {
         OkHttpClient client = ApiClient.getInstance().getClient();
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
@@ -30,7 +28,7 @@ public class FileBaseApi {
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
                     try {
-                        String responseBody = response.body() != null ? response.body().string() : "";
+                        String responseBody = response.body().string();
 
                         if (!response.isSuccessful()) {
                             invokeCallback(callback, null, false, "HTTP 错误: " + response.code());

@@ -11,14 +11,15 @@ import okhttp3.*;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.Objects;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class TermApi {
 
-    private static final String TAG = "TermApi";
-    private static final String BASE_URL = "https://api.simpfun.cn/api/ins/";
     private static final String SP_NAME = "token";
     private static final String TOKEN_KEY = "token";
     public interface Callback {
@@ -46,7 +47,7 @@ public class TermApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/ws");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/ws");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -57,55 +58,20 @@ public class TermApi {
                 .header("Authorization", token)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
 
-    /**
-     * 获取实例详细信息
-     */
-    public void getServerDetail(Context context, int serverId, Callback callback) {
-        if (context == null) {
-            invokeCallback(callback, null, false, "Context 不能为空");
-            return;
-        }
-        if (serverId <= 0) {
-            invokeCallback(callback, null, false, "无效的服务器ID");
-            return;
-        }
-
-        SharedPreferences sp = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
-        String token = sp.getString(TOKEN_KEY, null);
-        if (token == null || token.isEmpty()) {
-            invokeCallback(callback, null, false, "未登录，请先登录");
-            return;
-        }
-
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/detail");
-        if (url == null) {
-            invokeCallback(callback, null, false, "URL 解析错误");
-            return;
-        }
-
-        Request request = new Request.Builder()
-                .url(url)
-                .header("Authorization", token)
-                .build();
-
-        sendRequest(context, request, callback);
-    }
-    private void sendRequest(Context context, Request request, Callback callback) {
+    private void sendRequest(Request request, Callback callback) {
         OkHttpClient client = ApiClient.getInstance().getClient();
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage());
-                });
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage()));
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
                 new Handler(Looper.getMainLooper()).post(() -> {
                     String responseBody = null;
                     try {

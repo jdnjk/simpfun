@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-                                   xmlns:app="http://schemas.android.com/apk/res-auto"
-                                   android:layout_width="match_parent"
-                                   android:layout_height="wrap_content"
-                                   android:layout_margin="8dp"
-                                   app:cardCornerRadius="12dp"
-                                   app:cardElevation="4dp">
+<com.google.android.material.card.MaterialCardView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="12dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="6dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/colorSurface">
 
     <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:background="@color/md_theme_primaryContainer">
+            android:padding="16dp">
 
         <LinearLayout
                 android:layout_width="match_parent"
@@ -25,26 +27,21 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="实例名称"
+                    android:text="服务器名称"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#333" />
+                    android:textColor="?attr/colorOnSurface" />
 
             <TextView
                     android:id="@+id/text_server_id"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="#ID"
-                    android:textSize="14sp"
-                    android:textColor="#888"
-                    android:background="#f0f0f0"
-                    android:padding="4dp"
-                    android:layout_marginStart="8dp"
-                    android:gravity="center"
-                    android:paddingHorizontal="8dp"
+                    android:textSize="13sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:paddingHorizontal="6dp"
                     android:paddingVertical="2dp"
                     android:fontFamily="monospace" />
-
         </LinearLayout>
 
         <TextView
@@ -52,67 +49,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="CPU 0核 内存 0GB 存储 0GB"
+                android:text="CPU 0核  内存 0GB  存储 0GB"
                 android:textSize="14sp"
-                android:textColor="#555" />
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
-        <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="end"
-                android:layout_marginTop="12dp">
-
-            <ImageButton
-                    android:id="@+id/btn_start"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/circle_background"
-                    android:src="@drawable/start"
-                    android:contentDescription="开机"
-                    android:scaleType="centerInside"
-                    style="?android:attr/borderlessButtonStyle" />
-
-            <ImageButton
-                    android:id="@+id/btn_restart"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/circle_background"
-                    android:src="@drawable/restart"
-                    android:contentDescription="重启"
-                    android:scaleType="centerInside"
-                    style="?android:attr/borderlessButtonStyle" />
-
-            <ImageButton
-                    android:id="@+id/btn_stop"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/circle_background"
-                    android:src="@drawable/stop"
-                    android:contentDescription="关机"
-                    android:scaleType="centerInside"
-                    style="?android:attr/borderlessButtonStyle" />
-
-            <ImageButton
-                    android:id="@+id/btn_kill"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="@drawable/circle_background"
-                    android:src="@drawable/kill"
-                    android:contentDescription="强制关机"
-                    android:scaleType="centerInside"
-                    style="?android:attr/borderlessButtonStyle" />
-
-        </LinearLayout>
 
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

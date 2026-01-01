@@ -6,6 +6,8 @@ import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class FileCompressApi extends FileBaseApi {
     
     /**
@@ -37,7 +39,7 @@ public class FileCompressApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/archive");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/archive");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -63,7 +65,7 @@ public class FileCompressApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
     
     /**
@@ -94,7 +96,7 @@ public class FileCompressApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/unarchive");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/unarchive");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -116,6 +118,6 @@ public class FileCompressApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
 }

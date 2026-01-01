@@ -8,6 +8,8 @@ import okhttp3.RequestBody;
 
 import java.util.List;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class FileManageApi extends FileBaseApi {
     
     /**
@@ -47,7 +49,7 @@ public class FileManageApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/create");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/create");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -66,7 +68,7 @@ public class FileManageApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
     
     /**
@@ -101,7 +103,7 @@ public class FileManageApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/rename");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/rename");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -118,7 +120,7 @@ public class FileManageApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
     
     /**
@@ -148,7 +150,7 @@ public class FileManageApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/delete");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/delete");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -168,7 +170,7 @@ public class FileManageApi extends FileBaseApi {
                     .post(formBody)
                     .build();
 
-            sendRequest(context, request, callback);
+            sendRequest(request, callback);
         } catch (Exception e) {
             invokeCallback(callback, null, false, "构建请求数据失败: " + e.getMessage());
         }
@@ -201,7 +203,7 @@ public class FileManageApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/copy");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/copy");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -218,7 +220,7 @@ public class FileManageApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
     
     /**
@@ -252,7 +254,7 @@ public class FileManageApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/paste");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/paste");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -269,6 +271,6 @@ public class FileManageApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
 }

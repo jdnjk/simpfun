@@ -4,6 +4,8 @@ import android.content.Context;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class FileListApi extends FileBaseApi {
     
     /**
@@ -32,7 +34,7 @@ public class FileListApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/list");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/list");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -47,6 +49,6 @@ public class FileListApi extends FileBaseApi {
                 .header("Authorization", token)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
 }

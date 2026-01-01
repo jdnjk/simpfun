@@ -8,10 +8,6 @@ import java.io.File;
 import java.util.List;
 
 public class FileApi {
-    private static final String TAG = "FileApi";
-    private static final String BASE_URL = "https://api.simpfun.cn/api/ins/";
-    private static final String SP_NAME = "token";
-    private static final String TOKEN_KEY = "token";
 
     public interface Callback {
         void onSuccess(JSONObject data);

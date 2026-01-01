@@ -10,6 +10,8 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 
 public class ApiClient {
+    public static final String BASE_URL = "https://api.simpfun.cn/api";
+    public static final String BASE_INS_URL = "https://api.simpfun.cn/api/ins/";
     private static ApiClient instance;
     private final OkHttpClient client;
 

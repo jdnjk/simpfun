@@ -7,8 +7,6 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.tencent.bugly.crashreport.CrashReport;
-
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
@@ -16,10 +14,12 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
+
 public class UserApi {
-    private Context context;
-    private Handler mainHandler;
-    private SharedPreferences UserInfo;
+    private final Context context;
+    private final Handler mainHandler;
+    private final SharedPreferences UserInfo;
 
     public interface AuthCallback {
         void onSuccess();
@@ -40,7 +40,7 @@ public class UserApi {
         OkHttpClient client = ApiClient.getInstance().getClient();
 
         Request request = new Request.Builder()
-                .url("https://api.simpfun.cn/api/auth/info")
+                .url(BASE_URL+"/auth/info")
                 .header("Authorization", authorizationToken)
                 .build();
 

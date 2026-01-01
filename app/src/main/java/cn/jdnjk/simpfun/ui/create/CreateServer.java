@@ -12,7 +12,7 @@ import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.ApiClient;
+import cn.jdnjk.simpfun.api.ins.CServerApi;
 import com.bumptech.glide.Glide;
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +22,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import android.view.ViewGroup;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.appbar.CollapsingToolbarLayout;
+import com.google.android.material.textfield.TextInputLayout;
+import android.view.MenuItem;
 
 /**
  * 创建服务器向导
@@ -36,15 +40,13 @@ public class CreateServer extends AppCompatActivity {
     private boolean isCustom = false;
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
-    private TextView titleView;
-    private View btnPrev;
+    private MaterialToolbar toolbar;
+    private CollapsingToolbarLayout collapsingToolbar;
     private TextView btnAction;
-    private LinearLayout layoutSearch;
+    private TextInputLayout layoutSearch;
     private EditText etSearch;
-    private Button btnSearch;
     private HorizontalScrollView hsPagination;
     private LinearLayout paginationContainer;
-    private View btnRefresh;
     private LinearLayout layoutGradeFilter;
     private android.widget.Spinner spGrade;
 
@@ -74,15 +76,13 @@ public class CreateServer extends AppCompatActivity {
         setContentView(R.layout.activity_create_server);
         recyclerView = findViewById(R.id.recycler_view);
         progressBar = findViewById(R.id.progress);
-        titleView = findViewById(R.id.title);
-        btnPrev = findViewById(R.id.btn_prev);
+        toolbar = findViewById(R.id.toolbar);
+        collapsingToolbar = findViewById(R.id.collapsing_toolbar);
         btnAction = findViewById(R.id.btn_action);
         layoutSearch = findViewById(R.id.layout_search);
         etSearch = findViewById(R.id.et_search);
-        btnSearch = findViewById(R.id.btn_search);
         hsPagination = findViewById(R.id.hs_pagination);
         paginationContainer = findViewById(R.id.pagination_container);
-        btnRefresh = findViewById(R.id.btn_refresh);
         layoutGradeFilter = findViewById(R.id.layout_grade_filter);
         spGrade = findViewById(R.id.sp_grade);
 
@@ -90,16 +90,26 @@ public class CreateServer extends AppCompatActivity {
         adapter = new GenericAdapter(data, this::onItemSelected);
         recyclerView.setAdapter(adapter);
 
-        btnPrev.setOnClickListener(v -> onBackStep());
-        btnAction.setOnClickListener(v -> onActionButton());
-        findViewById(R.id.btn_close).setOnClickListener(v -> finish());
-        btnRefresh.setOnClickListener(v -> refreshCurrentStep());
+        toolbar.setNavigationOnClickListener(v -> onBackStep());
+        toolbar.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == R.id.action_refresh) {
+                refreshCurrentStep();
+                return true;
+            } else if (item.getItemId() == R.id.action_close) {
+                finish();
+                return true;
+            }
+            return false;
+        });
 
-        btnSearch.setOnClickListener(v -> {
+        btnAction.setOnClickListener(v -> onActionButton());
+
+        layoutSearch.setEndIconOnClickListener(v -> {
             imageKindSearchQuery = etSearch.getText().toString().trim();
             imageKindCurrentPage = 1;
             applyImageKindFiltersAndPagination();
         });
+
         etSearch.setOnEditorActionListener((tv, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
                 imageKindSearchQuery = etSearch.getText().toString().trim();
@@ -136,42 +146,44 @@ public class CreateServer extends AppCompatActivity {
     private void renderCurrentStep() {
         layoutSearch.setVisibility(View.GONE);
         hsPagination.setVisibility(View.GONE);
-        btnRefresh.setVisibility(View.GONE);
+
+        MenuItem refreshItem = toolbar.getMenu().findItem(R.id.action_refresh);
+        if (refreshItem != null) refreshItem.setVisible(false);
+
         layoutGradeFilter.setVisibility(View.GONE);
 
-        btnPrev.setVisibility(View.VISIBLE);
         btnAction.setVisibility(currentStep == Step.CONFIRM ? View.VISIBLE : View.GONE);
         btnAction.setText("创建");
         switch (currentStep) {
             case TYPE -> {
-                titleView.setText("选择镜像类型");
+                collapsingToolbar.setTitle("选择镜像类型");
                 data.clear();
                 data.add(ListItem.simple("基础镜像", "官方标准镜像", true));
                 data.add(ListItem.simple("第三方镜像", "社区提供的镜像", true));
                 adapter.notifyDataSetChanged();
             }
             case GAME -> {
-                titleView.setText("选择镜像类别");
-                btnRefresh.setVisibility(View.VISIBLE);
+                collapsingToolbar.setTitle("选择镜像类别");
+                if (refreshItem != null) refreshItem.setVisible(true);
                 loadGameList();
             }
             case IMAGE_KIND -> {
-                titleView.setText("选择镜像服务端");
-                btnRefresh.setVisibility(View.VISIBLE);
+                collapsingToolbar.setTitle("选择镜像服务端");
+                if (refreshItem != null) refreshItem.setVisible(true);
                 loadImageKindList();
             }
             case VERSION -> {
-                titleView.setText("选择镜像版本");
-                btnRefresh.setVisibility(View.VISIBLE);
+                collapsingToolbar.setTitle("选择镜像版本");
+                if (refreshItem != null) refreshItem.setVisible(true);
                 loadVersionList();
             }
             case SPEC -> {
-                titleView.setText("选择实例规格");
-                btnRefresh.setVisibility(View.VISIBLE);
+                collapsingToolbar.setTitle("选择实例规格");
+                if (refreshItem != null) refreshItem.setVisible(true);
                 loadSpecList();
             }
             case CONFIRM -> {
-                titleView.setText("确认信息");
+                collapsingToolbar.setTitle("确认信息");
                 loadConfirmation();
             }
         }
@@ -213,8 +225,7 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private void loadGameList() {
-        String url = isCustom ? "https://api.simpfun.cn/api/games/list?custom=true" : "https://api.simpfun.cn/api/games/list";
-        getJson(url, json -> {
+        executeCall(CServerApi.getGameList(isCustom, token), json -> {
             data.clear();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
@@ -228,13 +239,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void loadImageKindList() {
         if (gameId == null) return;
-        String url;
-        if (isCustom) {
-            url = "https://api.simpfun.cn/api/games/customlist?game_id=" + gameId;
-        } else {
-            url = "https://api.simpfun.cn/api/games/kindlist?game_id=" + gameId;
-        }
-        getJson(url, json -> {
+        executeCall(CServerApi.getImageKindList(isCustom, gameId, token), json -> {
             data.clear();
             fullImageKindList.clear();
             JSONArray arr = json.optJSONArray("list");
@@ -259,13 +264,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void loadVersionList() {
         if (imageKindId == null && gameId == null) return;
-        String url;
-        if (isCustom) {
-            url = "https://api.simpfun.cn/api/games/custom_versionlist?kind_id=" + imageKindId;
-        } else {
-            url = "https://api.simpfun.cn/api/games/versionlist?kind_id=" + imageKindId;
-        }
-        getJson(url, json -> {
+        executeCall(CServerApi.getVersionList(isCustom, imageKindId, token), json -> {
             data.clear();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
@@ -298,8 +297,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void loadSpecList() {
         if (versionId == null) return;
-        String url = "https://api.simpfun.cn/api/shop/list?version_id=" + versionId + (isCustom ? "&custom=true" : "");
-        getJson(url, json -> {
+        executeCall(CServerApi.getSpecList(isCustom, versionId, token), json -> {
             masterSpecList.clear();
             data.clear();
             JSONArray arr = json.optJSONArray("list");
@@ -373,8 +371,7 @@ public class CreateServer extends AppCompatActivity {
         // 进入确认页取消搜索与分页
         layoutSearch.setVisibility(View.GONE);
         hsPagination.setVisibility(View.GONE);
-        String url = "https://api.simpfun.cn/api/shop/confirmation?version_id=" + versionId + "&item_id=" + specId + (isCustom ? "&custom=true" : "");
-        getJson(url, json -> {
+        executeCall(CServerApi.getConfirmation(isCustom, versionId, specId, token), json -> {
             data.clear();
             JSONObject d = json.optJSONObject("data");
             if (d != null) {
@@ -404,16 +401,7 @@ public class CreateServer extends AppCompatActivity {
     private void createInstance() {
         if (versionId == null || specId == null) return;
         showLoading(true);
-        FormBody.Builder fb = new FormBody.Builder();
-        fb.add("item_id", String.valueOf(specId));
-        fb.add("version_id", String.valueOf(versionId));
-        if (isCustom) fb.add("custom", "true");
-        Request request = new Request.Builder()
-                .url("https://api.simpfun.cn/api/ins/create")
-                .post(fb.build())
-                .header("Authorization", token == null ? "" : token)
-                .build();
-        ApiClient.getInstance().getClient().newCall(request).enqueue(new okhttp3.Callback() {
+        CServerApi.createInstance(isCustom, versionId, specId, token).enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) { runOnUiThread(() -> { showLoading(false); Toast.makeText(CreateServer.this, "创建失败:" + e.getMessage(), Toast.LENGTH_LONG).show();}); }
             @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException { String body = response.body()!=null?response.body().string():""; runOnUiThread(() -> { showLoading(false); try { JSONObject o = new JSONObject(body); if (o.optInt("code") == 200) { Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show(); finish(); } else { Toast.makeText(CreateServer.this, o.optString("msg","创建失败"), Toast.LENGTH_LONG).show(); } } catch (Exception e){ Toast.makeText(CreateServer.this, "解析失败", Toast.LENGTH_LONG).show(); }}); }
         });
@@ -421,12 +409,9 @@ public class CreateServer extends AppCompatActivity {
 
     private interface JsonHandler { void handle(JSONObject json); }
 
-    private void getJson(String url, JsonHandler handler) {
+    private void executeCall(Call call, JsonHandler handler) {
         showLoading(true);
-        Request.Builder builder = new Request.Builder().url(url);
-        if (token != null) builder.header("Authorization", token);
-        Request request = builder.build();
-        ApiClient.getInstance().getClient().newCall(request).enqueue(new okhttp3.Callback() {
+        call.enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 runOnUiThread(() -> {
                     showLoading(false); Toast.makeText(CreateServer.this, "网络失败:"+e.getMessage(), Toast.LENGTH_LONG).show();

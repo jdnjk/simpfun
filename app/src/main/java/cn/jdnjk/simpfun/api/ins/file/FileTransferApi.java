@@ -9,6 +9,8 @@ import org.json.JSONObject;
 
 import java.io.*;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class FileTransferApi extends FileBaseApi {
     
     public interface DownloadCallback {
@@ -75,7 +77,7 @@ public class FileTransferApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/upload");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/upload");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -87,7 +89,7 @@ public class FileTransferApi extends FileBaseApi {
                 .get() // 使用GET请求获取上传地址
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
     
     /**
@@ -224,7 +226,7 @@ public class FileTransferApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/file/download");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/file/download");
         if (url == null) {
             if (downloadCallback != null) downloadCallback.onFailure("URL 解析错误");
             return;

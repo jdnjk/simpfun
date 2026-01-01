@@ -14,15 +14,15 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.Objects;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
+
 public class GetToken {
 
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private static final String BASE_URL = "https://api.simpfun.cn/api/auth/";
     private static final String SP_NAME = "token";
     private static final String TOKEN_KEY = "token";
 
-    // 回调接口
     public interface Callback {
         void onSuccess(String token);
         void onFailure(String errorMsg);
@@ -51,9 +51,8 @@ public class GetToken {
                 .build();
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "login")
+                .url(BASE_URL + "/auth/login")
                 .post(formBody)
-                .header("User-Agent", "SimpfunAPP/1.1")
                 .build();
 
         sendRequest(request, callback);
@@ -83,9 +82,8 @@ public class GetToken {
         RequestBody formBody = builder.build();
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "register")
+                .url(BASE_URL + "/auth/register")
                 .post(formBody)
-                .header("User-Agent", "SimpfunAPP/1.1")
                 .build();
 
         sendRequest(request, callback);
@@ -101,7 +99,7 @@ public class GetToken {
             }
 
             @Override
-            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 mainHandler.post(() -> {
                     String responseBody = null;
                     try {
@@ -140,9 +138,6 @@ public class GetToken {
         sp.edit().putString(TOKEN_KEY, token).apply();
     }
 
-    /**
-     * 调用回调（主线程）
-     */
     private void invokeCallback(Callback callback, boolean success, String errorMsg) {
         if (callback != null) {
             if (success) {

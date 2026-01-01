@@ -9,15 +9,15 @@ import okhttp3.*;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.Objects;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class PowerApi {
 
-    private static final String TAG = "PowerApi";
-    private static final String BASE_URL = "https://api.simpfun.cn/api/ins/";
-    private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     // 电源操作常量
@@ -29,7 +29,6 @@ public class PowerApi {
     }
 
     public PowerApi(Context context) {
-        this.context = context;
     }
     public interface Callback {
         void onSuccess(JSONObject response);
@@ -49,7 +48,7 @@ public class PowerApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/power")
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/power")
                 .newBuilder()
                 .addQueryParameter("action", action)
                 .build();
@@ -62,14 +61,12 @@ public class PowerApi {
         OkHttpClient client = ApiClient.getInstance().getClient();
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
-                mainHandler.post(() -> {
-                    invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage());
-                });
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                mainHandler.post(() -> invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage()));
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
                 mainHandler.post(() -> {
                     // 读取响应体
                     String responseBody = null;

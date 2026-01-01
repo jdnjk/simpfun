@@ -6,6 +6,8 @@ import okhttp3.HttpUrl;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class FileToolboxApi extends FileBaseApi {
     
     /**
@@ -35,7 +37,7 @@ public class FileToolboxApi extends FileBaseApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/toolbox");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/toolbox");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
@@ -52,6 +54,6 @@ public class FileToolboxApi extends FileBaseApi {
                 .post(formBody)
                 .build();
 
-        sendRequest(context, request, callback);
+        sendRequest(request, callback);
     }
 }

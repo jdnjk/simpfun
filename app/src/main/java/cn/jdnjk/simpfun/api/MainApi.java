@@ -14,10 +14,12 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Objects;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
+
 public class MainApi {
 
     private static final String TAG = "MainApi";
-    private static final String BASE_URL = "https://api.simpfun.cn/api/";
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -40,7 +42,61 @@ public class MainApi {
         }
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "ins/list")
+                .url(BASE_INS_URL + "list")
+                .header("Authorization", token)
+                .build();
+
+        sendRequest(request, callback);
+    }
+
+    /**
+     * 获取实例信息
+     * @param token 用户Token
+     * @param serverId 实例ID
+     * @param callback 回调
+     */
+    public void getInstanceDetail(String token, String serverId, Callback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+        if (serverId == null || serverId.trim().isEmpty()) {
+            invokeCallback(callback, false, "Server ID 不能为空");
+            return;
+        }
+
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + serverId + "/detail")
+                .header("Authorization", token)
+                .build();
+
+        sendRequest(request, callback);
+    }
+
+    /**
+     * 重命名实例
+     * @param token 用户Token
+     * @param serverId 实例ID
+     * @param newName 新名称
+     * @param callback 回调
+     */
+    public void renameInstance(String token, String serverId, String newName, Callback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+        if (serverId == null || serverId.trim().isEmpty()) {
+            invokeCallback(callback, false, "Server ID 不能为空");
+            return;
+        }
+
+        RequestBody formBody = new FormBody.Builder()
+                .add("name", newName == null ? "" : newName)
+                .build();
+
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + serverId + "/rename")
+                .post(formBody)
                 .header("Authorization", token)
                 .build();
 
@@ -66,7 +122,7 @@ public class MainApi {
                 .build();
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "bindqq")
+                .url(BASE_URL + "/bindqq")
                 .post(formBody)
                 .header("Authorization", token)
                 .build();

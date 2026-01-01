@@ -50,7 +50,7 @@ public class ServerFragment extends Fragment {
         serverItems = new ArrayList<>();
 
         String token = getToken();
-        adapter = new ServerAdapter(serverItems, token, (MainActivity) requireActivity());
+        adapter = new ServerAdapter(serverItems, (MainActivity) requireActivity());
         recyclerView.setAdapter(adapter);
 
         swipeRefreshLayout.setOnRefreshListener(this::refreshInstanceList);
@@ -180,7 +180,6 @@ public class ServerFragment extends Fragment {
             }
         }
 
-        // 根据列表是否为空来显示相应的状态
         if (serverItems.isEmpty()) {
             recyclerView.setVisibility(View.GONE);
             emptyStateLayout.setVisibility(View.VISIBLE);
@@ -201,9 +200,6 @@ public class ServerFragment extends Fragment {
         return sp.getString("token", null);
     }
 
-    /**
-     * 尝试从MainActivity或缓存中加载数据
-     */
     private void loadCachedDataIfAvailable() {
         MainActivity activity = (MainActivity) getActivity();
         if (activity != null) {
@@ -217,9 +213,6 @@ public class ServerFragment extends Fragment {
         loadFromSharedPreferences();
     }
 
-    /**
-     * 从SharedPreferences加载缓存的服务器数据
-     */
     private void loadFromSharedPreferences() {
         Context context = getContext();
         if (context != null) {

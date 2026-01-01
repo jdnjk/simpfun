@@ -18,8 +18,9 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Objects;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
+
 public class TasksApi {
-    private static final String BASE_URL = "https://api.simpfun.cn/api/ins/";
     private static final String SP_NAME = "token";
     private static final String TOKEN_KEY = "token";
 
@@ -44,7 +45,7 @@ public class TasksApi {
             return;
         }
 
-        HttpUrl url = HttpUrl.parse(BASE_URL + serverId + "/tasks");
+        HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/tasks");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
             return;
