@@ -15,16 +15,16 @@ if (!isGithubActions) {
 
 android {
     namespace 'cn.jdnjk.simpfun'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.0.3\""
-        buildConfigField 'int', 'VERSION_CODE', "1031"
+        buildConfigField "String", "VERSION_NAME", "\"1.1.0\""
+        buildConfigField 'int', 'VERSION_CODE', "1101"
         applicationId "cn.jdnjk.simpfun"
         minSdk 23
         targetSdk 35
-        versionCode 1031
-        versionName "1.0.3"
+        versionCode 1101
+        versionName "1.1.0"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
@@ -62,8 +62,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (hasSignConfig) {
                 signingConfig signingConfigs.release
-                //minifyEnabled true
-                //shrinkResources true
+                minifyEnabled true
+                shrinkResources true
             }
         }
         debug {

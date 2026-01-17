@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.view.View;
@@ -11,7 +12,9 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import cn.jdnjk.simpfun.MainActivity;
@@ -124,7 +127,7 @@ public class AuthActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onFailure(String errorMsg) {
+                public void onFailure(int code, String errorMsg) {
                     showLoading(false);
                     Toast.makeText(AuthActivity.this, "注册失败: " + errorMsg, Toast.LENGTH_LONG).show();
                 }
@@ -138,9 +141,14 @@ public class AuthActivity extends AppCompatActivity {
                 }
 
                 @Override
-                public void onFailure(String errorMsg) {
-                    showLoading(false);
-                    Toast.makeText(AuthActivity.this, "登录失败: " + errorMsg, Toast.LENGTH_LONG).show();
+                public void onFailure(int code, String errorMsg) {
+                    if (code == 401) {
+                        showLoading(false);
+                        showWhitelistDialog();
+                    } else {
+                        showLoading(false);
+                        Toast.makeText(AuthActivity.this, "登录失败: " + errorMsg, Toast.LENGTH_LONG).show();
+                    }
                 }
             });
         }
@@ -163,5 +171,59 @@ public class AuthActivity extends AppCompatActivity {
     private void showLoading(boolean loading) {
         buttonSubmit.setEnabled(!loading);
         buttonSubmit.setText(loading ? (isRegisterMode ? "注册中..." : "登录中...") : (isRegisterMode ? "注册" : "登录"));
+    }
+
+    private void showWhitelistDialog() {
+        // 标题与内容：更清晰、可读性更好；保留链接和操作
+        String title = "需要微信小程序验证";
+        String contentHtml = "<div>" +
+                "<p>当前登录环境需要进行 <b>IP 白名单验证</b> 才能登录。请按以下步骤操作：</p>" +
+                "<ol>" +
+                "<li><b>在本设备或同一网络</b> 打开微信并进入小程序，有效登录后会自动放行登录 IP。</li>" +
+                "<li>保持 <b>仅一种网络连接</b>（不要同时连 Wi‑Fi/移动数据/有线），以免 IP 不一致导致登录失败。</li>" +
+                "<li>返回本应用，点击登录重试。</li>" +
+                "</ol>" +
+                "<p>仍然遇到问题？加入 QQ 群获取帮助：<a href='mqqopensdkapi://bizAgent/qm/qr?url=https%3a%2f%2fqm.qq.com%2fq%2frtfBSuFGUM'>465468467</a></p>" +
+                "</div>";
+
+        Spanned spanned;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            spanned = Html.fromHtml(contentHtml, Html.FROM_HTML_MODE_COMPACT);
+        } else {
+            spanned = Html.fromHtml(contentHtml);
+        }
+
+        TextView tv = new TextView(this);
+        tv.setText(spanned);
+        tv.setMovementMethod(LinkMovementMethod.getInstance());
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        tv.setPadding(padding, padding, padding, padding);
+        // 提升可读性：设置行距
+        tv.setLineSpacing(0f, 1.2f);
+
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
+        scrollView.addView(tv);
+
+        // 使用 MD3 风格的 MaterialAlertDialogBuilder（具体外观由应用主题决定）
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle(title)
+                .setView(scrollView)
+                .setPositiveButton("我知道了", (d, which) -> d.dismiss());
+
+        // 检查是否安装了微信
+        Intent wechatIntent = new Intent(Intent.ACTION_VIEW);
+        wechatIntent.setData(android.net.Uri.parse("weixin://"));
+        if (wechatIntent.resolveActivity(getPackageManager()) != null) {
+            builder.setNegativeButton("打开微信", (d, which) -> {
+                try {
+                    startActivity(wechatIntent);
+                } catch (Exception e) {
+                    Toast.makeText(this, "打开微信失败", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 }

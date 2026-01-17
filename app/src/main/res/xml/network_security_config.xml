@@ -1,0 +1,8 @@
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <certificates src="system"/> <!-- 系统证书 -->
+            <certificates src="user"/>   <!-- 用户证书 -->
+        </trust-anchors>
+    </base-config>
+</network-security-config>

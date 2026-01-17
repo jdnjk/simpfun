@@ -1,4 +1,4 @@
-package cn.jdnjk.simpfun.ui.term;
+package cn.jdnjk.simpfun.ui.ins.term;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -46,6 +46,8 @@ public class TerminalFragment extends Fragment {
     private final List<String> pendingLines = new ArrayList<>();
     private boolean isBufferUpdateScheduled = false;
     private boolean shouldMaintainFocus = false;
+    private boolean isAppInForeground = false;
+    private boolean isReconnectScheduled = false;
 
     @Nullable
     @Override
@@ -67,7 +69,13 @@ public class TerminalFragment extends Fragment {
 
         buttonSend.setOnClickListener(v -> sendCommand());
 
-        editTextCommand.setOnFocusChangeListener((v, hasFocus) -> shouldMaintainFocus = hasFocus);
+        recyclerViewOutput.setOnTouchListener((v, event) -> false);
+        editTextCommand.setOnFocusChangeListener((v, hasFocus) -> {
+            shouldMaintainFocus = hasFocus;
+            if (!hasFocus) {
+                editTextCommand.clearFocus();
+            }
+        });
 
         editTextCommand.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_GO ||
@@ -144,38 +152,40 @@ public class TerminalFragment extends Fragment {
                         JSONObject msg = new JSONObject(text);
                         String event = msg.optString("event");
 
-                        if ("console output".equals(event)) {
-                            JSONArray args = msg.getJSONArray("args");
+                        switch (event) {
+                            case "console output" -> {
+                                JSONArray args = msg.getJSONArray("args");
 
-                            for (int i = 0; i < args.length(); i++) {
-                                String line = args.getString(i);
-                                line = line.replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Checking server disk space usage, this could take a few seconds...\u001B[0m",
-                                                     "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 正在检查磁盘占用情况，请稍等...\u001B[0m")
-                                        .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Updating process configuration files...\u001B[0m",
-                                                     "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 已自动更新服务器端口等信息！\u001B[0m")
-                                        .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Pulling Docker container image, this could take a few minutes to complete...\u001B[0m",
-                                                     "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 正在拉取Docker镜像，请稍等...\u001B[0m")
-                                        .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Finished pulling Docker container image\u001B[0m",
-                                                     "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 已完成Docker镜像拉取！\u001B[0m")
-                                        .replaceAll("\u001b\\[\\?1h\u001b=", "")
-                                        .replaceAll("\u001b\\[\\?2004h", "")
-                                        .replaceAll("\u001b\\[K", "")
-                                        .replaceAll(">\\r\\n", "")
-                                        .replaceAll(">....", "");
-                                String[] split = line.split("\r?\n", -1);
-                                Collections.addAll(pendingLines, split);
+                                for (int i = 0; i < args.length(); i++) {
+                                    String line = args.getString(i);
+                                    line = line.replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Checking server disk space usage, this could take a few seconds...\u001B[0m",
+                                                    "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 正在检查磁盘占用情况，请稍等...\u001B[0m")
+                                            .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Updating process configuration files...\u001B[0m",
+                                                    "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 已自动更新服务器端口等信息！\u001B[0m")
+                                            .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Pulling Docker container image, this could take a few minutes to complete...\u001B[0m",
+                                                    "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 正在拉取Docker镜像，请稍等...\u001B[0m")
+                                            .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Finished pulling Docker container image\u001B[0m",
+                                                    "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 已完成Docker镜像拉取！\u001B[0m")
+                                            .replaceAll("\u001b\\[\\?1h\u001b=", "")
+                                            .replaceAll("\u001b\\[\\?2004h", "")
+                                            .replaceAll("\u001b\\[K", "")
+                                            .replaceAll(">\\r\\n", "")
+                                            .replaceAll(">....", "");
+                                    String[] split = line.split("\r?\n", -1);
+                                    Collections.addAll(pendingLines, split);
+                                }
+                                scheduleBufferFlush();
                             }
-                            scheduleBufferFlush();
-                        } else if ("status".equals(event)) {
-                            JSONArray args = msg.optJSONArray("args");
-                            if (args != null && args.length() > 0) {
-                                String status = args.getString(0);
-                                if ("offline".equalsIgnoreCase(status)) {
-                                    appendOutput("服务器已停止。");
+                            case "status" -> {
+                                JSONArray args = msg.optJSONArray("args");
+                                if (args != null && args.length() > 0) {
+                                    String status = args.getString(0);
+                                    if ("offline".equalsIgnoreCase(status)) {
+                                        appendOutput("服务器已停止。");
+                                    }
                                 }
                             }
-                        } else if ("token expiring".equals(event)) {
-                            refreshTokenAndReAuth();
+                            case "token expiring" -> refreshTokenAndReAuth();
                         }
                     } catch (Exception e) {
                         Log.w("TerminalFragment", "处理消息失败: " + e.getMessage());
@@ -207,12 +217,40 @@ public class TerminalFragment extends Fragment {
 
             @Override
             public void onFailure(@NonNull WebSocket webSocket, @NonNull Throwable t, @Nullable Response response) {
-                mainHandler.post(() -> appendOutput("连接错误: " + t.getMessage()));
+                mainHandler.post(() -> {
+                    appendOutput("连接错误: " + t.getMessage());
+                    TerminalFragment.this.webSocket = null;
+                    // 自动重连逻辑
+                    if (isAppInForeground && isNetworkConnected() && !isReconnectScheduled) {
+                        isReconnectScheduled = true;
+                        mainHandler.postDelayed(() -> {
+                            if (isAppInForeground && isNetworkConnected() && TerminalFragment.this.webSocket == null) {
+                                appendOutput("尝试重新连接到服务器...");
+                                connectToTerminal();
+                            }
+                            isReconnectScheduled = false;
+                        }, 2000);
+                    }
+                });
             }
 
             @Override
             public void onClosing(@NonNull WebSocket webSocket, int code, @NonNull String reason) {
-                mainHandler.post(() -> appendOutput("连接正在关闭: " + reason));
+                mainHandler.post(() -> {
+                    appendOutput("连接正在关闭: " + reason);
+                    TerminalFragment.this.webSocket = null;
+                    // 自动重连逻辑
+                    if (isAppInForeground && isNetworkConnected() && !isReconnectScheduled) {
+                        isReconnectScheduled = true;
+                        mainHandler.postDelayed(() -> {
+                            if (isAppInForeground && isNetworkConnected() && TerminalFragment.this.webSocket == null) {
+                                appendOutput("尝试重新连接到服务器...");
+                                connectToTerminal();
+                            }
+                            isReconnectScheduled = false;
+                        }, 2000);
+                    }
+                });
             }
         });
     }
@@ -225,7 +263,7 @@ public class TerminalFragment extends Fragment {
             authMsg.put("args", args);
             webSocket.send(authMsg.toString());
         } catch (Exception e) {
-            Log.w("TermLogin", e.getMessage());
+            Log.w("TermLogin", String.valueOf(e.getMessage()));
         }
     }
     private void sendLogMessage() {
@@ -235,7 +273,7 @@ public class TerminalFragment extends Fragment {
             logMsg.put("args", new JSONArray());
             webSocket.send(logMsg.toString());
         } catch (Exception e) {
-            Log.w("TermGetLogs", e.getMessage());
+            Log.w("TermGetLogs", String.valueOf(e.getMessage()));
         }
     }
     private void sendCommand() {
@@ -264,7 +302,7 @@ public class TerminalFragment extends Fragment {
                 }, 100);
             }
         } catch (Exception e) {
-            Log.w("TermSendCmd", e.getMessage());
+            Log.w("TermSendCmd", String.valueOf(e.getMessage()));
         }
     }
 
@@ -318,11 +356,19 @@ public class TerminalFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        // 保留 WebSocket 连接，避免在切换到其他页面（非主页面）时断开
+        // 清理与视图相关的轻量资源即可
+        pendingLines.clear();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // Fragment 被真正销毁时再关闭连接
         if (webSocket != null) {
             webSocket.close(1000, "Closed");
             webSocket = null;
         }
-        pendingLines.clear();
     }
 
     private void applyTerminalColors() {
@@ -334,7 +380,45 @@ public class TerminalFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        isAppInForeground = true;
         applyTerminalColors();
+        // 如果需要重连，且网络可用，且没有连接，则重连
+        if (webSocket == null && isNetworkConnected() && !isReconnectScheduled) {
+            isReconnectScheduled = true;
+            mainHandler.postDelayed(() -> {
+                if (isAppInForeground && isNetworkConnected() && webSocket == null) {
+                    appendOutput("尝试重新连接到服务器...");
+                    connectToTerminal();
+                }
+                isReconnectScheduled = false;
+            }, 1000);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        isAppInForeground = false;
+    }
+
+    private boolean isNetworkConnected() {
+        Context context = getContext();
+        if (context == null) return false;
+        android.net.ConnectivityManager cm = (android.net.ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            android.net.Network network = cm.getActiveNetwork();
+            if (network == null) return false;
+            android.net.NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+            return capabilities != null &&
+                    (capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                    || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
+                    || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+                    || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN));
+        } else {
+            android.net.NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+            return activeNetwork != null && activeNetwork.isConnected();
+        }
     }
 
     private static class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineVH> {
@@ -367,13 +451,11 @@ public class TerminalFragment extends Fragment {
             lines.addAll(newLines);
             int maxLines = 5000;
             if (lines.size() > maxLines) {
-                int overflow = lines.size() - maxLines;
-                if (overflow > 0) {
-                    lines.subList(0, overflow).clear();
-                    notifyItemRangeRemoved(0, overflow);
-                    notifyItemRangeInserted(Math.max(0, oldSize - overflow), newLines.size());
-                    return;
-                }
+                int overflow = lines.size() - maxLines; // strictly > 0 here
+                lines.subList(0, overflow).clear();
+                notifyItemRangeRemoved(0, overflow);
+                notifyItemRangeInserted(Math.max(0, oldSize - overflow), newLines.size());
+                return;
             }
             notifyItemRangeInserted(oldSize, newLines.size());
         }
@@ -386,3 +468,4 @@ public class TerminalFragment extends Fragment {
         }
     }
 }
+

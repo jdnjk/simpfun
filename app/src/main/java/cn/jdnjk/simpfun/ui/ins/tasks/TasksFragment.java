@@ -1,4 +1,4 @@
-package cn.jdnjk.simpfun.ui.tasks;
+package cn.jdnjk.simpfun.ui.ins.tasks;
 
 import android.content.Context;
 import android.content.SharedPreferences;

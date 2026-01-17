@@ -25,7 +25,7 @@ public class GetToken {
 
     public interface Callback {
         void onSuccess(String token);
-        void onFailure(String errorMsg);
+        void onFailure(int code,String errorMsg);
     }
 
     public GetToken(Context context) {
@@ -37,11 +37,11 @@ public class GetToken {
      */
     public void login(String username, String password, Callback callback) {
         if (username == null || username.trim().isEmpty()) {
-            invokeCallback(callback, false, "请输入用户名");
+            invokeCallback(callback, false,null, "请输入用户名", null);
             return;
         }
         if (password == null || password.trim().isEmpty()) {
-            invokeCallback(callback, false, "请输入密码");
+            invokeCallback(callback, false, null, "请输入密码", null);
             return;
         }
 
@@ -63,11 +63,11 @@ public class GetToken {
      */
     public void register(String username, String password, @Nullable String inviteCode, Callback callback) {
         if (username == null || username.trim().isEmpty()) {
-            invokeCallback(callback, false, "请输入用户名");
+            invokeCallback(callback, false, null, "请输入用户名", null);
             return;
         }
         if (password == null || password.trim().isEmpty()) {
-            invokeCallback(callback, false, "请输入密码");
+            invokeCallback(callback, false, null, "请输入密码", null);
             return;
         }
 
@@ -95,13 +95,13 @@ public class GetToken {
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                mainHandler.post(() -> invokeCallback(callback, false, "网络请求失败: " + e.getMessage()));
+                mainHandler.post(() -> invokeCallback(callback, false, null, "网络请求失败: " + e.getMessage(), null));
             }
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 mainHandler.post(() -> {
-                    String responseBody = null;
+                    String responseBody;
                     try {
                         responseBody = Objects.requireNonNull(response.body()).string();
                         JSONObject json = new JSONObject(responseBody);
@@ -110,23 +110,23 @@ public class GetToken {
                         if (code == 200) {
                             String token = json.getString("token");
                             saveToken(token);
-                            invokeCallback(callback, true, null, token);
+                            invokeCallback(callback, true, code,null, token);
                         } else if (code == 429){
                             String msg = json.optString("msg", "频率超过限制，请稍后再试");
-                            invokeCallback(callback, false, msg);
+                            invokeCallback(callback, false, code, msg, null);
                         } else if (code == 401){
                             String msg = json.optString("msg", "请登录小程序");
-                            invokeCallback(callback, false, msg);
+                            invokeCallback(callback, false, code, msg, null);
                         } else {
                             String msg = json.optString("msg", "未知错误");
-                            invokeCallback(callback, false, msg);
+                            invokeCallback(callback, false, code, msg, null);
                         }
                     } catch (JSONException e) {
-                        invokeCallback(callback, false, "数据解析错误");
+                        invokeCallback(callback, false, null, "数据解析错误",null);
                     } catch (IOException e) {
-                        invokeCallback(callback, false, "读取响应失败");
+                        invokeCallback(callback, false, null,"读取响应失败",null);
                     } catch (Exception e) {
-                        invokeCallback(callback, false, "未知异常");
+                        invokeCallback(callback, false, null, "未知异常", null);
                     }
                 });
             }
@@ -138,22 +138,12 @@ public class GetToken {
         sp.edit().putString(TOKEN_KEY, token).apply();
     }
 
-    private void invokeCallback(Callback callback, boolean success, String errorMsg) {
-        if (callback != null) {
-            if (success) {
-                callback.onSuccess(null);
-            } else {
-                callback.onFailure(errorMsg);
-            }
-        }
-    }
-
-    private void invokeCallback(Callback callback, boolean success, String errorMsg, String token) {
+    private void invokeCallback(Callback callback, boolean success, Integer code, String errorMsg, String token) {
         if (callback != null) {
             if (success) {
                 callback.onSuccess(token);
             } else {
-                callback.onFailure(errorMsg);
+                callback.onFailure(code,errorMsg);
             }
         }
     }

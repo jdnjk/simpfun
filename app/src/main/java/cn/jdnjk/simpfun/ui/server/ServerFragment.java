@@ -3,6 +3,7 @@ package cn.jdnjk.simpfun.ui.server;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -61,14 +62,20 @@ public class ServerFragment extends Fragment {
             if (root instanceof SwipeRefreshLayout) {
                 View inner = ((SwipeRefreshLayout) root).getChildAt(0);
                 if (inner instanceof FrameLayout fl) {
-                    fab = new FloatingActionButton(requireContext());
-                    fab.setId(R.id.fab_add_server);
-                    fab.setImageResource(android.R.drawable.ic_input_add);
-                    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                    lp.gravity = Gravity.END | Gravity.BOTTOM;
-                    lp.setMargins(0,0,20,20);
-                    fab.setLayoutParams(lp);
-                    fl.addView(fab);
+                    // 使用 getContext()，避免 Fragment 尚未完全附着时 requireContext() 抛异常
+                    Context ctx = getContext();
+                    if (ctx != null) {
+                        fab = new FloatingActionButton(ctx);
+                        fab.setId(R.id.fab_add_server);
+                        fab.setImageResource(android.R.drawable.ic_input_add);
+                        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        lp.gravity = Gravity.END | Gravity.BOTTOM;
+                        lp.setMargins(0,0,20,20);
+                        fab.setLayoutParams(lp);
+                        fl.addView(fab);
+                    } else {
+                        Log.w("ServerFragment", "上下文为空，暂不创建FAB");
+                    }
                 }
             }
         }
@@ -85,17 +92,21 @@ public class ServerFragment extends Fragment {
             if (nav != null) {
                 FloatingActionButton finalFab = fab;
                 nav.post(() -> {
+                    // Fragment 可能已被移除，增加 isAdded 判定避免未附着崩溃
+                    if (!isAdded() || getActivity() == null) {
+                        return;
+                    }
                     int h = nav.getHeight();
                     ViewGroup.LayoutParams lp0 = finalFab.getLayoutParams();
                     if (lp0 instanceof FrameLayout.LayoutParams lp) {
-                        int base = dp(16);
+                        int base = dpSafe(16);
                         lp.bottomMargin = h + base; // 底栏高度 + 16dp
                         lp.rightMargin = Math.max(lp.rightMargin, base);
                         finalFab.setLayoutParams(lp);
                     }
                     // 列表底部留出空间
                     if (recyclerView != null && recyclerView.getPaddingBottom() < h) {
-                        recyclerView.setPadding(recyclerView.getPaddingLeft(), recyclerView.getPaddingTop(), recyclerView.getPaddingRight(), h + dp(80));
+                        recyclerView.setPadding(recyclerView.getPaddingLeft(), recyclerView.getPaddingTop(), recyclerView.getPaddingRight(), h + dpSafe(80));
                         recyclerView.setClipToPadding(false);
                     }
                 });
@@ -232,5 +243,17 @@ public class ServerFragment extends Fragment {
         }
     }
 
-    private int dp(int v){ return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
+    /**
+     * 安全的 dp 转换：
+     * - Fragment 未附着时使用系统 Resources，避免 requireContext()/getResources 抛 IllegalStateException
+     */
+    private int dpSafe(int v) {
+        Resources res = isAdded() ? getResources() : Resources.getSystem();
+        return (int) (v * res.getDisplayMetrics().density + 0.5f);
+    }
+
+    // 保留原方法签名，内部委托到安全版本，兼容旧调用
+    private int dp(int v){
+        return dpSafe(v);
+    }
 }

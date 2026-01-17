@@ -44,6 +44,25 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- 步骤导航 -->
+            <HorizontalScrollView
+                android:id="@+id/hs_steps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:visibility="visible">
+                <LinearLayout
+                    android:id="@+id/layout_steps"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"/>
+            </HorizontalScrollView>
+
             <!-- 搜索栏，仅在第三方 镜像服务端 步骤显示 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/layout_search"
@@ -105,6 +124,23 @@
                     android:layout_width="wrap_content"
                     android:layout_height="48dp"
                     android:spinnerMode="dropdown" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tv_cpu_model_link"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="具体CPU型号"
+                    android:textColor="?attr/colorPrimary"
+                    android:textSize="14sp"
+                    android:padding="8dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?attr/selectableItemBackground" />
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
@@ -136,5 +172,17 @@
         android:layout_height="64dp"
         android:layout_gravity="center"
         android:visibility="gone" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_help"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_help"
+        android:contentDescription="帮助"
+        android:visibility="gone"
+        app:backgroundTint="?attr/colorPrimary"
+        app:tint="?attr/colorOnPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

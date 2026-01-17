@@ -1,4 +1,4 @@
-package cn.jdnjk.simpfun.ui.files;
+package cn.jdnjk.simpfun.ui.ins.files;
 
 import android.os.Bundle;
 import android.util.Log;

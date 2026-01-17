@@ -7,19 +7,19 @@
 
     <fragment
             android:id="@+id/nav_home"
-            android:name="cn.jdnjk.simpfun.ui.term.TerminalFragment"
+            android:name="cn.jdnjk.simpfun.ui.ins.term.TerminalFragment"
             android:label="终端"
             tools:layout="@layout/fragment_terminal"/>
 
     <fragment
             android:id="@+id/nav_gallery"
-            android:name="cn.jdnjk.simpfun.ui.files.DualFileBrowserFragment"
+            android:name="cn.jdnjk.simpfun.ui.ins.files.FilePaneFragment"
             android:label="文件"
-            tools:layout="@layout/fragment_file_list"/>
+            tools:layout="@layout/fragment_file_pane"/>
 
     <fragment
             android:id="@+id/nav_slideshow"
-            android:name="cn.jdnjk.simpfun.ui.tasks.TasksFragment"
+            android:name="cn.jdnjk.simpfun.ui.ins.tasks.TasksFragment"
             android:label="任务"
             tools:layout="@layout/fragment_tasks"/>
 </navigation>

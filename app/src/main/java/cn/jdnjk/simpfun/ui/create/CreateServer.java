@@ -26,6 +26,8 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.textfield.TextInputLayout;
 import android.view.MenuItem;
+import android.content.Intent;
+import android.net.Uri;
 
 /**
  * 创建服务器向导
@@ -49,6 +51,10 @@ public class CreateServer extends AppCompatActivity {
     private LinearLayout paginationContainer;
     private LinearLayout layoutGradeFilter;
     private android.widget.Spinner spGrade;
+    private TextView tvCpuModelLink;
+    private HorizontalScrollView hsSteps;
+    private LinearLayout layoutSteps;
+    private com.google.android.material.floatingactionbutton.FloatingActionButton fabHelp;
 
     // 分页/搜索相关（仅第三方镜像 服务端 选择步骤使用）
     private final List<ListItem> fullImageKindList = new ArrayList<>();
@@ -85,6 +91,16 @@ public class CreateServer extends AppCompatActivity {
         paginationContainer = findViewById(R.id.pagination_container);
         layoutGradeFilter = findViewById(R.id.layout_grade_filter);
         spGrade = findViewById(R.id.sp_grade);
+        tvCpuModelLink = findViewById(R.id.tv_cpu_model_link);
+        if (tvCpuModelLink != null) {
+            tvCpuModelLink.setOnClickListener(v -> {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://yuque.com/simpfun/sfe/areas"));
+                startActivity(intent);
+            });
+        }
+        hsSteps = findViewById(R.id.hs_steps);
+        layoutSteps = findViewById(R.id.layout_steps);
+        fabHelp = findViewById(R.id.fab_help);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new GenericAdapter(data, this::onItemSelected);
@@ -152,8 +168,19 @@ public class CreateServer extends AppCompatActivity {
 
         layoutGradeFilter.setVisibility(View.GONE);
 
+        renderSteps(); // 更新步骤导航
+
         btnAction.setVisibility(currentStep == Step.CONFIRM ? View.VISIBLE : View.GONE);
         btnAction.setText("创建");
+
+        // Help FAB visibility and action
+        if ((currentStep == Step.IMAGE_KIND && isCustom) || currentStep == Step.SPEC) {
+            fabHelp.setVisibility(View.VISIBLE);
+            fabHelp.setOnClickListener(v -> showHelpDialog());
+        } else {
+            fabHelp.setVisibility(View.GONE);
+        }
+
         switch (currentStep) {
             case TYPE -> {
                 collapsingToolbar.setTitle("选择镜像类型");
@@ -186,6 +213,80 @@ public class CreateServer extends AppCompatActivity {
                 collapsingToolbar.setTitle("确认信息");
                 loadConfirmation();
             }
+        }
+    }
+
+    private void showHelpDialog() {
+        if (currentStep == Step.IMAGE_KIND && isCustom) {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("没有您需要的整合包？")
+                .setMessage("加入QQ群：1020961156，查看群公告，提交收录需求")
+                .setPositiveButton("确定", null)
+                .show();
+        } else if (currentStep == Step.SPEC) {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("实例命名与计费规则")
+                .setMessage("实例命名方式为[CPU级别.CPU厂商.具体配置.操作系统]\n" +
+                        "CPU级别以字母[C,B,A,S]等分级，代表具体CPU性能，其中性能S>A>B>C，可参考具体CPU型号\n" +
+                        "CPU厂商以字母[A,I]分类，代表AMD,Intel\n" +
+                        "具体配置以字母[M,L,XL]等分类，代表各个配置套餐\n" +
+                        "操作系统以字母[L,W]分类，代表实例操作系统(Linux,Windows)\n" +
+                        "推荐在预算或内存足够的情况下，选择更高级别的CPU，以获得更流畅的体验，您也可以更换CPU厂商观察是否获得性能提升。\n\n" +
+                        "实例计费方式为按天付费，当日不开服不扣积分\n" +
+                        "当日开服指：服务器实例在当日24小时内启动过，无论是否是否进入服务器，服务器运行状态是否正常，只要启动即视为当日已开服\n" +
+                        "超套餐额磁盘将被计费1积分/G/天\n" +
+                        "若当日开服所需积分不足，则会关闭实例，若连续7天未启动实例，则会销毁实例，实例销毁前将会默认创建完整镜像，此镜像保留60天，可随时通过新建实例->备份->还原功能恢复实例文件")
+                .setPositiveButton("了解", null)
+                .show();
+        }
+    }
+
+    private void renderSteps() {
+        layoutSteps.removeAllViews();
+        Step[] steps = Step.values();
+        for (int i = 0; i <= currentStep.ordinal(); i++) {
+            Step s = steps[i];
+            String name = getStepName(s);
+
+            TextView tv = new TextView(this);
+            tv.setText(name);
+            tv.setTextSize(14);
+            tv.setPadding(dp(8), dp(4), dp(8), dp(4));
+
+            if (s == currentStep) {
+                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_primary)); // 高亮当前
+                tv.setTypeface(null, android.graphics.Typeface.BOLD);
+            } else {
+                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, android.R.color.darker_gray));
+                // 可点击返回
+                tv.setOnClickListener(v -> {
+                    currentStep = s;
+                    renderCurrentStep();
+                });
+            }
+            layoutSteps.addView(tv);
+
+            // 添加分隔符
+            if (i < currentStep.ordinal()) {
+                TextView divider = new TextView(this);
+                divider.setText(">");
+                divider.setTextColor(androidx.core.content.ContextCompat.getColor(this, android.R.color.darker_gray));
+                layoutSteps.addView(divider);
+            }
+        }
+        // 滚动到最右侧
+        hsSteps.post(() -> hsSteps.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
+    }
+
+    private String getStepName(Step s) {
+        switch (s) {
+            case TYPE: return "类型";
+            case GAME: return "类别";
+            case IMAGE_KIND: return "服务端";
+            case VERSION: return "版本";
+            case SPEC: return "规格";
+            case CONFIRM: return "确认";
+            default: return "";
         }
     }
 
@@ -263,7 +364,7 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private void loadVersionList() {
-        if (imageKindId == null && gameId == null) return;
+        if (imageKindId == null) return;
         executeCall(CServerApi.getVersionList(isCustom, imageKindId, token), json -> {
             data.clear();
             JSONArray arr = json.optJSONArray("list");
@@ -296,8 +397,8 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private void loadSpecList() {
-        if (versionId == null) return;
-        executeCall(CServerApi.getSpecList(isCustom, versionId, token), json -> {
+        if (versionId == null || imageKindId == null) return;
+        executeCall(CServerApi.getSpecList(isCustom, versionId, imageKindId, token), json -> {
             masterSpecList.clear();
             data.clear();
             JSONArray arr = json.optJSONArray("list");
@@ -308,6 +409,9 @@ public class CreateServer extends AppCompatActivity {
                     masterSpecList.add(o);
                 }
             }
+            // Sort by point (price) ascending
+            java.util.Collections.sort(masterSpecList, (o1, o2) -> Integer.compare(o1.optInt("point"), o2.optInt("point")));
+
             setupGradeSpinner();
             selectedGrade = ""; // 默认全部
             updateSpecDisplay();
@@ -317,18 +421,25 @@ public class CreateServer extends AppCompatActivity {
     private void setupGradeSpinner() {
         if (spGrade == null) return;
         layoutGradeFilter.setVisibility(View.VISIBLE);
-        // 固定等级顺序 (C+ 最低 -> S+ 最高)
-        String[] order = {"C+","C","C++","B","B+","B++","A","A+","S","S+"};
-        // 过滤出在数据中出现过的等级
-        java.util.LinkedHashSet<String> gradesPresent = new java.util.LinkedHashSet<>();
-        for (String g : order) {
-            for (JSONObject o : masterSpecList) {
-                if (g.equalsIgnoreCase(o.optString("area_grade"))) { gradesPresent.add(g); break; }
-            }
+
+        // Dynamically collect all grades
+        java.util.Set<String> gradesPresent = new java.util.HashSet<>();
+        for (JSONObject o : masterSpecList) {
+            String g = o.optString("area_grade");
+            if (!TextUtils.isEmpty(g)) gradesPresent.add(g);
         }
+
+        List<String> sortedGrades = new ArrayList<>(gradesPresent);
+        // Sort grades: S > A > B > C, and modifiers ++ > + > (none) > -
+        java.util.Collections.sort(sortedGrades, (g1, g2) -> {
+            int s1 = getGradeScore(g1);
+            int s2 = getGradeScore(g2);
+            return Integer.compare(s2, s1); // Descending score (S is highest)
+        });
+
         List<String> spinnerItems = new ArrayList<>();
         spinnerItems.add("全部");
-        spinnerItems.addAll(gradesPresent);
+        spinnerItems.addAll(sortedGrades);
         ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, spinnerItems);
         ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spGrade.setAdapter(ad);
@@ -342,26 +453,43 @@ public class CreateServer extends AppCompatActivity {
         });
     }
 
+    private int getGradeScore(String grade) {
+        if (grade == null) return 0;
+        grade = grade.toUpperCase();
+        int score = 0;
+        // Base score
+        if (grade.startsWith("S")) score = 400;
+        else if (grade.startsWith("A")) score = 300;
+        else if (grade.startsWith("B")) score = 200;
+        else if (grade.startsWith("C")) score = 100;
+
+        // Modifier score
+        if (grade.contains("++")) score += 3;
+        else if (grade.contains("+")) score += 2;
+        else if (grade.contains("-")) score -= 1;
+
+        return score;
+    }
+
     private void updateSpecDisplay() {
         data.clear();
-        for (JSONObject o : masterSpecList) {
-            String grade = o.optString("area_grade");
-            if (!TextUtils.isEmpty(selectedGrade) && !selectedGrade.equalsIgnoreCase(grade)) continue;
-            int id = o.optInt("id");
-            boolean creatable = o.optBoolean("creatable", true);
-            String title = grade + "." + o.optString("area_vendor") + "." + o.optString("spec") + "." + (o.optBoolean("area_is_windows") ? "W" : "L");
-            int cpu = o.optInt("cpu");
-            int ram = o.optInt("ram");
-            int disk = o.optInt("disk");
-            int traffic = o.optInt("traffic");
-            // 调整显示格式: cpu核 / ramG内存 / diskG硬盘 / trafficG流量
-            String detail = cpu + "核 / " + ram + "G内存 / " + disk + "G硬盘 / " + traffic + "G流量";
-            int point = o.optInt("point");
-            ListItem li = ListItem.simpleWithId(id, title, detail);
-            li.selectable = creatable; // 仅可创建项可点击
-            li.point = point;
-            li.full = !creatable; // 不可创建表示已满
-            data.add(li);
+        if (masterSpecList.isEmpty()) {
+            data.add(ListItem.info("提示", "暂无可用规格"));
+        } else {
+            for (JSONObject o : masterSpecList) {
+                String grade = o.optString("area_grade");
+                if (!TextUtils.isEmpty(selectedGrade) && !selectedGrade.equalsIgnoreCase(grade)) continue;
+                int id = o.optInt("id");
+                boolean creatable = o.optBoolean("creatable", true);
+                String specName = o.optString("area_vendor") + " . " + o.optString("spec") + " . " + (o.optBoolean("area_is_windows") ? "W" : "L");
+                int cpu = o.optInt("cpu");
+                int ram = o.optInt("ram");
+                int disk = o.optInt("disk");
+                int traffic = o.optInt("traffic");
+                int point = o.optInt("point");
+
+                data.add(ListItem.spec(id, grade, specName, cpu, ram, disk, traffic, point, creatable));
+            }
         }
         adapter.notifyDataSetChanged();
     }
@@ -447,19 +575,119 @@ public class CreateServer extends AppCompatActivity {
     // --- 数据与适配器 ---
     private static class ListItem {
         int id; String title; String subtitle; String imageUrl; boolean showImage; boolean selectable = true; boolean isGroup = false; int point = -1; boolean full = false; // full: 标记已满状态
+        // Spec specific fields
+        String grade; String specName; int cpu; int ram; int disk; int traffic;
+
         static ListItem simple(String t, String sub, boolean selectable){ ListItem li = new ListItem(); li.id = -1; li.title=t; li.subtitle=sub; li.selectable=selectable; return li; }
         static ListItem simpleWithId(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.selectable=true; return li; }
         static ListItem image(int id, String t, String sub, String url, boolean selectable){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.imageUrl=url; li.showImage=true; li.selectable=selectable; return li; }
         static ListItem info(String t, String v){ ListItem li = new ListItem(); li.id=-1; li.title=t; li.subtitle=v; li.selectable=false; li.full=false; return li; }
+        static ListItem spec(int id, String grade, String specName, int cpu, int ram, int disk, int traffic, int point, boolean creatable) {
+            ListItem li = new ListItem();
+            li.id = id;
+            li.grade = grade;
+            li.specName = specName;
+            li.cpu = cpu;
+            li.ram = ram;
+            li.disk = disk;
+            li.traffic = traffic;
+            li.point = point;
+            li.selectable = creatable;
+            li.full = !creatable;
+            return li;
+        }
     }
 
-    private static class GenericAdapter extends RecyclerView.Adapter<GenericViewHolder> {
+    private static class GenericAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         interface OnSelect { void onSelect(ListItem item); }
         private final List<ListItem> data; private final OnSelect onSelect;
+        private static final int TYPE_GENERIC = 0;
+        private static final int TYPE_SPEC = 1;
+
         GenericAdapter(List<ListItem> d, OnSelect os){ data=d; onSelect=os; }
-        @Override public @NotNull GenericViewHolder onCreateViewHolder(android.view.ViewGroup parent, int viewType){ View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_generic, parent,false); return new GenericViewHolder(v); }
-        @Override public void onBindViewHolder(GenericViewHolder h, int p){ ListItem it = data.get(p); h.bind(it,onSelect); }
+
+        @Override
+        public int getItemViewType(int position) {
+            ListItem item = data.get(position);
+            return item.grade != null ? TYPE_SPEC : TYPE_GENERIC;
+        }
+
+        @Override public @NotNull RecyclerView.ViewHolder onCreateViewHolder(android.view.ViewGroup parent, int viewType){
+            if (viewType == TYPE_SPEC) {
+                View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_spec, parent, false);
+                return new SpecViewHolder(v);
+            }
+            View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_generic, parent,false);
+            return new GenericViewHolder(v);
+        }
+
+        @Override public void onBindViewHolder(RecyclerView.ViewHolder h, int p){
+            ListItem it = data.get(p);
+            if (h instanceof SpecViewHolder) {
+                ((SpecViewHolder) h).bind(it, onSelect);
+            } else if (h instanceof GenericViewHolder) {
+                ((GenericViewHolder) h).bind(it, onSelect);
+            }
+        }
         @Override public int getItemCount(){ return data.size(); }
+    }
+
+    private static class SpecViewHolder extends RecyclerView.ViewHolder {
+        private final TextView grade, specName, cpu, ram, disk, traffic, point, status;
+        private final View container, gradeStrip;
+
+        SpecViewHolder(View itemView) {
+            super(itemView);
+            container = itemView;
+            grade = itemView.findViewById(R.id.item_grade);
+            gradeStrip = itemView.findViewById(R.id.item_grade_strip);
+            specName = itemView.findViewById(R.id.item_spec_name);
+            cpu = itemView.findViewById(R.id.item_cpu);
+            ram = itemView.findViewById(R.id.item_ram);
+            disk = itemView.findViewById(R.id.item_disk);
+            traffic = itemView.findViewById(R.id.item_traffic);
+            point = itemView.findViewById(R.id.item_point);
+            status = itemView.findViewById(R.id.item_status);
+        }
+
+        void bind(ListItem item, GenericAdapter.OnSelect cb) {
+            grade.setText(item.grade);
+
+            // Set color based on grade
+            int colorRes;
+            if (item.grade != null) {
+                if (item.grade.startsWith("S")) colorRes = R.color.md_theme_error;
+                else if (item.grade.startsWith("A")) colorRes = R.color.md_theme_primary;
+                else if (item.grade.startsWith("B")) colorRes = R.color.md_theme_tertiary;
+                else colorRes = R.color.md_theme_secondary;
+            } else {
+                colorRes = R.color.md_theme_secondary;
+            }
+            int color = androidx.core.content.ContextCompat.getColor(grade.getContext(), colorRes);
+
+            grade.setTextColor(color);
+            gradeStrip.setBackgroundColor(color);
+
+            specName.setText(item.specName);
+            cpu.setText(item.cpu + "核");
+            ram.setText(item.ram + "G");
+            disk.setText(item.disk + "G");
+            traffic.setText(item.traffic + "G");
+            point.setText(String.valueOf(item.point)); // Just the number
+
+            if (item.full) {
+                status.setVisibility(View.VISIBLE);
+                status.setText("已满");
+                container.setAlpha(0.6f);
+            } else {
+                status.setVisibility(View.GONE);
+                container.setAlpha(1f);
+            }
+
+            container.setOnClickListener(v -> {
+                if (item.selectable) cb.onSelect(item);
+            });
+        }
     }
 
     private static class GenericViewHolder extends RecyclerView.ViewHolder {
@@ -522,23 +750,28 @@ public class CreateServer extends AppCompatActivity {
     private void buildPaginationControls(int pages) {
         paginationContainer.removeAllViews();
         hsPagination.setVisibility(pages > 1 ? View.VISIBLE : View.GONE);
+        if (pages <= 1) return;
+
         for (int i = 1; i <= pages; i++) {
+            final int p = i;
             TextView tv = new TextView(this);
-            tv.setText(String.valueOf(i));
-            tv.setPadding(dp(12), dp(6), dp(12), dp(6));
-            tv.setTextSize(14f);
-            tv.setBackgroundResource(i == imageKindCurrentPage ? android.R.color.holo_blue_dark : android.R.color.darker_gray);
-            tv.setTextColor(getResources().getColor(android.R.color.white));
-            int pageIndex = i;
-            tv.setOnClickListener(v -> {
-                if (pageIndex != imageKindCurrentPage) {
-                    imageKindCurrentPage = pageIndex;
+            tv.setText(String.valueOf(p));
+            tv.setTextSize(16);
+            tv.setPadding(dp(12), dp(8), dp(12), dp(8));
+            tv.setGravity(android.view.Gravity.CENTER);
+
+            if (p == imageKindCurrentPage) {
+                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onPrimary));
+                tv.setTypeface(null, android.graphics.Typeface.BOLD);
+                tv.setBackgroundResource(R.drawable.bg_pagination_selected);
+            } else {
+                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface));
+                tv.setOnClickListener(v -> {
+                    imageKindCurrentPage = p;
                     applyImageKindFiltersAndPagination();
-                }
-            });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            if (i > 1) lp.setMargins(dp(4), 0, 0, 0);
-            paginationContainer.addView(tv, lp);
+                });
+            }
+            paginationContainer.addView(tv);
         }
     }
 

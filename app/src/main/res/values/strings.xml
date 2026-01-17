@@ -54,4 +54,22 @@
     <string name="invalid_device_id">设备ID无效</string>
     <string name="file_too_large">文件过大，暂不支持</string>
     <string name="empty_directory">空目录</string>
+
+    <!-- Single-page UI related strings -->
+    <string name="search_title">搜索文件/文件夹</string>
+    <string name="search_hint">输入关键字</string>
+    <string name="create_file_title">新建文件</string>
+    <string name="create_folder_title">新建文件夹</string>
+    <string name="create_file_hint">请输入文件名</string>
+    <string name="create_folder_hint">请输入文件夹名</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_search">搜索</string>
+    <string name="loading_text">加载中...</string>
+    <string name="new_file">新建文件</string>
+    <string name="new_folder">新建文件夹</string>
+    <string name="editor_undo">撤销</string>
+    <string name="editor_redo">重做</string>
+    <string name="editor_save">保存</string>
+    <string name="root_path">/</string>
+    <string name="cursor_placeholder">1:1</string>
 </resources>

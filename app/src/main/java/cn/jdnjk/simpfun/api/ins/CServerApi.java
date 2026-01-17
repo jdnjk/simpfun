@@ -5,6 +5,7 @@ import okhttp3.Call;
 import okhttp3.FormBody;
 import okhttp3.Request;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
 
 public class CServerApi {
@@ -39,8 +40,8 @@ public class CServerApi {
         return ApiClient.getInstance().getClient().newCall(builder.build());
     }
 
-    public static Call getSpecList(boolean isCustom, int versionId, String token) {
-        String url = BASE_URL + "/shop/list?version_id=" + versionId + (isCustom ? "&custom=true" : "");
+    public static Call getSpecList(boolean isCustom, int versionId, int imageKindId, String token) {
+        String url = BASE_URL + "/shop/list?version_id=" + versionId + "&kind_id=" + imageKindId + (isCustom ? "&custom=true" : "");
         Request.Builder builder = new Request.Builder().url(url);
         if (token != null) builder.header("Authorization", token);
         return ApiClient.getInstance().getClient().newCall(builder.build());
@@ -60,7 +61,7 @@ public class CServerApi {
         if (isCustom) fb.add("custom", "true");
 
         Request request = new Request.Builder()
-                .url(BASE_URL + "/ins/create")
+                .url(BASE_INS_URL + "create")
                 .post(fb.build())
                 .header("Authorization", token == null ? "" : token)
                 .build();
