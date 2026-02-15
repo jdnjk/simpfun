@@ -1,4 +1,4 @@
-package cn.jdnjk.simpfun.ui.ins.files;
+package cn.jdnjk.simpfun;
 
 import android.os.Bundle;
 import android.util.Log;
@@ -15,7 +15,6 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
-import cn.jdnjk.simpfun.R;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.widget.CodeEditor;
 import android.graphics.Typeface;
@@ -28,7 +27,6 @@ import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel;
 import org.eclipse.tm4e.core.registry.IThemeSource;
 import android.widget.TextView;
 import android.widget.ImageView;
-import android.view.View;
 import io.github.rosemoe.sora.event.ContentChangeEvent;
 import io.github.rosemoe.sora.event.SelectionChangeEvent;
 

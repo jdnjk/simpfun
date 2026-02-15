@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun.ui.ins.files;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -19,6 +20,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import cn.jdnjk.simpfun.FileEditorActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
@@ -28,11 +30,13 @@ import cn.jdnjk.simpfun.api.ins.FileApi;
 import cn.jdnjk.simpfun.api.ins.file.FileCallback;
 import cn.jdnjk.simpfun.api.ins.file.FileTransferApi;
 import cn.jdnjk.simpfun.api.ins.file.FileManageApi;
-import cn.jdnjk.simpfun.api.ins.file.FileCompressApi;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import android.widget.HorizontalScrollView;
@@ -63,6 +67,7 @@ public class FilePaneFragment extends Fragment {
     private static final String TAG = "FilePaneFragment";
 
     private ActivityResultLauncher<android.content.Intent> editorLauncher;
+    private ActivityResultLauncher<String> filePickerLauncher;
 
     @Nullable
     @Override
@@ -125,6 +130,13 @@ public class FilePaneFragment extends Fragment {
         updatePathView(); // 初始化面包屑
         loadFileList();
 
+        // 注册文件选择器回调
+        filePickerLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null) {
+                handleSelectedFile(uri);
+            }
+        });
+
         // 注册编辑器结果回调（保持原逻辑）
         editorLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
@@ -162,17 +174,105 @@ public class FilePaneFragment extends Fragment {
      * 显示新建选项对话框（替代原底部按钮）
      */
     private void showCreateOptionsDialog() {
-        String[] options = {getString(R.string.new_file), getString(R.string.new_folder)};
+        String[] options = {getString(R.string.new_file), getString(R.string.new_folder), "上传文件"};
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.create_file_title) // 复用标题，或新建通用标题
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         showCreateEntryDialog(true);
-                    } else {
+                    } else if (which == 1) {
                         showCreateEntryDialog(false);
+                    } else {
+                        filePickerLauncher.launch("*/*");
                     }
                 })
                 .show();
+    }
+
+    private void handleSelectedFile(android.net.Uri uri) {
+        try {
+            Context context = requireContext();
+            String fileName = getFileName(uri);
+            if (fileName == null) fileName = "uploaded_file";
+
+            java.io.File tempFile = new java.io.File(context.getCacheDir(), fileName);
+            try (InputStream is = context.getContentResolver().openInputStream(uri);
+                 FileOutputStream fos = new FileOutputStream(tempFile)) {
+                if (is == null) throw new IOException("无法打开输入流");
+                byte[] buffer = new byte[4096];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    fos.write(buffer, 0, read);
+                }
+            }
+
+            uploadSelectedFile(tempFile);
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "准备上传失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String getFileName(android.net.Uri uri) {
+        String result = null;
+        if ("content".equals(uri.getScheme())) {
+            try (android.database.Cursor cursor = requireContext().getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (index != -1) result = cursor.getString(index);
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            if (result != null) {
+                int cut = result.lastIndexOf('/');
+                if (cut != -1) result = result.substring(cut + 1);
+            }
+        }
+        return result;
+    }
+
+    private void uploadSelectedFile(java.io.File file) {
+        // 禁止上传超过 1000MB 的文件
+        long maxSizeInBytes = 1000L * 1024L * 1024L;
+        if (file.length() > maxSizeInBytes) {
+            Toast.makeText(requireContext(), "文件超过1000MB，请使用SFTP上传较大文件", Toast.LENGTH_LONG).show();
+            if (!file.delete()) Log.w(TAG, "Failed to delete oversized temp file: " + file.getName());
+            return;
+        }
+
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int serverId = sp.getInt("device_id", -1);
+        if (serverId <= 0) {
+            Toast.makeText(requireContext(), "未找到服务器ID", Toast.LENGTH_SHORT).show();
+            if (!file.delete()) Log.w(TAG, "Failed to delete temp file (no server ID): " + file.getName());
+            return;
+        }
+
+        LinearProgressIndicator progressIndicator = new LinearProgressIndicator(requireContext());
+        progressIndicator.setIndeterminate(true);
+        androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("正在上传文件...")
+                .setView(progressIndicator)
+                .setCancelable(false)
+                .show();
+
+        new FileTransferApi().uploadFile(requireContext(), serverId, currentPath, file, new FileCallback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                progressDialog.dismiss();
+                Toast.makeText(requireContext(), "上传成功", Toast.LENGTH_SHORT).show();
+                if (!file.delete()) Log.w(TAG, "Failed to delete temp file: " + file.getName());
+                loadFileList(); // 刷新列表
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                progressDialog.dismiss();
+                Toast.makeText(requireContext(), "上传失败: " + errorMsg, Toast.LENGTH_LONG).show();
+                if (!file.delete()) Log.w(TAG, "Failed to delete temp file: " + file.getName());
+            }
+        });
     }
 
     /**
@@ -294,31 +394,46 @@ public class FilePaneFragment extends Fragment {
 
     private void onFileItemLongClick(FileItem item) {
         if (PARENT_DIR_NAME.equals(item.name)) return;
+        if (!isAdded()) return;
         showFileActionDialog(item);
     }
 
     private void showFileActionDialog(FileItem item) {
-        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
-        View view = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_file_actions, null);
+        if (!isAdded()) return;
+        Activity activity = getActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+
+        BottomSheetDialog dialog = new BottomSheetDialog(activity, R.style.ThemeOverlay_Simpfun_BottomSheet);
+        View view = LayoutInflater.from(activity).inflate(R.layout.dialog_file_actions, null, false);
 
         TextView title = view.findViewById(R.id.text_view_title);
-        title.setText(item.name);
+        if (title != null) title.setText(item.name);
 
-        view.findViewById(R.id.action_delete).setOnClickListener(v -> {
-            dialog.dismiss();
-            showDeleteConfirmDialog(item);
-        });
+        View deleteAction = view.findViewById(R.id.action_delete);
+        if (deleteAction != null) {
+            deleteAction.setOnClickListener(v -> {
+                dialog.dismiss();
+                showDeleteConfirmDialog(item);
+            });
+        }
 
-        view.findViewById(R.id.action_rename).setOnClickListener(v -> {
-            dialog.dismiss();
-            showRenameDialog(item);
-        });
+        View renameAction = view.findViewById(R.id.action_rename);
+        if (renameAction != null) {
+            renameAction.setOnClickListener(v -> {
+                dialog.dismiss();
+                showRenameDialog(item);
+            });
+        }
 
         // 更多操作可在此添加，如复制、移动、压缩等
 
         dialog.setContentView(view);
-        dialog.show();
+
+        if (!activity.isFinishing() && !activity.isDestroyed()) {
+            dialog.show();
+        }
     }
+
 
     private void showDeleteConfirmDialog(FileItem item) {
         new MaterialAlertDialogBuilder(requireContext())

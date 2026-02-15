@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.Spanned;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -18,7 +19,9 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import cn.jdnjk.simpfun.BuyPointActivity;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+import cn.jdnjk.simpfun.ui.point.BuyPointActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
@@ -43,7 +46,8 @@ public class ProfileFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_profile, container, false);
 
         UserInfo = requireContext().getSharedPreferences("user_info", 0);
@@ -64,8 +68,25 @@ public class ProfileFragment extends Fragment {
 
         root.findViewById(R.id.layout_click_point).setOnClickListener(v -> {
             Intent intent = new Intent(context, BuyPointActivity.class);
+            intent.putExtra(BuyPointActivity.EXTRA_TAB, BuyPointActivity.TAB_POINTS);
             startActivity(intent);
         });
+
+        View diamondEntry = root.findViewById(R.id.layout_click_diamond);
+        if (diamondEntry != null) {
+            diamondEntry.setOnClickListener(v -> {
+                Intent intent = new Intent(context, BuyPointActivity.class);
+                intent.putExtra(BuyPointActivity.EXTRA_TAB, BuyPointActivity.TAB_DIAMONDS);
+                startActivity(intent);
+            });
+        }
+
+        View settingsEntry = root.findViewById(R.id.btn_open_settings);
+        if (settingsEntry != null) {
+            settingsEntry.setOnClickListener(v ->
+                    startActivity(new Intent(requireContext(), SettingsActivity.class))
+            );
+        }
 
         return root;
     }
@@ -115,6 +136,7 @@ public class ProfileFragment extends Fragment {
 
         String title = UserInfo.getString("announcement_title", "暂无公告");
         String text = UserInfo.getString("announcement_text", "");
+        boolean show = UserInfo.getBoolean("announcement_show", false);
 
         tvAnnouncementTitle.setText(title);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -122,7 +144,39 @@ public class ProfileFragment extends Fragment {
         } else {
             tvAnnouncementText.setText(android.text.Html.fromHtml(text));
         }
+
+        if (show) {
+            showAnnouncementDialog(title, text);
+        }
     }
+
+    private void showAnnouncementDialog(String title, String text) {
+        Spanned styledText;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            styledText = android.text.Html.fromHtml(text, android.text.Html.FROM_HTML_MODE_COMPACT);
+        } else {
+            styledText = android.text.Html.fromHtml(text);
+        }
+
+        new MaterialAlertDialogBuilder(context)
+                .setTitle(title)
+                .setMessage(styledText)
+                .setPositiveButton("我知道了", (dialog, which) -> {
+                    markAnnouncementAsRead();
+                    // Update preference to avoid showing again before next refresh
+                    UserInfo.edit().putBoolean("announcement_show", false).apply();
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+    private void markAnnouncementAsRead() {
+        String token = AuthInfo.getString("token", null);
+        if (token != null) {
+            new UserApi(context).readAnnouncement(token);
+        }
+    }
+
     private void refreshUserInfo() {
         String token = AuthInfo.getString("token", null);
         if (token == null || token.isEmpty()) {
@@ -152,8 +206,8 @@ public class ProfileFragment extends Fragment {
     }
 
     private void navigateToLogin() {
-         Intent intent = new Intent(context, AuthActivity.class);
-         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-         context.startActivity(intent);
+        Intent intent = new Intent(context, AuthActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        context.startActivity(intent);
     }
 }

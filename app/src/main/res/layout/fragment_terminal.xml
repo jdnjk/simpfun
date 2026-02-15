@@ -14,7 +14,12 @@
             android:paddingTop="4dp"
             android:paddingBottom="4dp"
             android:scrollbars="vertical"
-            android:fadeScrollbars="false"/>
+            android:fadeScrollbars="false"
+            app:fastScrollEnabled="true"
+            app:fastScrollVerticalThumbDrawable="@drawable/fastscroll_thumb"
+            app:fastScrollVerticalTrackDrawable="@drawable/fastscroll_track"
+            app:fastScrollHorizontalThumbDrawable="@drawable/fastscroll_thumb"
+            app:fastScrollHorizontalTrackDrawable="@drawable/fastscroll_track"/>
 
     <LinearLayout
             android:layout_width="match_parent"

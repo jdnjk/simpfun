@@ -48,7 +48,7 @@
                 android:exported="true">
         </activity>
         <activity
-                android:name=".BuyPointActivity"
+                android:name=".ui.point.BuyPointActivity"
                 android:exported="true">
         </activity>
         <activity
@@ -59,7 +59,7 @@
                 android:name=".ui.create.CreateServer"
                 android:exported="false" />
         <activity
-                android:name=".ui.ins.files.FileEditorActivity"
+                android:name=".FileEditorActivity"
                 android:exported="false"
                 android:windowSoftInputMode="stateHidden|adjustResize" />
         <activity

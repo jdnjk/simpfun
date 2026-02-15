@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Use Material3 on Android 12+ where the platform supports it well. -->
+    <style name="ThemeOverlay.Simpfun.BottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog" />
+
+</resources>

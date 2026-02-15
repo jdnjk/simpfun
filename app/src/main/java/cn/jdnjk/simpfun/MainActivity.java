@@ -21,6 +21,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
+import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import cn.jdnjk.simpfun.api.MainApi;
@@ -52,25 +53,17 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_server);
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        toolbar.setOnMenuItemClickListener(this::onOptionsItemSelected);
-
         View rootView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
 
-            View appBarLayout = findViewById(R.id.app_bar_layout);
-            if (appBarLayout != null) {
-                TypedValue typedValue = new TypedValue();
-                getTheme().resolveAttribute(android.R.attr.colorPrimary, typedValue, true);
-                appBarLayout.setBackgroundColor(typedValue.data);
-
-                appBarLayout.setPadding(
-                    appBarLayout.getPaddingLeft(),
+            View navHostFragment = findViewById(R.id.nav_host_fragment);
+            if (navHostFragment != null) {
+                navHostFragment.setPadding(
+                    navHostFragment.getPaddingLeft(),
                     statusBarHeight,
-                    appBarLayout.getPaddingRight(),
-                    appBarLayout.getPaddingBottom());
+                    navHostFragment.getPaddingRight(),
+                    navHostFragment.getPaddingBottom());
             }
 
             return insets;
@@ -85,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
             if (itemId == R.id.navigation_server) {
                 fragment = new ServerFragment();
+            } else if (itemId == R.id.navigation_invite) {
+                fragment = new InviteFragment();
             } else if (itemId == R.id.navigation_profile) {
                 fragment = new ProfileFragment();
             }

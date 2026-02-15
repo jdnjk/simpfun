@@ -1,5 +1,7 @@
 package cn.jdnjk.simpfun.ui.ins.term;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -13,6 +15,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -48,6 +51,12 @@ public class TerminalFragment extends Fragment {
     private boolean shouldMaintainFocus = false;
     private boolean isAppInForeground = false;
     private boolean isReconnectScheduled = false;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+    }
 
     @Nullable
     @Override
@@ -99,6 +108,188 @@ public class TerminalFragment extends Fragment {
 
         connectToTerminal();
         return root;
+    }
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull android.view.Menu menu, @NonNull android.view.MenuInflater inflater) {
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        if (item.getItemId() == R.id.action_ai) {
+            View aiIconView = requireActivity().findViewById(R.id.action_ai);
+            showAiMenu(aiIconView != null ? aiIconView : recyclerViewOutput);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showAiMenu(View anchor) {
+        if (terminalAdapter.getItemCount() <= 0 || terminalAdapter.getCleanLogs().trim().isEmpty()) {
+            Toast.makeText(getContext(), "终端暂无服务器输出信息，请等待日志产生后再试", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        android.widget.PopupMenu popup = new android.widget.PopupMenu(getContext(), anchor);
+        popup.getMenu().add(0, 1, 0, "AI历史记录");
+        popup.getMenu().add(0, 2, 1, "AI疑难解答");
+        popup.getMenu().add(0, 3, 2, "AI故障分析");
+
+        popup.setOnMenuItemClickListener(item -> {
+            SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+            int deviceId = sp.getInt("device_id", -1);
+            if (deviceId == -1) return false;
+
+            switch (item.getItemId()) {
+                case 1 -> handleAiHistory(deviceId);
+                case 2 -> handleAiTroubleshoot(deviceId);
+                case 3 -> handleAiAnalyze(deviceId);
+            }
+            return true;
+        });
+        popup.show();
+    }
+
+    private void handleAiHistory(int deviceId) {
+        new cn.jdnjk.simpfun.api.ins.AiApi().getAiHistory(requireContext(), deviceId, new cn.jdnjk.simpfun.api.ins.AiApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                showAiResponse(data);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> Toast.makeText(getContext(), "获取历史失败: " + errorMsg, Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    private void handleAiTroubleshoot(int deviceId) {
+        showInputDialog("请输入您的问题", input -> {
+            if (input.trim().isEmpty()) {
+                Toast.makeText(getContext(), "内容不能为空", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            new cn.jdnjk.simpfun.api.ins.AiApi().postAiAction(requireContext(), deviceId, "answer", input, new cn.jdnjk.simpfun.api.ins.AiApi.Callback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    showAiResponse(data);
+                }
+
+                @Override
+                public void onFailure(String errorMsg) {
+                    mainHandler.post(() -> Toast.makeText(getContext(), "请求失败: " + errorMsg, Toast.LENGTH_SHORT).show());
+                }
+            });
+        });
+    }
+
+    private void handleAiAnalyze(int deviceId) {
+        String logs = terminalAdapter.getCleanLogs();
+        if (logs.trim().isEmpty()) {
+            Toast.makeText(getContext(), "无有效日志可分析", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new cn.jdnjk.simpfun.api.ins.AiApi().postAiAction(requireContext(), deviceId, "analyze", logs, new cn.jdnjk.simpfun.api.ins.AiApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                showAiResponse(data);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                mainHandler.post(() -> Toast.makeText(getContext(), "分析失败: " + errorMsg, Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    private interface InputCallback {
+        void onInput(String input);
+    }
+
+    private void showInputDialog(String title, InputCallback callback) {
+        mainHandler.post(() -> {
+            EditText input = new EditText(requireContext());
+            input.setPadding(50, 40, 50, 40);
+            new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle(title)
+                    .setView(input)
+                    .setPositiveButton("确定", (dialog, which) -> callback.onInput(input.getText().toString()))
+                    .setNegativeButton("取消", null)
+                    .show();
+        });
+    }
+
+    private void showAiResponse(JSONObject data) {
+        mainHandler.post(() -> {
+            try {
+                Object dataObj = data.opt("data");
+                if (dataObj == null) dataObj = data;
+
+                String content = "";
+
+                if (dataObj instanceof JSONArray) {
+                    JSONArray array = (JSONArray) dataObj;
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < array.length(); i++) {
+                        JSONObject item = array.optJSONObject(i);
+                        if (item != null) {
+                            String type = item.optString("type", "");
+                            String supplement = item.optString("supplement", "");
+                            String answer = item.optString("answer", item.optString("content", item.optString("data", "")));
+                            String time = item.optString("created_at", item.optString("time", ""));
+
+                            if (!time.isEmpty()) sb.append("[").append(time).append("]\n");
+                            if ("analyze".equals(type)) sb.append("🔍 故障分析\n");
+                            else if ("answer".equals(type)) sb.append("💡 疑难解答\n");
+
+                            if (!supplement.isEmpty()) {
+                                if (supplement.length() > 500) {
+                                    sb.append("问: ").append(supplement.substring(0, 100)).append("... (已省略部分日志)\n");
+                                } else {
+                                    sb.append("问: ").append(supplement).append("\n");
+                                }
+                            }
+                            if (!answer.isEmpty()) {
+                                sb.append("答: ").append(answer).append("\n");
+                            }
+                            sb.append("\n--------------------\n\n");
+                        } else {
+                            sb.append(array.optString(i)).append("\n\n");
+                        }
+                    }
+                    content = sb.toString();
+                } else if (dataObj instanceof JSONObject) {
+                    JSONObject obj = (JSONObject) dataObj;
+                    content = obj.optString("answer", obj.optString("content", obj.optString("data", "")));
+                    if (content.isEmpty()) {
+                        content = obj.toString(2);
+                    }
+                } else {
+                    content = String.valueOf(dataObj);
+                }
+
+                if (content.trim().isEmpty() || "null".equals(content)) {
+                    content = "未获取到回复内容";
+                }
+
+                final String finalContent = content;
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("AI 助手")
+                        .setMessage(finalContent)
+                        .setPositiveButton("复制回复", (dialog, which) -> {
+                            ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                            ClipData clip = ClipData.newPlainText("AI Reply", finalContent);
+                            clipboard.setPrimaryClip(clip);
+                            Toast.makeText(getContext(), "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("关闭", null)
+                        .show();
+            } catch (Exception e) {
+                Log.e("AiResponse", "Error parsing AI response", e);
+                Toast.makeText(getContext(), "解析回复失败", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void connectToTerminal() {
@@ -335,13 +526,9 @@ public class TerminalFragment extends Fragment {
         }
 
         recyclerViewOutput.post(() -> {
-            // 滚动到底部（仅当用户接近底部时）
             int itemCount = terminalAdapter.getItemCount();
             if (itemCount > 0) {
-                int lastVisible = layoutManager.findLastVisibleItemPosition();
-                if (lastVisible >= itemCount - 2) {
-                    recyclerViewOutput.scrollToPosition(itemCount - 1);
-                }
+                recyclerViewOutput.scrollToPosition(itemCount - 1);
             }
 
             if ((hadFocus || shouldMaintainFocus) && editTextCommand != null) {
@@ -442,9 +629,32 @@ public class TerminalFragment extends Fragment {
         public void onBindViewHolder(@NonNull LineVH holder, int position) {
             String line = lines.get(position);
             AnsiParser.setAnsiText(holder.textView, line, 0);
+            holder.textView.setOnLongClickListener(v -> {
+                ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("terminal_line", line));
+                    Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            });
         }
         @Override
         public int getItemCount() { return lines.size(); }
+
+        String getCleanLogs() {
+            StringBuilder sb = new StringBuilder();
+            String skipMark = "感谢您使用 简幻欢 以及该APP";
+            String ansiPattern = "\\u001B\\[[;\\d]*[A-Za-z]";
+            for (String line : lines) {
+                if (line.contains(skipMark)) continue;
+                String cleanLine = line.replaceAll(ansiPattern, "");
+                cleanLine = cleanLine.replace("\u001B[m", "")
+                                     .replace("\u001B[0m", "");
+                sb.append(cleanLine).append("\n");
+            }
+            return sb.toString();
+        }
+
         void addLines(List<String> newLines) {
             if (newLines == null || newLines.isEmpty()) return;
             int oldSize = lines.size();

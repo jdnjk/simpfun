@@ -1,99 +1,315 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:orientation="vertical"
-              android:padding="16dp">
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/md_theme_background"
+    tools:context=".ui.point.BuyPointActivity">
 
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="充值积分"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="24dp"
-            android:layout_gravity="center" />
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
 
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="选择充值档位"
-            android:textSize="16sp"
-            android:textColor="#555"
-            android:layout_marginBottom="12dp" />
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="@string/title_buy_points"
+            app:titleCentered="true"/>
 
-    <RadioGroup
-            android:id="@+id/radio_group"
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:orientation="vertical"
+            android:paddingBottom="80dp">
 
-        <RadioButton android:id="@+id/radio_0" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="200积分 · ¥5" />
-        <RadioButton android:id="@+id/radio_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="600积分 · ¥12" />
-        <RadioButton android:id="@+id/radio_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="3300积分 · ¥60" />
-        <RadioButton android:id="@+id/radio_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="12000积分 · ¥200" />
-        <RadioButton android:id="@+id/radio_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="40000积分 · ¥600" />
-    </RadioGroup>
-
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="选择支付方式"
-            android:textSize="16sp"
-            android:textColor="#555"
-            android:layout_marginBottom="8dp" />
-
-    <RadioGroup
-            android:id="@+id/radio_payment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
-
-        <RadioButton
-                android:id="@+id/radio_alipay"
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tab_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="支付宝支付(减免0.5%)" />
+                android:background="@android:color/transparent"
+                app:tabIndicatorColor="@color/md_theme_primary"
+                app:tabSelectedTextColor="@color/md_theme_primary"
+                app:tabTextColor="@color/md_theme_onSurfaceVariant">
 
-        <RadioButton
-                android:id="@+id/radio_wechat"
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tab_points" />
+
+                <com.google.android.material.tabs.TabItem
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tab_diamonds" />
+            </com.google.android.material.tabs.TabLayout>
+
+            <LinearLayout
+                android:id="@+id/layout_points"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="微信支付（需手动打开）" />
-    </RadioGroup>
+                android:orientation="vertical"
+                android:padding="16dp">
 
-    <Button
-            android:id="@+id/btn_pay"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:id="@+id/btn_recharge_plus"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@android:drawable/ic_input_add"
+                        app:tint="@color/md_theme_primary"
+                        android:contentDescription="Recharge"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:focusable="true"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layout_recharge_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_recharge"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:layout_marginBottom="8dp"/>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="?attr/materialCardViewFilledStyle"
+                        app:cardBackgroundColor="@color/md_theme_surfaceContainerLow"
+                        android:layout_marginBottom="24dp">
+
+                        <com.google.android.material.chip.ChipGroup
+                            android:id="@+id/chip_group_amount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="16dp"
+                            app:singleSelection="true"
+                            app:selectionRequired="true">
+                            <!-- Chips will be added dynamically or statically -->
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_200"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="200"
+                                android:checked="true"/>
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_600"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="600"/>
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_3300"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="3,300"/>
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_12000"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="12,000"/>
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chip_40000"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="40,000"/>
+                        </com.google.android.material.chip.ChipGroup>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/section_payment_method"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:layout_marginBottom="8dp"/>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        style="?attr/materialCardViewFilledStyle"
+                        app:cardBackgroundColor="@color/md_theme_surfaceContainerLow"
+                        android:layout_marginBottom="24dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:id="@+id/btn_wechat_pay"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:padding="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/ic_wechat"
+                                    android:layout_marginEnd="16dp"/>
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="@string/pay_wechat"
+                                    android:textAppearance="?attr/textAppearanceBodyLarge"/>
+
+                                <RadioButton
+                                    android:id="@+id/radio_wechat"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:clickable="false"
+                                    android:duplicateParentState="true"/>
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:background="?attr/colorOutlineVariant"
+                                android:alpha="0.2"/>
+
+                            <LinearLayout
+                                android:id="@+id/btn_alipay"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:padding="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:src="@drawable/ic_alipay"
+                                    android:layout_marginEnd="16dp"/>
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="@string/pay_alipay"
+                                    android:textAppearance="?attr/textAppearanceBodyLarge"/>
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/recommended"
+                                    android:textColor="@android:color/white"
+                                    android:textSize="10sp"
+                                    android:paddingStart="4dp"
+                                    android:paddingEnd="4dp"
+                                    android:paddingTop="2dp"
+                                    android:paddingBottom="2dp"
+                                    android:background="#E53935"
+                                    android:textStyle="bold"
+                                    android:layout_marginEnd="8dp"/>
+
+                                <RadioButton
+                                    android:id="@+id/radio_alipay"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:checked="true"
+                                    android:clickable="false"
+                                    android:duplicateParentState="true"/>
+                            </LinearLayout>
+
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_history_points"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:layout_marginBottom="8dp"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_point_history"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"/>
+
+            </LinearLayout>
+
+            <!-- Diamonds Section -->
+            <LinearLayout
+                android:id="@+id/layout_diamonds"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/section_history_diamonds"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:layout_marginBottom="8dp"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_diamond_history"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_bottom_pay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="@color/md_theme_surface">
+        
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="支付"
-            android:textSize="16sp"
-            android:padding="14dp"
-            android:backgroundTint="#00796B"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="12dp" />
+            android:padding="16dp"
+            android:orientation="vertical">
 
-    <Button
-            android:id="@+id/btn_copy_url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="复制支付链接"
-            android:textSize="14sp"
-            android:padding="12dp"
-            android:backgroundTint="#757575"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone" />
+            <Button
+                android:id="@+id/btn_pay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_pay"
+                style="@style/Widget.Material3.Button"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
-    <TextView
-            android:id="@+id/tv_hint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="提示：微信支付需复制链接后在微信中打开"
-            android:textSize="12sp"
-            android:textColor="#888"
-            android:layout_gravity="center"
-            android:layout_marginTop="8dp"
-            android:visibility="gone" />
-
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

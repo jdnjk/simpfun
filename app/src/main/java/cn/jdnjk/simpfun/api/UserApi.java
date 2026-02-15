@@ -7,6 +7,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
+import cn.jdnjk.simpfun.model.InviteData;
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
@@ -24,6 +25,11 @@ public class UserApi {
     public interface AuthCallback {
         void onSuccess();
         void onFailure();
+    }
+
+    public interface InviteCallback {
+        void onSuccess(InviteData data);
+        void onFailure(String message);
     }
 
     public UserApi(Context context) {
@@ -111,11 +117,79 @@ public class UserApi {
             JSONObject announcement = userInfo.getJSONObject("announcement");
             editor.putString("announcement_title", announcement.getString("title"));
             editor.putString("announcement_text", announcement.getString("text"));
+            editor.putBoolean("announcement_show", announcement.optBoolean("show", false));
 
             editor.apply();
         } catch (JSONException e) {
             Log.e("UserApi", "保存用户信息时出错: " + e.getMessage());
             Toast.makeText(context, "保存用户信息时出错", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public void getInviteData(String token, InviteCallback callback) {
+        OkHttpClient client = ApiClient.getInstance().getClient();
+        Request request = new Request.Builder()
+                .url(BASE_URL + "/invite")
+                .header("Authorization", token)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                mainHandler.post(() -> callback.onFailure("网络请求失败: " + e.getMessage()));
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    mainHandler.post(() -> callback.onFailure("服务器返回错误: " + response.code()));
+                    return;
+                }
+                try {
+                    String jsonResponse = response.body().string();
+                    JSONObject jsonObject = new JSONObject(jsonResponse);
+                    int code = jsonObject.getInt("code");
+                    if (code == 200) {
+                        JSONObject dataObj = jsonObject.getJSONObject("data");
+                        InviteData data = new InviteData(
+                                dataObj.getInt("register_times"),
+                                dataObj.getInt("register_verify_times"),
+                                dataObj.getInt("register_total_income"),
+                                dataObj.getInt("register_total_income_from_pro"),
+                                String.valueOf(dataObj.get("invite_code"))
+                        );
+                        mainHandler.post(() -> callback.onSuccess(data));
+                    } else {
+                        String msg = jsonObject.optString("msg", "未知错误");
+                        mainHandler.post(() -> callback.onFailure(msg));
+                    }
+                } catch (Exception e) {
+                    mainHandler.post(() -> callback.onFailure("数据处理失败: " + e.getMessage()));
+                }
+            }
+        });
+    }
+
+    public void readAnnouncement(String token) {
+        OkHttpClient client = ApiClient.getInstance().getClient();
+        Request request = new Request.Builder()
+                .url(BASE_URL + "/announcement_read")
+                .header("Authorization", token)
+                .post(RequestBody.create(new byte[0], null))
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                Log.e("UserApi", "Failed to mark announcement as read: " + e.getMessage());
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    Log.d("UserApi", "Announcement marked as read");
+                }
+            }
+        });
     }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Use MD2 by default for better compatibility on older Android versions. -->
+    <style name="ThemeOverlay.Simpfun.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog" />
+
+</resources>

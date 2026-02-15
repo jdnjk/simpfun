@@ -16,4 +16,9 @@
             android:id="@+id/action_kill"
             android:title="强制关机"
             app:showAsAction="never"/>
+    <item
+            android:id="@+id/action_ai"
+            android:title="AI助手"
+            android:icon="@drawable/ic_ai_assistant"
+            app:showAsAction="always"/>
 </menu>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:id="@+id/swipe_refresh"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
@@ -100,12 +101,15 @@
                         android:background="#CCCCCC" />
 
                 <LinearLayout
+                        android:id="@+id/layout_click_diamond"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:orientation="vertical"
                         android:gravity="center"
-                        android:padding="8dp">
+                        android:padding="8dp"
+                        android:clickable="true"
+                        android:background="?attr/selectableItemBackground">
 
                     <TextView
                             android:layout_width="wrap_content"
@@ -163,6 +167,7 @@
                             android:text="暂无公告"
                             android:textSize="16sp"
                             android:textStyle="bold"
+                            android:textIsSelectable="true"
                             android:textColor="#1A73E8" />
 
                     <TextView
@@ -172,10 +177,24 @@
                             android:layout_marginTop="4dp"
                             android:text="暂无内容"
                             android:textSize="14sp"
+                            android:textIsSelectable="true"
                             android:textColor="@color/md_theme_onSurface_highContrast"
                             android:lineSpacingExtra="4dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
+
+            <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_open_settings"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="设置"
+                    app:icon="@drawable/ic_settings"
+                    app:iconGravity="textStart"
+                    app:iconPadding="8dp"
+                    app:iconSize="20dp"
+                    app:iconTint="?attr/colorOnSurface" />
 
         </LinearLayout>
     </ScrollView>
