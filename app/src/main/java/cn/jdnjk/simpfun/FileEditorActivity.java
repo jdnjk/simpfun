@@ -7,12 +7,13 @@ import android.graphics.Color;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import java.io.*;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
@@ -42,6 +43,7 @@ public class FileEditorActivity extends AppCompatActivity {
     private String localPath;
     private String fileName;
     private static boolean textMateInited = false;
+    private ActivityResultLauncher<android.content.Intent> saveAsLauncher;
 
     private static final Map<String, String> EXTENSION_TO_SCOPE = new HashMap<>();
 
@@ -50,7 +52,7 @@ public class FileEditorActivity extends AppCompatActivity {
         EXTENSION_TO_SCOPE.put(".log", "text.log");
         EXTENSION_TO_SCOPE.put(".yaml", "source.yaml");
         EXTENSION_TO_SCOPE.put(".yml", "source.yaml");
-        EXTENSION_TO_SCOPE.put(".py", "source.python");
+        // EXTENSION_TO_SCOPE.put(".py", "source.python");
         EXTENSION_TO_SCOPE.put(".js", "source.js");
         EXTENSION_TO_SCOPE.put(".html", "text.html.basic");
         EXTENSION_TO_SCOPE.put(".htm", "text.html.basic");
@@ -68,30 +70,45 @@ public class FileEditorActivity extends AppCompatActivity {
         if (textMateInited) return;
         try {
             FileProviderRegistry.getInstance().addFileProvider(new AssetsFileResolver(getApplicationContext().getAssets()));
-            // 主题注册
+
+            // Load themes
+            var themes = new String[]{"darcula", "ayu-dark", "quietlight", "solarized_dark"};
             var themeRegistry = ThemeRegistry.getInstance();
-            var name = "quietlight";
-            var themeAssetsPath = "editor/textmate/" + name + ".json";
-            // 在尝试加载主题前检查资源是否存在
-            var themeStream = FileProviderRegistry.getInstance().tryGetInputStream(themeAssetsPath);
-            if (themeStream == null) {
-                Log.w("FileEditorActivity", "未找到主题文件: " + themeAssetsPath + ", 将禁用 TextMate");
-                textMateInited = false;
-                return;
+            boolean themeLoaded = false;
+
+            for (String name : themes) {
+                var themeAssetsPath = "editor/textmate/" + name + ".json";
+                var themeStream = FileProviderRegistry.getInstance().tryGetInputStream(themeAssetsPath);
+
+                if (themeStream != null) {
+                    var model = new ThemeModel(
+                            IThemeSource.fromInputStream(themeStream, themeAssetsPath, null),
+                            name
+                    );
+                    if (!"quietlight".equals(name)) {
+                        model.setDark(true);
+                    }
+                    themeRegistry.loadTheme(model);
+                    themeLoaded = true;
+                }
             }
-            var model = new ThemeModel(
-                    IThemeSource.fromInputStream(themeStream, themeAssetsPath, null),
-                    name
-            );
-            themeRegistry.loadTheme(model);
-            themeRegistry.setTheme(name);
+
+            if (!themeLoaded) {
+                 Log.w("FileEditorActivity", "未找到任何主题文件, 将禁用 TextMate");
+                 textMateInited = false;
+                 return;
+            }
+
+            themeRegistry.setTheme("quietlight"); // Default theme
+
             // 加载语法定义
             var languagesPath = "editor/textmate/languages.json";
-            var langStream = FileProviderRegistry.getInstance().tryGetInputStream(languagesPath);
-            if (langStream == null) {
-                Log.w("FileEditorActivity", "未找到语法定义文件: " + languagesPath + ", 将禁用 TextMate");
-                textMateInited = false;
-                return;
+            try (var langStream = FileProviderRegistry.getInstance().tryGetInputStream(languagesPath)) {
+                if (langStream == null) {
+                    Log.w("FileEditorActivity", "未找到语法定义文件: " + languagesPath + ", 将禁用 TextMate");
+                    textMateInited = false;
+                    return;
+                }
             }
             // GrammarRegistry.loadGrammars 会自行读取文件内容，这里仅用于存在性检查
             GrammarRegistry.getInstance().loadGrammars(languagesPath);
@@ -127,13 +144,8 @@ public class FileEditorActivity extends AppCompatActivity {
                 }
             }
 
-            if (scope != null && textMateInited) {
-                var language = TextMateLanguage.create(scope, true);
-                codeEditor.setEditorLanguage(language);
-            } else {
-                // 对于不支持的语言或 TextMate 未就绪，使用空语言以提高性能
-                codeEditor.setEditorLanguage(null);
-            }
+            setLanguage(scope);
+
         } catch (Exception e) {
             Log.w("FileEditorActivity", "语言应用失败", e);
             Toast.makeText(this, "语言应用失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -143,8 +155,32 @@ public class FileEditorActivity extends AppCompatActivity {
         }
     }
 
+    public void applyLanguageAuto() {
+        applyLanguageForCurrentFile();
+    }
+
+    public void setLanguage(String scope) {
+        if (textMateInited) {
+             if (scope != null) {
+                 try {
+                     var language = TextMateLanguage.create(scope, true);
+                     codeEditor.setEditorLanguage(language);
+                 } catch (IllegalArgumentException e) {
+                     // 捕获 GrammarRegistry 抛出的 scope 未找到异常
+                     Log.w("FileEditorActivity", "语言scope未找到: " + scope);
+                     Toast.makeText(this, "该语言语法尚未加载: " + scope, Toast.LENGTH_SHORT).show();
+                     codeEditor.setEditorLanguage(null);
+                 } catch (Exception e) {
+                     Log.e("FileEditorActivity", "设置语言失败", e);
+                     Toast.makeText(this, "设置语言失败", Toast.LENGTH_SHORT).show();
+                 }
+             } else {
+                 codeEditor.setEditorLanguage(null);
+             }
+        }
+    }
+
     private int serverId = -1;
-    private String remoteDir;
     private String remotePath;
 
     private void updateUIState() {
@@ -205,28 +241,20 @@ public class FileEditorActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        // getWindow().setStatusBarColor(Color.TRANSPARENT); // Deprecated
         WindowInsetsControllerCompat windowInsetsController =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (windowInsetsController != null) {
-            windowInsetsController.setAppearanceLightStatusBars(false);
-        }
+        windowInsetsController.setAppearanceLightStatusBars(false); // Dark theme usually
 
         setContentView(R.layout.activity_file_editor);
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayShowTitleEnabled(false);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
-
-        ViewCompat.setOnApplyWindowInsetsListener(toolbar, (v, insets) -> {
-            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
-            v.setPadding(v.getPaddingLeft(), statusBarHeight, v.getPaddingRight(), v.getPaddingBottom());
-            return insets;
-        });
-
         toolbar.setNavigationIcon(R.drawable.ic_arrow_back);
         toolbar.setNavigationOnClickListener(v -> finish());
 
@@ -238,7 +266,11 @@ public class FileEditorActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btn_save);
 
         codeEditor = findViewById(R.id.code_editor);
-        codeEditor.setTypefaceText(Typeface.MONOSPACE);
+        try {
+            codeEditor.setTypefaceText(Typeface.createFromAsset(getAssets(), "editor/JetBrainsMonoNL-Regular.ttf"));
+        } catch (Exception e) {
+            codeEditor.setTypefaceText(Typeface.MONOSPACE);
+        }
 
         // Setup listeners
         btnUndo.setOnClickListener(v -> {
@@ -249,6 +281,10 @@ public class FileEditorActivity extends AppCompatActivity {
         });
         btnSave.setOnClickListener(v -> saveFile());
 
+        ImageView btnMore = findViewById(R.id.btn_more);
+        btnMore.setOnClickListener(v -> new cn.jdnjk.simpfun.utils.EditorMenuHandler(this, codeEditor, localPath)
+                .showMenu(v));
+
         codeEditor.subscribeEvent(ContentChangeEvent.class, (event, unsubscribe) -> {
             isModified = true;
             updateUIState();
@@ -256,72 +292,94 @@ public class FileEditorActivity extends AppCompatActivity {
 
         codeEditor.subscribeEvent(SelectionChangeEvent.class, (event, unsubscribe) -> {
             if (tvCursorPosition != null) {
-                var cursor = codeEditor.getCursor();
-                tvCursorPosition.setText((cursor.getLeftLine() + 1) + ":" + (cursor.getLeftColumn() + 1));
+                var cursor = event.getLeft();
+                tvCursorPosition.setText(String.format(Locale.getDefault(), "%d:%d", cursor.line + 1, cursor.column + 1));
             }
         });
 
-        // 设置更好的行间距
-        codeEditor.setLineSpacing(2f, 1.1f);
-
-        // 设置非打印字符绘制标志
-        codeEditor.setNonPrintablePaintingFlags(
-                CodeEditor.FLAG_DRAW_WHITESPACE_LEADING |
-                        CodeEditor.FLAG_DRAW_LINE_SEPARATOR |
-                        CodeEditor.FLAG_DRAW_WHITESPACE_IN_SELECTION
+        // Initialize ActivityResultLauncher
+        saveAsLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null && result.getData().getData() != null) {
+                         saveContentToUri(result.getData().getData());
+                    }
+                }
         );
 
-        // 启用粘性滚动
-        codeEditor.getProps().stickyScroll = true;
-
-        // 启用自动换行
-        codeEditor.setWordwrap(true);
-
+        // Intent data
         localPath = getIntent().getStringExtra("local_path");
         fileName = getIntent().getStringExtra("file_name");
-        // 读取可选的上传配置
-        serverId = getIntent().getIntExtra("server_id", -1);
         remotePath = getIntent().getStringExtra("remote_path");
-        // remoteDir 不再使用，上传交给 Pane
+        serverId = getIntent().getIntExtra("server_id", -1);
 
-        if (fileName != null) {
-            tvFilename.setText(fileName);
+        if (localPath != null) {
+            File file = new File(localPath);
+            if (fileName == null) fileName = file.getName();
+            loadLocalFile();
+            applyLanguageForCurrentFile();
         }
 
-        loadLocalFile();
-        applyLanguageForCurrentFile();
         updateUIState();
     }
 
     private void loadLocalFile() {
-        if (localPath == null) {
-            Toast.makeText(this, "本地路径无效", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        File f = new File(localPath);
-        if (!f.exists()) {
-            Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(f)))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line).append('\n');
+        if (localPath == null) return;
+        try {
+            File file = new File(localPath);
+            if (!file.exists()) {
+                Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show();
+                return;
             }
-            codeEditor.setText(sb.toString());
-            // 尝试加载自定义字体
-            try {
-                codeEditor.setTypefaceText(Typeface.createFromAsset(getAssets(), "editor/JetBrainsMonoNL-Regular.ttf"));
-            } catch (Exception e) {
-                Log.w("FileEditorActivity", "无法加载自定义字体，使用默认等宽字体", e);
-                codeEditor.setTypefaceText(Typeface.MONOSPACE);
+            // Increase buffer size for large files
+            StringBuilder text = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    text.append(line).append('\n');
+                }
+            }
+            // Remove last newline if added
+            if (text.length() > 0 && text.charAt(text.length() - 1) == '\n') {
+                text.setLength(text.length() - 1);
+            }
+
+            codeEditor.setText(text);
+            isModified = false; // Initial load is not modified
+        } catch (Exception e) {
+            Toast.makeText(this, "加载失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("FileEditorActivity", "File load error", e);
+        }
+    }
+
+
+    public void launchSaveAs() {
+        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(android.content.Intent.EXTRA_TITLE, fileName != null ? fileName : "untitled.txt");
+        try {
+            saveAsLauncher.launch(intent);
+        } catch (android.content.ActivityNotFoundException e) {
+            Toast.makeText(this, "未找到文件管理器", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    private void saveContentToUri(android.net.Uri uri) {
+        try {
+            OutputStream os = getContentResolver().openOutputStream(uri);
+            if (os != null) {
+                String text = codeEditor.getText().toString();
+                os.write(text.getBytes());
+                os.close();
+                Toast.makeText(this, "另存为成功", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "无法打开输出流", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "读取失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        } catch (OutOfMemoryError error) {
-            Toast.makeText(this, "文件过大，内存不足", Toast.LENGTH_LONG).show();
-            Log.e("FileEditorActivity", "内存溢出错误", error);
+            Toast.makeText(this, "保存失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e("FileEditorActivity", "Save as error", e);
         }
     }
 }

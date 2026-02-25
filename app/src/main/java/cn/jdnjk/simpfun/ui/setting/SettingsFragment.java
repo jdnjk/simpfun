@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -16,20 +17,25 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.api.MainApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
+import org.json.JSONObject;
 
 public class SettingsFragment extends Fragment {
 
     private SharedPreferences sp;
+    private SharedPreferences userInfo;
     private ThemeManager themeManager;
     private TerminalThemeManager terminalThemeManager;
     private TextView tvThemeCurrent;
     private TextView tvTerminalThemeCurrent;
+    private TextView tvQqCurrent;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sp = requireContext().getSharedPreferences("token", 0);
+        userInfo = requireContext().getSharedPreferences("user_info", 0);
         themeManager = ThemeManager.getInstance(requireContext());
         terminalThemeManager = TerminalThemeManager.getInstance(requireContext());
     }
@@ -42,6 +48,7 @@ public class SettingsFragment extends Fragment {
         initViews(root);
         setupClickListeners(root);
         updateThemeDisplay();
+        loadUserInfo();
 
         return root;
     }
@@ -49,6 +56,7 @@ public class SettingsFragment extends Fragment {
     private void initViews(View root) {
         tvThemeCurrent = root.findViewById(R.id.tv_theme_current);
         tvTerminalThemeCurrent = root.findViewById(R.id.tv_terminal_theme_current);
+        tvQqCurrent = root.findViewById(R.id.tv_qq_current);
 
         TextView tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME;
@@ -61,6 +69,7 @@ public class SettingsFragment extends Fragment {
         root.findViewById(R.id.option_tutorial).setOnClickListener(v -> openTutorialDocumentation());
         root.findViewById(R.id.option_login_browser).setOnClickListener(v -> openBrowserLogin());
         root.findViewById(R.id.option_logout).setOnClickListener(v -> showLogoutDialog());
+        root.findViewById(R.id.option_bind_qq).setOnClickListener(v -> showBindQQDialog());
     }
 
     private void updateThemeDisplay() {
@@ -136,5 +145,67 @@ public class SettingsFragment extends Fragment {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private void loadUserInfo() {
+        if (userInfo != null && tvQqCurrent != null) {
+            long qq = userInfo.getLong("qq", 0);
+            tvQqCurrent.setText(qq == 0 ? "未绑定" : String.valueOf(qq));
+        }
+    }
+
+    private void showBindQQDialog() {
+        final EditText editText = new EditText(requireContext());
+        long currentQq = userInfo.getLong("qq", 0);
+        if (currentQq != 0) {
+            editText.setText(String.valueOf(currentQq));
+        }
+        editText.setHint("请输入 QQ 号码");
+
+        // Add padding to the EditText
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        editText.setPadding(padding * 2, padding, padding * 2, padding);
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("绑定 QQ 号")
+                .setView(editText)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String qqStr = editText.getText().toString().trim();
+                    if (qqStr.isEmpty()) {
+                        Toast.makeText(requireContext(), "请输入 QQ 号码", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    try {
+                        long qq = Long.parseLong(qqStr);
+                        bindQQ(qq);
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(requireContext(), "请输入有效的 QQ 号码", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void bindQQ(long qq) {
+        String token = sp.getString("token", "");
+        if (token.isEmpty()) {
+            Toast.makeText(requireContext(), "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new MainApi(requireContext()).bindQQ(token, qq, new MainApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                Toast.makeText(requireContext(), "绑定成功", Toast.LENGTH_SHORT).show();
+                // 更新本地缓存
+                userInfo.edit().putLong("qq", qq).apply();
+                loadUserInfo();
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                Toast.makeText(requireContext(), "绑定失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

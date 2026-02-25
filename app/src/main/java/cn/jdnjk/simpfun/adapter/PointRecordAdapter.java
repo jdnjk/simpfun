@@ -15,7 +15,7 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.model.PointRecord;
 
 public class PointRecordAdapter extends RecyclerView.Adapter<PointRecordAdapter.ViewHolder> {
-    private List<PointRecord> list;
+    private final List<PointRecord> list;
 
     // Use runtime-generated ids to avoid requiring an R.id entry for programmatic views
     private static final int ID_AMOUNT = View.generateViewId();

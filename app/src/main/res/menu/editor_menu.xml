@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_file"
+        android:icon="@drawable/ic_document"
+        android:title="文件">
+        <menu>
+            <item
+                android:id="@+id/action_save_as"
+                android:icon="@drawable/ic_save_24"
+                android:title="另存为" />
+            <item
+                android:id="@+id/action_reload"
+                android:icon="@drawable/ic_refresh"
+                android:title="重新加载文件" />
+            <item
+                android:id="@+id/action_reload_encoding"
+                android:icon="@drawable/ic_refresh"
+                android:title="指定编码重新加载" />
+            <item
+                android:id="@+id/action_save_encoding"
+                android:icon="@drawable/ic_text_format"
+                android:title="指定保存的编码" />
+            <item
+                android:id="@+id/action_newline"
+                android:icon="@drawable/warp_text"
+                android:title="换行符" />
+            <item
+                android:id="@+id/action_wordwrap"
+                android:title="自动换行"
+                android:checkable="true"
+                android:checked="false" />
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search"
+        android:title="搜索" />
+
+    <item
+        android:id="@+id/action_syntax"
+        android:icon="@drawable/ic_code"
+        android:title="语法" />
+
+    <item
+        android:id="@+id/action_translate"
+        android:icon="@drawable/translate_24dp"
+        android:title="翻译" />
+
+</menu>

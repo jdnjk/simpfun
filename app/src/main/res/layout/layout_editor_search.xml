@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground"
+    android:elevation="8dp"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_search_result"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0/0"
+            android:paddingEnd="8dp"/>
+
+        <CheckBox
+            android:id="@+id/cb_case_sensitive"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cc"
+            android:minWidth="0dp"
+            android:tooltipText="区分大小写"/>
+
+        <CheckBox
+            android:id="@+id/cb_whole_word"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="W"
+            android:minWidth="0dp"
+            android:tooltipText="全词匹配"/>
+
+        <CheckBox
+            android:id="@+id/cb_regex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=".*"
+            android:minWidth="0dp"
+            android:tooltipText="正则表达式"/>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
+
+        <ImageButton
+            android:id="@+id/btn_close_search"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_close"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/et_search_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="查找内容"
+            android:singleLine="true"
+            android:imeOptions="actionSearch"/>
+
+        <Button
+            android:id="@+id/btn_prev"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="上个"
+            android:minWidth="0dp"
+            android:paddingHorizontal="4dp"/>
+
+        <Button
+            android:id="@+id/btn_next"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="下个"
+            android:minWidth="0dp"
+            android:paddingHorizontal="4dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_replace"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="visible">
+
+        <EditText
+            android:id="@+id/et_replace_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="替换为"
+            android:singleLine="true"/>
+
+        <Button
+            android:id="@+id/btn_replace"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="替换"
+            android:minWidth="0dp"
+            android:paddingHorizontal="4dp"/>
+
+        <Button
+            android:id="@+id/btn_replace_all"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="全部"
+            android:minWidth="0dp"
+            android:paddingHorizontal="4dp"/>
+    </LinearLayout>
+
+</LinearLayout>

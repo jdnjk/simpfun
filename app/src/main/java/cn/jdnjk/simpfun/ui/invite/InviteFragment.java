@@ -26,7 +26,6 @@ public class InviteFragment extends Fragment {
 
     private SwipeRefreshLayout swipeRefresh;
     private TextView tvInviteCode, tvRegisterTimes, tvRegisterVerifyTimes, tvTotalIncome, tvProIncome;
-    private Button btnCopyCode, btnShareLink;
     private String inviteCode = "";
 
     @Nullable
@@ -40,8 +39,8 @@ public class InviteFragment extends Fragment {
         tvRegisterVerifyTimes = root.findViewById(R.id.tv_register_verify_times);
         tvTotalIncome = root.findViewById(R.id.tv_total_income);
         tvProIncome = root.findViewById(R.id.tv_pro_income);
-        btnCopyCode = root.findViewById(R.id.btn_copy_code);
-        btnShareLink = root.findViewById(R.id.btn_share_link);
+        Button btnCopyCode = root.findViewById(R.id.btn_copy_code);
+        Button btnShareLink = root.findViewById(R.id.btn_share_link);
 
         swipeRefresh.setOnRefreshListener(this::loadInviteData);
 

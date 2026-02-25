@@ -51,6 +51,18 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:focusable="true"/>
+
+            <ImageView
+                android:id="@+id/btn_more"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_more_vert"
+                android:contentDescription="More options"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"/>
+
         </LinearLayout>
 
     </androidx.appcompat.widget.Toolbar>
@@ -92,5 +104,10 @@
         android:layout_weight="1"
         android:scrollbars="vertical" />
 
-</LinearLayout>
+    <include layout="@layout/layout_editor_search"
+        android:id="@+id/editor_search_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"/>
 
+</LinearLayout>

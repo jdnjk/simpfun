@@ -5,10 +5,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 public class PointRecord {
-    private String description;
-    private String amount;
-    private String time;
-    private int left;
+    private final String description;
+    private final String amount;
+    private final String time;
+    private final int left;
 
     public PointRecord(String description, String amount, String time) {
         this(description, amount, time, 0);

@@ -140,7 +140,7 @@ public class UserApi {
             }
 
             @Override
-            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 if (!response.isSuccessful()) {
                     mainHandler.post(() -> callback.onFailure("服务器返回错误: " + response.code()));
                     return;
@@ -185,7 +185,7 @@ public class UserApi {
             }
 
             @Override
-            public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
                 if (response.isSuccessful()) {
                     Log.d("UserApi", "Announcement marked as read");
                 }

@@ -74,7 +74,7 @@ public class AiApi {
             }
 
             @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
                 try {
                     String body = response.body().string();
                     JSONObject json = new JSONObject(body);

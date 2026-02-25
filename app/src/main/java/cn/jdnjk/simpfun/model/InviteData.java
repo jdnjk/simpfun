@@ -1,11 +1,11 @@
 package cn.jdnjk.simpfun.model;
 
 public class InviteData {
-    private int registerTimes;
-    private int registerVerifyTimes;
-    private int registerTotalIncome;
-    private int registerTotalIncomeFromPro;
-    private String inviteCode;
+    private final int registerTimes;
+    private final int registerVerifyTimes;
+    private final int registerTotalIncome;
+    private final int registerTotalIncomeFromPro;
+    private final String inviteCode;
 
     public InviteData(int registerTimes, int registerVerifyTimes, int registerTotalIncome, int registerTotalIncomeFromPro, String inviteCode) {
         this.registerTimes = registerTimes;
