@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/md_theme_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:paddingTop="0dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            style="?attr/materialCardViewFilledStyle"
+            app:cardBackgroundColor="@color/md_theme_surfaceContainerHigh"
+            android:layout_marginBottom="16dp"
+            android:layout_marginTop="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="bottom">
+                    <TextView
+                        android:id="@+id/tv_username"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="用户名"
+                        android:textAppearance="?attr/textAppearanceTitleLarge"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tv_uid"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="UID: 0"
+                        android:textAppearance="?attr/textAppearanceBodySmall" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_current_point"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="当前积分: 0"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <TextView
+                    android:id="@+id/tv_double_sign_card"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="双倍积分卡: 未生效"
+                    android:textAppearance="?attr/textAppearanceBodySmall"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tv_auto_sign_card"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="自动签到卡: 未生效"
+                    android:textAppearance="?attr/textAppearanceBodySmall"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Category Tabs -->
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tab_category"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:tabMode="fixed"
+            app:tabIndicatorHeight="2dp"
+            android:background="@android:color/transparent">
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="充积分" />
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="充流量" />
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="增益卡" />
+        </com.google.android.material.tabs.TabLayout>
+
+        <!-- Content Area -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Construction View -->
+            <TextView
+                android:id="@+id/tv_under_construction"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:gravity="center"
+                android:text="页面正在施工"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:visibility="gone" />
+
+            <!-- Recharge Points View -->
+            <LinearLayout
+                android:id="@+id/layout_recharge_points"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- Tier Grid -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_tiers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Modes (Public vs Pro) -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_modes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Payment Method Header -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="支付方式"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:layout_marginBottom="8dp"/>
+
+                <!-- Payment Methods Container -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    style="?attr/materialCardViewFilledStyle"
+                    app:cardBackgroundColor="@color/md_theme_surfaceContainerLow"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <!-- Wechat Pay -->
+                        <LinearLayout
+                            android:id="@+id/btn_wechat_pay"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:padding="16dp"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <RadioButton
+                                android:id="@+id/radio_wechat"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:clickable="false"
+                                android:focusable="false" />
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_wechat"
+                                android:layout_marginStart="8dp" />
+
+                            <TextView
+                                android:id="@+id/tv_wechat_name"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="微信支付"
+                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="?attr/colorOutlineVariant"
+                            android:layout_marginStart="16dp"
+                            android:layout_marginEnd="16dp" />
+
+                        <!-- Alipay -->
+                        <LinearLayout
+                            android:id="@+id/btn_alipay"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:padding="16dp"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <RadioButton
+                                android:id="@+id/radio_alipay"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:clickable="false"
+                                android:focusable="false" />
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_alipay"
+                                android:layout_marginStart="8dp" />
+
+                            <TextView
+                                android:id="@+id/tv_alipay_name"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:text="支付宝"
+                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Action Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_pay"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="立即支付 0元"
+                    app:cornerRadius="12dp"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:layout_marginBottom="16dp" />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -19,9 +19,9 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import cn.jdnjk.simpfun.ui.point.PointManageActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import cn.jdnjk.simpfun.ui.point.BuyPointActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
@@ -67,16 +67,16 @@ public class ProfileFragment extends Fragment {
         swipeRefresh.setOnRefreshListener(this::refreshUserInfo);
 
         root.findViewById(R.id.layout_click_point).setOnClickListener(v -> {
-            Intent intent = new Intent(context, BuyPointActivity.class);
-            intent.putExtra(BuyPointActivity.EXTRA_TAB, BuyPointActivity.TAB_POINTS);
+            Intent intent = new Intent(context, PointManageActivity.class);
+            intent.putExtra(PointManageActivity.EXTRA_TAB, PointManageActivity.TAB_POINTS);
             startActivity(intent);
         });
 
         View diamondEntry = root.findViewById(R.id.layout_click_diamond);
         if (diamondEntry != null) {
             diamondEntry.setOnClickListener(v -> {
-                Intent intent = new Intent(context, BuyPointActivity.class);
-                intent.putExtra(BuyPointActivity.EXTRA_TAB, BuyPointActivity.TAB_DIAMONDS);
+                Intent intent = new Intent(context, PointManageActivity.class);
+                intent.putExtra(PointManageActivity.EXTRA_TAB, PointManageActivity.TAB_DIAMONDS);
                 startActivity(intent);
             });
         }

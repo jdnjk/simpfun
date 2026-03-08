@@ -15,7 +15,7 @@ if (!isGithubActions) {
 
 android {
     namespace 'cn.jdnjk.simpfun'
-    compileSdk 36
+    compileSdkVersion 36
 
     defaultConfig {
         buildConfigField "String", "VERSION_NAME", "\"1.1.1\""
@@ -23,8 +23,8 @@ android {
         applicationId "cn.jdnjk.simpfun"
         minSdkVersion 23
         targetSdkVersion 35
-        versionCode 1111
-        versionName "1.1.1"
+        versionCode 1120
+        versionName "1.1.2"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }

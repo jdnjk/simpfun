@@ -8,12 +8,18 @@ import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
@@ -27,131 +33,251 @@ import java.util.Objects;
 
 public class AuthActivity extends AppCompatActivity {
 
-    private TextView textLogin, textRegister;
-    private TextInputLayout layoutInviteCode;
-    private TextInputEditText editTextUsername, editTextPassword, editTextInviteCode;
-    private CheckBox checkBoxAgree;
-    private Button buttonSubmit;
+    private LinearProgressIndicator progressIndicator;
+    private LinearLayout layoutStepUsername, layoutStepPassword, layoutUserCapsule;
+    private LinearLayout layoutErrorUsername, layoutErrorPassword;
+    private TextView textWelcomeUser, textSubtitle, textLoginTitle;
+    private TextInputEditText editTextUsername, editTextPassword;
+    private MaterialCheckBox checkBoxShowPassword;
+    private MaterialButton buttonNext;
+    private TextView textRegisterLink, textForgotUsername, textForgotPassword;
+    private TextView textViewAgreement;
 
-    private boolean isRegisterMode = false;
-    private int pendingServerId = -1; // 待跳转服务器ID（来自深链）
+    private int currentStep = 1;
+    private String savedUsername = "";
+    private int pendingServerId = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_auth);
-        TextView textViewAgreement = findViewById(R.id.textViewAgreement);
-        String htmlText = "我已阅读并同意《<a href='https://www.yuque.com/simpfun/sfe/tos'>简幻欢用户协议</a>》和《<a href='https://github.com/jdnjk/simpfun/blob/master/eula/README.md'>软件许可协议</a>》";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            textViewAgreement.setText(Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT));
-        }
-        textViewAgreement.setMovementMethod(LinkMovementMethod.getInstance());
-
-        // 读取深链待跳转数据
-        pendingServerId = getIntent().getIntExtra(SplashActivity.EXTRA_DEEP_SERVER_ID, -1);
 
         initViews();
         setupClickListeners();
-        setLoginMode();
+        //setupAgreement();
+
+        // 读取深链待跳转数据
+        pendingServerId = getIntent().getIntExtra(SplashActivity.EXTRA_DEEP_SERVER_ID, -1);
     }
 
     private void initViews() {
-        textLogin = findViewById(R.id.textLogin);
-        textRegister = findViewById(R.id.textRegister);
-        layoutInviteCode = findViewById(R.id.layoutInviteCode);
+        progressIndicator = findViewById(R.id.progressIndicator);
+        layoutStepUsername = findViewById(R.id.layoutStepUsername);
+        layoutStepPassword = findViewById(R.id.layoutStepPassword);
+        layoutUserCapsule = findViewById(R.id.layoutUserCapsule);
+        layoutErrorUsername = findViewById(R.id.layoutErrorUsername);
+        layoutErrorPassword = findViewById(R.id.layoutErrorPassword);
+        textWelcomeUser = findViewById(R.id.textWelcomeUser);
+        textSubtitle = findViewById(R.id.textSubtitle);
+        textLoginTitle = findViewById(R.id.textLoginTitle);
         editTextUsername = findViewById(R.id.editTextUsername);
         editTextPassword = findViewById(R.id.editTextPassword);
-        editTextInviteCode = findViewById(R.id.editTextInviteCode);
-        checkBoxAgree = findViewById(R.id.checkBoxAgree);
-        buttonSubmit = findViewById(R.id.buttonSubmit);
+        checkBoxShowPassword = findViewById(R.id.checkBoxShowPassword);
+        buttonNext = findViewById(R.id.buttonNext);
+        textRegisterLink = findViewById(R.id.textRegisterLink);
+        textForgotUsername = findViewById(R.id.textForgotUsername);
+        textForgotPassword = findViewById(R.id.textForgotPassword);
+        textViewAgreement = findViewById(R.id.textViewAgreement);
     }
 
     private void setupClickListeners() {
-        textLogin.setOnClickListener(v -> setLoginMode());
-        textRegister.setOnClickListener(v -> setRegisterMode());
+        buttonNext.setOnClickListener(v -> {
+            if (currentStep == 1) {
+                handleStep1();
+            } else {
+                handleStep2();
+            }
+        });
 
-        buttonSubmit.setOnClickListener(v -> onSubmit());
+        checkBoxShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                editTextPassword.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+            } else {
+                editTextPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            }
+            editTextPassword.setSelection(editTextPassword.length());
+        });
+
+        textRegisterLink.setOnClickListener(v -> {
+            // 跳转到注册页面 (可以实现或者提示)
+            Toast.makeText(this, "正在为您跳转注册...", Toast.LENGTH_SHORT).show();
+        });
+
+        textForgotUsername.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("忘记账号")
+                    .setMessage("如果您忘记了账号，请在微信小程序中查看。")
+                    .setPositiveButton("确定", null)
+                    .show();
+        });
+
+        textForgotPassword.setOnClickListener(v -> {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("忘记密码")
+                    .setMessage("如果您忘记了密码，可以通过小程序进行重置密码")
+                    .setPositiveButton("确定", null)
+                    .show();
+        });
     }
 
-    private void setLoginMode() {
-        isRegisterMode = false;
-        textLogin.setTextColor(0xFF007BFF);
-        textLogin.setAlpha(1.0f);
-        textRegister.setTextColor(0xFF555555);
-        textRegister.setAlpha(0.7f);
-        layoutInviteCode.setVisibility(View.GONE);
-        buttonSubmit.setText("登录");
+    /*private void setupAgreement() {
+        String htmlText = "我已阅读并同意《<a href='https://www.yuque.com/simpfun/sfe/tos'>简幻欢用户协议</a>》和《<a href='https://github.com/jdnjk/simpfun/blob/master/eula/README.md'>软件许可协议</a>》";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            textViewAgreement.setText(Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT));
+        } else {
+            textViewAgreement.setText(Html.fromHtml(htmlText));
+        }
+        textViewAgreement.setMovementMethod(LinkMovementMethod.getInstance());
+    }*/
+
+    @Override
+    public void onBackPressed() {
+        if (currentStep == 2) {
+            switchToStep1();
+        } else {
+            super.onBackPressed();
+        }
     }
 
-    private void setRegisterMode() {
-        isRegisterMode = true;
-        textLogin.setTextColor(0xFF555555);
-        textLogin.setAlpha(0.7f);
-        textRegister.setTextColor(0xFF007BFF);
-        textRegister.setAlpha(1.0f);
-        layoutInviteCode.setVisibility(View.VISIBLE);
-        buttonSubmit.setText("注册");
+    private void switchToStep1() {
+        if (currentStep == 1) return;
+
+        Animation slideOutRight = AnimationUtils.loadAnimation(this, R.anim.slide_out_right);
+        Animation slideInLeft = AnimationUtils.loadAnimation(this, R.anim.slide_in_left);
+
+        layoutStepPassword.startAnimation(slideOutRight);
+        layoutUserCapsule.startAnimation(slideOutRight);
+
+        slideOutRight.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {}
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                layoutStepPassword.setVisibility(View.GONE);
+                layoutUserCapsule.setVisibility(View.GONE);
+
+                layoutStepUsername.setVisibility(View.VISIBLE);
+                textSubtitle.setVisibility(View.VISIBLE);
+                textLoginTitle.setVisibility(View.VISIBLE);
+                layoutStepUsername.startAnimation(slideInLeft);
+                textSubtitle.startAnimation(slideInLeft);
+                textLoginTitle.startAnimation(slideInLeft);
+
+                currentStep = 1;
+                // 重置密码输入
+                editTextPassword.setText("");
+                layoutErrorPassword.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {}
+        });
     }
 
-    private void onSubmit() {
+    private void handleStep1() {
         String username = Objects.requireNonNull(editTextUsername.getText()).toString().trim();
-        String password = Objects.requireNonNull(editTextPassword.getText()).toString().trim();
-        String inviteCode = isRegisterMode ? Objects.requireNonNull(editTextInviteCode.getText()).toString().trim() : null;
-
         if (TextUtils.isEmpty(username)) {
             editTextUsername.setError("请输入账户");
             return;
         }
+
+        showLoading(true);
+        layoutErrorUsername.setVisibility(View.GONE);
+
+        GetToken getToken = new GetToken(this);
+        // 使用 00000000 尝试登录
+        getToken.login(username, "00000000", new GetToken.Callback() {
+            @Override
+            public void onSuccess(String token) {
+                // 竟然成功了？说明密码刚好是00000000
+                showLoading(false);
+                onAuthSuccess("登录成功");
+            }
+
+            @Override
+            public void onFailure(int code, String errorMsg) {
+                showLoading(false);
+                if ("账号或密码错误".equals(errorMsg)) {
+                    layoutErrorUsername.setVisibility(View.VISIBLE);
+                } else if ("密码错误".equals(errorMsg)) {
+                    // 进入第二步
+                    savedUsername = username;
+                    switchToStep2();
+                } else if (code == 401) {
+                    showWhitelistDialog();
+                } else {
+                    Toast.makeText(AuthActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void switchToStep2() {
+        if (currentStep == 2) return;
+
+        Animation slideOutLeft = AnimationUtils.loadAnimation(this, R.anim.slide_out_left);
+        Animation slideInRight = AnimationUtils.loadAnimation(this, R.anim.slide_in_right);
+
+        layoutStepUsername.startAnimation(slideOutLeft);
+        textSubtitle.startAnimation(slideOutLeft);
+        textLoginTitle.startAnimation(slideOutLeft);
+
+        slideOutLeft.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {}
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                layoutStepUsername.setVisibility(View.GONE);
+                textSubtitle.setVisibility(View.GONE);
+                textLoginTitle.setVisibility(View.GONE);
+
+                layoutStepPassword.setVisibility(View.VISIBLE);
+                layoutUserCapsule.setVisibility(View.VISIBLE);
+                textWelcomeUser.setText("欢迎 " + savedUsername);
+
+                layoutStepPassword.startAnimation(slideInRight);
+                layoutUserCapsule.startAnimation(slideInRight);
+
+                currentStep = 2;
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {}
+        });
+    }
+
+    private void handleStep2() {
+        String password = Objects.requireNonNull(editTextPassword.getText()).toString().trim();
         if (TextUtils.isEmpty(password)) {
             editTextPassword.setError("请输入密码");
             return;
         }
-        if (password.length() < 6) {
-            editTextPassword.setError("密码至少6位");
-            return;
-        }
-        if (!checkBoxAgree.isChecked()) {
-            Toast.makeText(this, "请同意用户协议", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
         showLoading(true);
+        layoutErrorPassword.setVisibility(View.GONE);
 
         GetToken getToken = new GetToken(this);
-        if (isRegisterMode) {
-            getToken.register(username, password, inviteCode, new GetToken.Callback() {
-                @Override
-                public void onSuccess(String token) {
-                    showLoading(false);
-                    onAuthSuccess("注册成功");
-                }
+        getToken.login(savedUsername, password, new GetToken.Callback() {
+            @Override
+            public void onSuccess(String token) {
+                showLoading(false);
+                onAuthSuccess("登录成功");
+            }
 
-                @Override
-                public void onFailure(int code, String errorMsg) {
-                    showLoading(false);
-                    Toast.makeText(AuthActivity.this, "注册失败: " + errorMsg, Toast.LENGTH_LONG).show();
+            @Override
+            public void onFailure(int code, String errorMsg) {
+                showLoading(false);
+                if ("密码错误".equals(errorMsg) || "账号或密码错误".equals(errorMsg)) {
+                    layoutErrorPassword.setVisibility(View.VISIBLE);
+                } else if (code == 401) {
+                    showWhitelistDialog();
+                } else {
+                    Toast.makeText(AuthActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
-            });
-        } else {
-            getToken.login(username, password, new GetToken.Callback() {
-                @Override
-                public void onSuccess(String token) {
-                    showLoading(false);
-                    onAuthSuccess("登录成功");
-                }
-
-                @Override
-                public void onFailure(int code, String errorMsg) {
-                    if (code == 401) {
-                        showLoading(false);
-                        showWhitelistDialog();
-                    } else {
-                        showLoading(false);
-                        Toast.makeText(AuthActivity.this, "登录失败: " + errorMsg, Toast.LENGTH_LONG).show();
-                    }
-                }
-            });
-        }
+            }
+        });
     }
 
     private void onAuthSuccess(String msg) {
@@ -169,8 +295,8 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void showLoading(boolean loading) {
-        buttonSubmit.setEnabled(!loading);
-        buttonSubmit.setText(loading ? (isRegisterMode ? "注册中..." : "登录中...") : (isRegisterMode ? "注册" : "登录"));
+        progressIndicator.setVisibility(loading ? View.VISIBLE : View.GONE);
+        buttonNext.setEnabled(!loading);
     }
 
     private void showWhitelistDialog() {
@@ -227,3 +353,4 @@ public class AuthActivity extends AppCompatActivity {
         dialog.show();
     }
 }
+

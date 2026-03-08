@@ -48,7 +48,7 @@
                 android:exported="true">
         </activity>
         <activity
-                android:name=".ui.point.BuyPointActivity"
+                android:name=".ui.point.PointManageActivity"
                 android:exported="true">
         </activity>
         <activity

@@ -788,7 +788,7 @@ public class FilePaneFragment extends Fragment {
                     icon.setImageResource(R.drawable.ic_folder_material);
                     info.setText(R.string.parent_directory);
                 } else if (it.file) {
-                    icon.setImageResource(R.drawable.ic_file_material);
+                    icon.setImageResource(R.drawable.term);
                     // 向量图标使用布局中的 tint，信息更精简
                     info.setText(itemView.getContext().getString(R.string.file_info_format, formatSize(it.size), it.modifiedAt));
                 } else {

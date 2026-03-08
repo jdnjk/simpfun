@@ -1,11 +1,10 @@
 package cn.jdnjk.simpfun.api;
 
+import android.util.Log;
 import cn.jdnjk.simpfun.BuildConfig;
-import okhttp3.Interceptor;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
+import okio.Buffer;
 
 import java.io.IOException;
 
@@ -20,6 +19,7 @@ public class ApiClient {
     private ApiClient() {
         this.client = new OkHttpClient.Builder()
                 .addInterceptor(new UserAgentInterceptor())
+                .addInterceptor(new LoggingInterceptor())
                 .build();
     }
     public static synchronized ApiClient getInstance() {
@@ -40,6 +40,41 @@ public class ApiClient {
                     .header("User-Agent", USER_AGENT)
                     .build();
             return chain.proceed(requestWithUserAgent);
+        }
+    }
+
+    private static class LoggingInterceptor implements Interceptor {
+        @Override
+        public @NotNull Response intercept(Chain chain) throws IOException {
+            Request request = chain.request();
+
+            // Log Request
+            Log.d("ApiClient", "--> " + request.method() + " " + request.url());
+            if (request.body() != null) {
+                try {
+                    Buffer buffer = new Buffer();
+                    request.body().writeTo(buffer);
+                    Log.d("ApiClient", "Body: " + buffer.readUtf8());
+                } catch (Exception e) {
+                    Log.d("ApiClient", "Could not log body: " + e.getMessage());
+                }
+            }
+
+            Response response = chain.proceed(request);
+
+            Log.d("ApiClient", response.code() + " " + response.request().url());
+
+            ResponseBody responseBody = response.body();
+            if (responseBody != null) {
+                try {
+                    String content = response.peekBody(1024 * 1024).string();
+                    Log.d("ApiClient", "Response: " + content);
+                } catch (Exception e) {
+                    Log.d("ApiClient", "Could not log response body: " + e.getMessage());
+                }
+            }
+
+            return response;
         }
     }
 }

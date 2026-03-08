@@ -304,7 +304,7 @@ public class EditorMenuHandler {
             searchPanel.findViewById(R.id.btn_replace).setOnClickListener(v -> {
                 try {
                     if (etSearch.getText().length() > 0) {
-                        codeEditor.getSearcher().replaceThis(etReplace.getText().toString());
+                        codeEditor.getSearcher().replaceCurrentMatch(etReplace.getText().toString());
                     }
                 } catch (Exception e) {
                     Toast.makeText(activity, "替换失败", Toast.LENGTH_SHORT).show();

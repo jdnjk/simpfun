@@ -1,126 +1,250 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:app="http://schemas.android.com/apk/res-auto"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="20dp"
-            android:background="?attr/colorSurface">
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
 
-    <LinearLayout
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progressIndicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@id/buttonNext"
+        app:layout_constraintTop_toBottomOf="@id/progressIndicator">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="24dp">
 
-        <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="24dp">
-
-            <TextView
-                    android:id="@+id/textLogin"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="登录"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textColor="?attr/colorPrimary" />
-
-            <View
-                    android:layout_width="1dp"
-                    android:layout_height="32dp"
-                    android:background="?attr/colorOutline" />
+            <ImageView
+                android:id="@+id/imageLogo"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:contentDescription="App Logo"
+                android:src="@drawable/simpfun"
+                tools:src="@tools:sample/avatars" />
 
             <TextView
-                    android:id="@+id/textRegister"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="注册"
-                    android:textSize="22sp"
-                    android:gravity="center"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-        </LinearLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+                android:id="@+id/textLoginTitle"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-            <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextUsername"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="账户" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="20dp"
+                android:text="登录"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="24sp"
+                android:textStyle="bold" />
 
-        <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:id="@+id/layoutUserCapsule"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                app:endIconMode="password_toggle">
-            <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextPassword"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="密码"
-                    android:inputType="textPassword" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/layoutInviteCode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                android:visibility="gone">
-            <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextInviteCode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="邀请码（可选）" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_user_capsule"
                 android:gravity="center_vertical"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="24dp">
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:visibility="gone"
+                tools:visibility="visible">
 
-            <CheckBox
-                    android:id="@+id/checkBoxAgree"
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_user_outline"
+                    app:tint="?attr/colorOnSecondaryContainer" />
+
+                <TextView
+                    android:id="@+id/textWelcomeUser"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:buttonTint="?attr/colorPrimary" />
+                    android:layout_marginStart="8dp"
+                    android:textColor="?attr/colorOnSecondaryContainer"
+                    android:textSize="14sp"
+                    tools:text="admin" />
+            </LinearLayout>
 
             <TextView
-                    android:id="@+id/textViewAgreement"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="14sp" />
-        </LinearLayout>
+                android:id="@+id/textSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:text="请使用您的 简幻欢 账号登录"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="16sp" />
 
-        <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonSubmit"
+            <LinearLayout
+                android:id="@+id/layoutStepUsername"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="登录"
-                android:textSize="16sp"
-                android:layout_marginTop="16dp"
-                android:padding="12dp"
-                app:cornerRadius="12dp"
-                android:backgroundTint="?attr/colorPrimary"
-                android:textColor="?attr/colorOnPrimary"/>
+                android:layout_marginTop="32dp"
+                android:orientation="vertical"
+                android:visibility="visible">
 
-    </LinearLayout>
-</ScrollView>
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutUsername"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/editTextUsername"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="账号"
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:id="@+id/layoutErrorUsername"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_error_outline"
+                        app:tint="#F44336" />
+
+                    <TextView
+                        android:id="@+id/textErrorUsername"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="找不到您的 简幻欢 账号，"
+                        android:textColor="#F44336"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/textRegisterLink"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="注册？"
+                        android:textColor="#007BFF"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/textForgotUsername"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="忘记了账号?"
+                    android:textColor="#007BFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutStepPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutPassword"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:passwordToggleEnabled="false">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/editTextPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="请输入您的密码"
+                        android:inputType="textPassword" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/checkBoxShowPassword"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="显示密码"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutErrorPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_error_outline"
+                        app:tint="#F44336" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="密码有误。请重试，或点击“忘记了密码？”查看更多选项。"
+                        android:textColor="#F44336"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/textForgotPassword"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="忘记了密码?"
+                    android:textColor="#007BFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textViewAgreement"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:gravity="center"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/buttonNext"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="32dp"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="10dp"
+        android:text="下一步"
+        app:cornerRadius="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+

@@ -105,7 +105,7 @@
                     <ImageView
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_terminal"
+                        android:src="@drawable/term"
                         android:contentDescription="终端颜色"
                         android:layout_marginEnd="16dp"
                         app:tint="?attr/colorOnSurfaceVariant" />

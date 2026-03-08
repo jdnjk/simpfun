@@ -72,7 +72,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:src="@drawable/ic_add_material"
+        android:src="@drawable/ic_add_24"
         android:contentDescription="@string/new_file"
         app:backgroundTint="?attr/colorSecondary"
         app:tint="?attr/colorOnSecondary" />
