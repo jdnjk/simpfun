@@ -11,31 +11,45 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import cn.jdnjk.simpfun.api.MainApi;
+
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.api.MainApi;
 import cn.jdnjk.simpfun.model.ServerItem;
+import cn.jdnjk.simpfun.model.ServerStatsSnapshot;
+import cn.jdnjk.simpfun.service.ServerStatsListener;
+import cn.jdnjk.simpfun.service.ServerStatsService;
 import cn.jdnjk.simpfun.ui.create.CreateServer;
+import cn.jdnjk.simpfun.ui.setting.ServerCardStyleManager;
 
-public class ServerFragment extends Fragment {
+public class ServerFragment extends Fragment implements ServerStatsListener {
 
     private RecyclerView recyclerView;
     private ServerAdapter adapter;
     private List<ServerItem> serverItems;
     private SwipeRefreshLayout swipeRefreshLayout;
     private View emptyStateLayout;
+    private ServerCardStyleManager cardStyleManager;
+    private final ServerStatsService statsService = ServerStatsService.getInstance();
+    private final Set<Integer> subscribedIds = new HashSet<>();
 
     @Nullable
     @Override
@@ -45,13 +59,21 @@ public class ServerFragment extends Fragment {
         swipeRefreshLayout = root.findViewById(R.id.swipe_refresh_layout);
         recyclerView = root.findViewById(R.id.recycler_view_servers);
         emptyStateLayout = root.findViewById(R.id.empty_state_layout);
+        cardStyleManager = new ServerCardStyleManager(requireContext());
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                if (getActivity() instanceof cn.jdnjk.simpfun.MainActivity mainActivity) {
+                    boolean atTop = !recyclerView.canScrollVertically(-1);
+                    mainActivity.onPrimaryScroll(dy, atTop);
+                }
+            }
+        });
 
         serverItems = new ArrayList<>();
-
-        String token = getToken();
-        adapter = new ServerAdapter(serverItems, (MainActivity) requireActivity());
+        adapter = new ServerAdapter(serverItems, (MainActivity) requireActivity(), cardStyleManager.isModernServerCardEnabled());
         recyclerView.setAdapter(adapter);
 
         swipeRefreshLayout.setOnRefreshListener(this::refreshInstanceList);
@@ -62,7 +84,6 @@ public class ServerFragment extends Fragment {
             if (root instanceof SwipeRefreshLayout) {
                 View inner = ((SwipeRefreshLayout) root).getChildAt(0);
                 if (inner instanceof FrameLayout fl) {
-                    // 使用 getContext()，避免 Fragment 尚未完全附着时 requireContext() 抛异常
                     Context ctx = getContext();
                     if (ctx != null) {
                         fab = new FloatingActionButton(ctx);
@@ -87,12 +108,10 @@ public class ServerFragment extends Fragment {
                 Intent intent = new Intent(requireContext(), CreateServer.class);
                 startActivity(intent);
             });
-            // 动态上移避免被底栏遮挡
             BottomNavigationView nav = requireActivity().findViewById(R.id.nav_view);
             if (nav != null) {
                 FloatingActionButton finalFab = fab;
                 nav.post(() -> {
-                    // Fragment 可能已被移除，增加 isAdded 判定避免未附着崩溃
                     if (!isAdded() || getActivity() == null) {
                         return;
                     }
@@ -100,29 +119,42 @@ public class ServerFragment extends Fragment {
                     ViewGroup.LayoutParams lp0 = finalFab.getLayoutParams();
                     if (lp0 instanceof FrameLayout.LayoutParams lp) {
                         int base = dpSafe(16);
-                        lp.bottomMargin = h + base; // 底栏高度 + 16dp
+                        lp.bottomMargin = h + base;
                         lp.rightMargin = Math.max(lp.rightMargin, base);
                         finalFab.setLayoutParams(lp);
                     }
-                    // 列表底部留出空间
                     if (recyclerView != null && recyclerView.getPaddingBottom() < h) {
                         recyclerView.setPadding(recyclerView.getPaddingLeft(), recyclerView.getPaddingTop(), recyclerView.getPaddingRight(), h + dpSafe(80));
                         recyclerView.setClipToPadding(false);
                     }
                 });
             }
-        } else {
-            Log.e("ServerFragment", "仍未能创建FAB");
         }
 
         return root;
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        statsService.addListener(this);
+        resubscribeStats();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        statsService.removeListener(this);
+        unsubscribeStats();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
         loadCachedDataIfAvailable();
-        // 创建新实例后回来刷新一次
+        if (adapter != null && cardStyleManager != null) {
+            adapter.setUseModernStyle(cardStyleManager.isModernServerCardEnabled());
+        }
         refreshInstanceList();
     }
 
@@ -153,7 +185,6 @@ public class ServerFragment extends Fragment {
         });
     }
 
-
     public void updateInstanceList(@Nullable JSONArray list) {
         MainActivity activity = (MainActivity) getActivity();
         if (activity == null || adapter == null) {
@@ -163,26 +194,22 @@ public class ServerFragment extends Fragment {
             return;
         }
 
+        unsubscribeStats();
         serverItems.clear();
-
         JSONArray instanceList = list != null ? list : activity.getInstanceList();
 
         if (instanceList != null) {
             for (int i = 0; i < instanceList.length(); i++) {
                 try {
                     JSONObject obj = instanceList.getJSONObject(i);
-                    String name;
-                    if (obj.isNull("name") || obj.optString("name").trim().isEmpty()) {
-                        name = "未命名实例";
-                    } else {
-                        name = obj.getString("name");
-                    }
+                    String name = obj.isNull("name") || obj.optString("name").trim().isEmpty()
+                            ? "未命名实例" : obj.getString("name");
                     ServerItem item = new ServerItem(
                             obj.getInt("id"),
                             name,
-                            obj.getString("cpu"),
-                            obj.getString("ram"),
-                            obj.getString("disk")
+                            obj.optString("cpu", "0"),
+                            obj.optString("ram", "0"),
+                            obj.optString("disk", "0")
                     );
                     serverItems.add(item);
                 } catch (Exception e) {
@@ -197,6 +224,7 @@ public class ServerFragment extends Fragment {
         } else {
             recyclerView.setVisibility(View.VISIBLE);
             emptyStateLayout.setVisibility(View.GONE);
+            resubscribeStats();
         }
 
         if (swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) {
@@ -204,6 +232,41 @@ public class ServerFragment extends Fragment {
         }
 
         adapter.notifyDataSetChanged();
+    }
+
+    @Override
+    public void onStatsUpdated(int deviceId, ServerStatsSnapshot stats) {
+        for (int i = 0; i < serverItems.size(); i++) {
+            ServerItem item = serverItems.get(i);
+            if (item.getId() == deviceId) {
+                item.setStats(stats);
+                if (adapter != null) {
+                    adapter.notifyItemChanged(i);
+                }
+                break;
+            }
+        }
+    }
+
+    @Override
+    public void onStatsDisconnected(int deviceId, String reason) {
+        Log.d("ServerFragment", "stats disconnected for " + deviceId + ": " + reason);
+    }
+
+    private void resubscribeStats() {
+        if (!isAdded()) return;
+        for (ServerItem item : serverItems) {
+            if (subscribedIds.add(item.getId())) {
+                statsService.subscribe(requireContext(), item.getId());
+            }
+        }
+    }
+
+    private void unsubscribeStats() {
+        for (Integer deviceId : subscribedIds) {
+            statsService.unsubscribe(deviceId);
+        }
+        subscribedIds.clear();
     }
 
     private String getToken() {
@@ -243,17 +306,8 @@ public class ServerFragment extends Fragment {
         }
     }
 
-    /**
-     * 安全的 dp 转换：
-     * - Fragment 未附着时使用系统 Resources，避免 requireContext()/getResources 抛 IllegalStateException
-     */
     private int dpSafe(int v) {
         Resources res = isAdded() ? getResources() : Resources.getSystem();
         return (int) (v * res.getDisplayMetrics().density + 0.5f);
-    }
-
-    // 保留原方法签名，内部委托到安全版本，兼容旧调用
-    private int dp(int v){
-        return dpSafe(v);
     }
 }

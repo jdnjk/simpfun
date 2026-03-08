@@ -15,18 +15,23 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.model.InviteData;
+import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 public class InviteFragment extends Fragment {
 
     private SwipeRefreshLayout swipeRefresh;
     private TextView tvInviteCode, tvRegisterTimes, tvRegisterVerifyTimes, tvTotalIncome, tvProIncome;
     private String inviteCode = "";
+    private NestedScrollView scrollView;
+    private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
 
     @Nullable
     @Override
@@ -34,6 +39,10 @@ public class InviteFragment extends Fragment {
         View root = inflater.inflate(R.layout.fragment_invite, container, false);
 
         swipeRefresh = root.findViewById(R.id.swipe_refresh);
+        scrollView = root.findViewById(R.id.scroll_invite);
+        if (getActivity() instanceof MainActivity mainActivity) {
+            bottomNavBinding.attach(scrollView, mainActivity::onPrimaryScroll);
+        }
         tvInviteCode = root.findViewById(R.id.tv_invite_code);
         tvRegisterTimes = root.findViewById(R.id.tv_register_times);
         tvRegisterVerifyTimes = root.findViewById(R.id.tv_register_verify_times);
@@ -66,6 +75,13 @@ public class InviteFragment extends Fragment {
         loadInviteData();
 
         return root;
+    }
+
+    @Override
+    public void onDestroyView() {
+        bottomNavBinding.detach(scrollView);
+        scrollView = null;
+        super.onDestroyView();
     }
 
     private void loadInviteData() {

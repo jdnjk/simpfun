@@ -4,32 +4,51 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
+
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.materialswitch.MaterialSwitch;
+
+import org.json.JSONObject;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.MainApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
-import org.json.JSONObject;
+import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 public class SettingsFragment extends Fragment {
+
+    private static final int DEBUG_TAP_THRESHOLD = 5;
+    private static final long DEBUG_TAP_WINDOW_MS = 1000L;
 
     private SharedPreferences sp;
     private SharedPreferences userInfo;
     private ThemeManager themeManager;
     private TerminalThemeManager terminalThemeManager;
+    private ServerCardStyleManager serverCardStyleManager;
     private TextView tvThemeCurrent;
     private TextView tvTerminalThemeCurrent;
     private TextView tvQqCurrent;
+    private MaterialSwitch switchServerCardStyle;
+    private TextView tvSettingsTitle;
+    private NestedScrollView scrollView;
+    private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
+    private int debugTapCount = 0;
+    private final Handler debugTapHandler = new Handler(Looper.getMainLooper());
+    private final Runnable resetTapRunnable = () -> debugTapCount = 0;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -38,29 +57,78 @@ public class SettingsFragment extends Fragment {
         userInfo = requireContext().getSharedPreferences("user_info", 0);
         themeManager = ThemeManager.getInstance(requireContext());
         terminalThemeManager = TerminalThemeManager.getInstance(requireContext());
+        serverCardStyleManager = new ServerCardStyleManager(requireContext());
     }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_settings, container, false);
+        scrollView = root.findViewById(R.id.scroll_settings);
+        if (getActivity() instanceof cn.jdnjk.simpfun.MainActivity mainActivity) {
+            bottomNavBinding.attach(scrollView, mainActivity::onPrimaryScroll);
+        }
 
         initViews(root);
         setupClickListeners(root);
         updateThemeDisplay();
         loadUserInfo();
+        bindSwitches();
+        bindDebugTrigger();
 
         return root;
+    }
+
+    @Override
+    public void onDestroyView() {
+        bottomNavBinding.detach(scrollView);
+        scrollView = null;
+        super.onDestroyView();
     }
 
     private void initViews(View root) {
         tvThemeCurrent = root.findViewById(R.id.tv_theme_current);
         tvTerminalThemeCurrent = root.findViewById(R.id.tv_terminal_theme_current);
         tvQqCurrent = root.findViewById(R.id.tv_qq_current);
+        switchServerCardStyle = root.findViewById(R.id.switch_server_card_style);
+        View titleView = root.findViewWithTag("settings_title");
+        tvSettingsTitle = titleView instanceof TextView ? (TextView) titleView : null;
 
         TextView tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME;
         tvVersion.setText("当前版本：" + currentVersion);
+    }
+
+    private void bindDebugTrigger() {
+        if (tvSettingsTitle == null) return;
+        tvSettingsTitle.setOnClickListener(v -> {
+            debugTapCount++;
+            debugTapHandler.removeCallbacks(resetTapRunnable);
+            debugTapHandler.postDelayed(resetTapRunnable, DEBUG_TAP_WINDOW_MS);
+            if (debugTapCount >= DEBUG_TAP_THRESHOLD) {
+                debugTapHandler.removeCallbacks(resetTapRunnable);
+                debugTapCount = 0;
+                openDebugPage();
+            }
+        });
+    }
+
+    private void openDebugPage() {
+        int containerId = requireActivity().findViewById(R.id.nav_host_fragment) != null
+                ? R.id.nav_host_fragment
+                : R.id.fragment_container;
+        getParentFragmentManager()
+                .beginTransaction()
+                .replace(containerId, new DebugFragment())
+                .addToBackStack("debug")
+                .commit();
+    }
+
+    private void bindSwitches() {
+        if (switchServerCardStyle == null) return;
+        switchServerCardStyle.setChecked(serverCardStyleManager.isModernServerCardEnabled());
+        switchServerCardStyle.setOnCheckedChangeListener((buttonView, isChecked) ->
+                serverCardStyleManager.setModernServerCardEnabled(isChecked));
     }
 
     private void setupClickListeners(View root) {
@@ -120,9 +188,6 @@ public class SettingsFragment extends Fragment {
         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
     }
 
-    /**
-     * 打开教程文档
-     */
     private void openTutorialDocumentation() {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -162,7 +227,6 @@ public class SettingsFragment extends Fragment {
         }
         editText.setHint("请输入 QQ 号码");
 
-        // Add padding to the EditText
         int padding = (int) (16 * getResources().getDisplayMetrics().density);
         editText.setPadding(padding * 2, padding, padding * 2, padding);
 
@@ -197,7 +261,6 @@ public class SettingsFragment extends Fragment {
             @Override
             public void onSuccess(JSONObject data) {
                 Toast.makeText(requireContext(), "绑定成功", Toast.LENGTH_SHORT).show();
-                // 更新本地缓存
                 userInfo.edit().putLong("qq", qq).apply();
                 loadUserInfo();
             }

@@ -1,97 +1,247 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/scroll_debug"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface">
+    android:background="?attr/colorSurface"
+    android:scrollbars="none">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:paddingStart="20dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="96dp">
 
         <TextView
             android:id="@+id/tv_debug_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="调试页面"
-            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-            android:textColor="?attr/colorOnSurface" />
+            android:text="调试"
+            android:textSize="34sp"
+            android:textColor="?attr/colorOnSurface"
+            android:layout_marginBottom="20dp" />
 
         <TextView
-            android:id="@+id/tv_web_url_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="SWebView URL"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
-
-        <EditText
-            android:id="@+id/et_web_url"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="输入要打开的网址，例如 https://example.com"
-            android:inputType="textUri"
-            android:singleLine="true"
-            android:autofillHints="username" />
-
-        <Button
-            android:id="@+id/btn_open_swebview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="打开 SWebView" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switch_bugly"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="启用 Bugly"
-            tools:checked="true" />
-
-        <TextView
-            android:id="@+id/tv_token_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Token"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
-
-        <EditText
-            android:id="@+id/et_token"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="输入 Token"
-            android:singleLine="true"
-            android:inputType="text"
-            android:autofillHints="password" />
+            android:text="崩溃与调试"
+            android:textSize="15sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="10dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal">
+            android:minHeight="76dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp">
 
-            <Button
-                android:id="@+id/btn_save_token"
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="18dp"
+                android:src="@drawable/ic_build_24"
+                android:contentDescription="Bugly"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="保存" />
+                android:orientation="vertical">
 
-            <View
-                android:layout_width="12dp"
-                android:layout_height="0dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="启用 Bugly"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface" />
 
-            <Button
-                android:id="@+id/btn_clear_token"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="清空" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="控制崩溃上报与调试分析"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+            </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switch_bugly"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
         </LinearLayout>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="内置网页"
+            android:textSize="15sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="10dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="top">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="18dp"
+                    android:layout_marginTop="8dp"
+                    android:src="@drawable/ic_web"
+                    android:contentDescription="SWebView"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SWebView URL"
+                        android:textSize="18sp"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="输入地址并在内置浏览器中打开"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <EditText
+                        android:id="@+id/et_web_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="输入要打开的网址，例如 https://example.com"
+                        android:inputType="textUri"
+                        android:singleLine="true" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_open_swebview"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="打开 SWebView" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Token"
+            android:textSize="15sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="10dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="top">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="18dp"
+                    android:layout_marginTop="8dp"
+                    android:src="@drawable/ic_code"
+                    android:contentDescription="Token"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="访问 Token"
+                        android:textSize="18sp"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="保存或清空本地 Token 以便调试"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <EditText
+                        android:id="@+id/et_token"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="输入 Token"
+                        android:singleLine="true"
+                        android:inputType="text" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_save_token"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="保存" />
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="0dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_clear_token"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="清空" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
-</ScrollView>
+</androidx.core.widget.NestedScrollView>

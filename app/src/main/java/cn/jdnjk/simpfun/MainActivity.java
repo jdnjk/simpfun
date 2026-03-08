@@ -13,24 +13,32 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 import android.graphics.Color;
+import android.view.animation.DecelerateInterpolator;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
-import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
-import cn.jdnjk.simpfun.ui.invite.InviteFragment;
+
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import cn.jdnjk.simpfun.api.MainApi;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import cn.jdnjk.simpfun.api.MainApi;
+import cn.jdnjk.simpfun.ui.invite.InviteFragment;
+import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
-import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
+import cn.jdnjk.simpfun.ui.setting.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity {
     private JSONArray instanceList;
+    private BottomNavigationView navView;
+    private boolean bottomNavHidden = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
         View rootView = findViewById(android.R.id.content);
         ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
             int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            int navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
 
             View navHostFragment = findViewById(R.id.nav_host_fragment);
             if (navHostFragment != null) {
@@ -61,15 +70,25 @@ public class MainActivity extends AppCompatActivity {
                     navHostFragment.getPaddingLeft(),
                     statusBarHeight,
                     navHostFragment.getPaddingRight(),
-                    navHostFragment.getPaddingBottom());
+                    0);
+            }
+
+            if (navView != null) {
+                navView.setPadding(
+                        navView.getPaddingLeft(),
+                        navView.getPaddingTop(),
+                        navView.getPaddingRight(),
+                        navigationBarHeight);
             }
 
             return insets;
         });
 
-        BottomNavigationView navView = findViewById(R.id.nav_view);
+        navView = findViewById(R.id.nav_view);
 
-        loadFragment(new ServerFragment());
+        if (savedInstanceState == null) {
+            loadFragment(new ServerFragment());
+        }
 
         navView.setOnItemSelectedListener(item -> {
             Fragment fragment = null;
@@ -80,6 +99,8 @@ public class MainActivity extends AppCompatActivity {
                 fragment = new InviteFragment();
             } else if (itemId == R.id.navigation_profile) {
                 fragment = new ProfileFragment();
+            } else if (itemId == R.id.navigation_settings) {
+                fragment = new SettingsFragment();
             }
 
             if (fragment != null) {
@@ -150,9 +171,51 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.nav_host_fragment, fragment)
                 .commit();
+        showBottomNav(false);
     }
     public JSONArray getInstanceList() {
         return instanceList;
+    }
+
+    public void onPrimaryScroll(int dy, boolean atTop) {
+        if (atTop || dy < -4) {
+            showBottomNav(true);
+        } else if (dy > 4) {
+            hideBottomNav(true);
+        }
+    }
+
+    public void showBottomNav(boolean animate) {
+        if (navView == null || !bottomNavHidden) return;
+        bottomNavHidden = false;
+        if (animate) {
+            navView.animate()
+                    .translationY(0f)
+                    .alpha(1f)
+                    .setDuration(220)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .start();
+        } else {
+            navView.setTranslationY(0f);
+            navView.setAlpha(1f);
+        }
+    }
+
+    public void hideBottomNav(boolean animate) {
+        if (navView == null || bottomNavHidden) return;
+        bottomNavHidden = true;
+        float target = navView.getHeight() + navView.getPaddingBottom();
+        if (animate) {
+            navView.animate()
+                    .translationY(target)
+                    .alpha(0.96f)
+                    .setDuration(220)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .start();
+        } else {
+            navView.setTranslationY(target);
+            navView.setAlpha(0.96f);
+        }
     }
 
     @Override
@@ -161,10 +224,6 @@ public class MainActivity extends AppCompatActivity {
 
         if (id == R.id.action_documentation) {
             openDocumentation();
-            return true;
-        }
-        if (id == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
         return super.onOptionsItemSelected(item);

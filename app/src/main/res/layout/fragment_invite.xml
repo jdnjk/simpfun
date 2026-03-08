@@ -6,264 +6,408 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_invite"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:paddingBottom="80dp"
+            android:paddingStart="20dp"
+            android:paddingTop="20dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="96dp"
             android:clipToPadding="false">
 
-            <!-- Page Title -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="邀请好友"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="24dp"
-                android:textColor="@color/md_theme_primary" />
+                android:textSize="34sp"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginBottom="20dp" />
 
-            <!-- Promotion Section -->
-            <com.google.android.material.card.MaterialCardView
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="推荐码"
+                android:textSize="15sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="10dp" />
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="12dp">
+                android:orientation="vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="12dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="我的推荐码"
-                        android:textSize="16sp"
-                        android:textColor="@color/md_theme_primary"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tv_invite_code"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:gravity="center"
-                        android:text="--------"
-                        android:textSize="32sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/md_theme_primary" />
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="18dp"
+                        android:src="@drawable/ic_invite_icon"
+                        android:contentDescription="推荐码"
+                        app:tint="?attr/colorOnSurfaceVariant" />
 
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp">
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                        <Button
-                            android:id="@+id/btn_copy_code"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="复制推荐码" />
+                            android:text="我的推荐码"
+                            android:textSize="18sp"
+                            android:textColor="?attr/colorOnSurface" />
 
-                        <Button
-                            android:id="@+id/btn_share_link"
-                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="分享链接" />
+                            android:layout_marginTop="4dp"
+                            android:text="复制或分享给好友完成注册与认证"
+                            android:textSize="15sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
                 </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
 
-            <!-- Statistics Grid -->
-            <GridLayout
+                <TextView
+                    android:id="@+id/tv_invite_code"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:gravity="center"
+                    android:text="--------"
+                    android:textSize="36sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08"
+                    android:textColor="?attr/colorPrimary" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_copy_code"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="复制推荐码" />
+
+                    <Space
+                        android:layout_width="12dp"
+                        android:layout_height="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_share_link"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="分享链接" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="数据统计"
+                android:textSize="15sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="18dp"
+                android:layout_marginBottom="10dp" />
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:alignmentMode="alignMargins"
-                android:columnOrderPreserved="false"
-                android:layout_marginBottom="16dp">
+                android:orientation="vertical">
 
-                <!-- Register Count -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    app:cardCornerRadius="8dp">
+                    android:minHeight="72dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="10dp"
+                    android:background="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="18dp"
+                        android:src="@drawable/ic_profile"
+                        android:contentDescription="推荐人数"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="12dp"
-                        android:gravity="center">
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="推荐人数"
-                            android:textSize="12sp" />
+                            android:textSize="18sp"
+                            android:textColor="?attr/colorOnSurface" />
+
                         <TextView
-                            android:id="@+id/tv_register_times"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:layout_marginTop="4dp"
+                            android:text="通过您的推荐码完成注册的人数"
+                            android:textSize="15sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
-                <!-- Verified Count -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    app:cardCornerRadius="8dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/tv_register_times"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="12dp"
-                        android:gravity="center">
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="72dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="10dp"
+                    android:background="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="18dp"
+                        android:src="@drawable/ic_user_outline"
+                        android:contentDescription="已认证人数"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="已认证人数"
-                            android:textSize="12sp" />
+                            android:textSize="18sp"
+                            android:textColor="?attr/colorOnSurface" />
+
                         <TextView
-                            android:id="@+id/tv_register_verify_times"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:layout_marginTop="4dp"
+                            android:text="完成认证并成功生效的推荐人数"
+                            android:textSize="15sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
-                <!-- Total Income -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    app:cardCornerRadius="8dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/tv_register_verify_times"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="12dp"
-                        android:gravity="center">
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="72dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="10dp"
+                    android:background="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="18dp"
+                        android:src="@drawable/ic_invite_icon"
+                        android:contentDescription="普通奖励"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="普通奖励"
-                            android:textSize="12sp" />
+                            android:textSize="18sp"
+                            android:textColor="?attr/colorOnSurface" />
+
                         <TextView
-                            android:id="@+id/tv_total_income"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:layout_marginTop="4dp"
+                            android:text="注册、认证与签到带来的累计积分收益"
+                            android:textSize="15sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
-                <!-- Pro Income -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:layout_margin="4dp"
-                    app:cardCornerRadius="8dp">
-                    <LinearLayout
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/tv_total_income"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="12dp"
-                        android:gravity="center">
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="72dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="10dp"
+                    android:background="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="18dp"
+                        android:src="@drawable/ic_build_24"
+                        android:contentDescription="Pro奖励"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Pro奖励"
-                            android:textSize="12sp" />
+                            android:textSize="18sp"
+                            android:textColor="?attr/colorOnSurface" />
+
                         <TextView
-                            android:id="@+id/tv_pro_income"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:layout_marginTop="4dp"
+                            android:text="来自 Pro 充值分成的累计奖励"
+                            android:textSize="15sp"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
-            </GridLayout>
+                    <TextView
+                        android:id="@+id/tv_pro_income"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+            </LinearLayout>
 
-            <!-- Description -->
-            <com.google.android.material.card.MaterialCardView
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="说明"
+                android:textSize="15sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginStart="8dp"
+                android:layout_marginTop="18dp"
+                android:layout_marginBottom="10dp" />
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardBackgroundColor="@color/md_theme_surfaceContainerLow"
-                app:strokeWidth="0dp">
-                <LinearLayout
+                android:orientation="vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="推荐规则"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textStyle="bold" />
+
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="推荐规则"
-                        android:textStyle="bold"
-                        android:textSize="16sp"
-                        android:textColor="@color/md_theme_primary"
-                        android:layout_marginBottom="4dp"/>
+                    android:layout_marginTop="8dp"
+                    android:text="推荐好友使用简幻欢可以获得更多积分！让好友成为自动造分🐔：）"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="推荐好友使用简幻欢可以获得更多积分！让好友成为自动造分🐔：）"
-                        android:textSize="12sp"
-                        android:layout_marginBottom="12dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="• 好友注册并认证 = 好友获得150额外积分，您获得150积分 + 3钻石\n• 好友每日签到 = 您获得1积分\n• 变更为Pro的好友充值您将获得充值金额×4的积分，且会单独列出\n• 每日获得积分无上限哦～"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="• 好友注册并认证 = 好友获得150额外积分，您获得150积分 + 3钻石\n• 好友每日签到 = 您获得1积分\n• 变更为Pro的好友充值您将获得充值金额×4的积分，且会单独列出\n• 每日获得积分无上限哦～"
-                        android:textSize="13sp"
-                        android:lineSpacingExtra="4dp"
-                        android:layout_marginBottom="16dp"/>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="10dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="注意事项"
-                        android:textStyle="bold"
-                        android:textSize="14sp"
-                        android:layout_marginBottom="4dp"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="注意事项"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textStyle="bold" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="1. 您不得利用系统漏洞或使用小号获得不正当收益\n2. 您不得将推荐码以任何形式（群名片，发言，私聊等）在简幻欢官方交流群内发送\n3. 您不得以非正当方式（刷屏等）方式进行推荐\n违规将移出交流群，扣除推荐积分，严重者封号处理。"
-                        android:textSize="12sp"
-                        android:textColor="#888"
-                        android:lineSpacingExtra="2dp"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="1. 您不得利用系统漏洞或使用小号获得不正当收益\n2. 您不得将推荐码以任何形式（群名片，发言，私聊等）在简幻欢官方交流群内发送\n3. 您不得以非正当方式（刷屏等）方式进行推荐\n违规将移出交流群，扣除推荐积分，严重者封号处理。"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:lineSpacingExtra="4dp" />
+            </LinearLayout>
 
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

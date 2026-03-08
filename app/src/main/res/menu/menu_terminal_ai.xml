@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_ai_history"
+        android:title="AI历史记录" />
+    <item
+        android:id="@+id/action_ai_troubleshoot"
+        android:title="AI疑难解答" />
+    <item
+        android:id="@+id/action_ai_analyze"
+        android:title="AI故障分析" />
+</menu>

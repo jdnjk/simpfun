@@ -5,27 +5,27 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.text.Spanned;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import cn.jdnjk.simpfun.ui.point.PointManageActivity;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
-import cn.jdnjk.simpfun.ui.auth.AuthActivity;
-import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
+import cn.jdnjk.simpfun.ui.point.PointManageActivity;
+import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 public class ProfileFragment extends Fragment {
 
@@ -37,6 +37,8 @@ public class ProfileFragment extends Fragment {
     private TextView tvAnnouncementTitle, tvAnnouncementText;
 
     private Context context;
+    private NestedScrollView scrollView;
+    private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
 
     @Override
     public void onAttach(@NonNull Context ctx) {
@@ -54,6 +56,10 @@ public class ProfileFragment extends Fragment {
         AuthInfo = requireContext().getSharedPreferences("token", 0);
 
         swipeRefresh = root.findViewById(R.id.swipe_refresh);
+        scrollView = root.findViewById(R.id.scroll_profile);
+        if (getActivity() instanceof MainActivity mainActivity) {
+            bottomNavBinding.attach(scrollView, mainActivity::onPrimaryScroll);
+        }
         tvUsername = root.findViewById(R.id.tv_username);
         tvUid = root.findViewById(R.id.tv_uid);
         tvQq = root.findViewById(R.id.tv_qq);
@@ -81,44 +87,14 @@ public class ProfileFragment extends Fragment {
             });
         }
 
-        View settingsEntry = root.findViewById(R.id.btn_open_settings);
-        if (settingsEntry != null) {
-            settingsEntry.setOnClickListener(v ->
-                    startActivity(new Intent(requireContext(), SettingsActivity.class))
-            );
-        }
-
         return root;
     }
 
     @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
-    }
-
-    @Override
-    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
-        // 仅该页面添加设置菜单
-        inflater.inflate(R.menu.profile_menu, menu);
-        super.onCreateOptionsMenu(menu, inflater);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.action_settings) {
-            startActivity(new Intent(requireContext(), SettingsActivity.class));
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (getActivity() != null) {
-            getActivity().invalidateOptionsMenu();
-        }
+    public void onDestroyView() {
+        bottomNavBinding.detach(scrollView);
+        scrollView = null;
+        super.onDestroyView();
     }
 
     private void loadUserInfo() {
@@ -187,7 +163,7 @@ public class ProfileFragment extends Fragment {
 
         UserApi userApi = new UserApi(context);
         userApi.UserInfo(token);
-        new Handler().postDelayed(() -> {
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
             if (getActivity() != null) {
                 getActivity().runOnUiThread(() -> {
                     loadUserInfo();
@@ -196,18 +172,12 @@ public class ProfileFragment extends Fragment {
             }
         }, 2000);
 
-        new Handler().postDelayed(this::stopRefresh, 10000);
+        new Handler(Looper.getMainLooper()).postDelayed(this::stopRefresh, 10000);
     }
 
     public void stopRefresh() {
         if (swipeRefresh != null && swipeRefresh.isRefreshing()) {
             swipeRefresh.setRefreshing(false);
         }
-    }
-
-    private void navigateToLogin() {
-        Intent intent = new Intent(context, AuthActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        context.startActivity(intent);
     }
 }

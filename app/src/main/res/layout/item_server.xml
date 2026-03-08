@@ -1,28 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="6dp"
-        app:strokeWidth="0dp"
-        app:cardBackgroundColor="?attr/colorSurface">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginTop="12dp"
+    android:layout_marginBottom="4dp"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutlineVariant"
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
 
-    <LinearLayout
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:id="@+id/layout_server_old"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp">
 
-        <LinearLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-            <TextView
+                <TextView
                     android:id="@+id/text_server_name"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -32,7 +40,7 @@
                     android:textStyle="bold"
                     android:textColor="?attr/colorOnSurface" />
 
-            <TextView
+                <TextView
                     android:id="@+id/text_server_id"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -42,9 +50,9 @@
                     android:paddingHorizontal="6dp"
                     android:paddingVertical="2dp"
                     android:fontFamily="monospace" />
-        </LinearLayout>
+            </LinearLayout>
 
-        <TextView
+            <TextView
                 android:id="@+id/text_server_info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -52,8 +60,197 @@
                 android:text="CPU 0核  内存 0GB  存储 0GB"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant" />
+        </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/layout_server_modern"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
 
-    </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
 
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tv_server_name_modern"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="服务器名称"
+                        android:textStyle="bold"
+                        android:textSize="20sp"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:id="@+id/tv_server_id_modern"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="ID: 0"
+                        android:textSize="13sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="end">
+
+                    <TextView
+                        android:id="@+id/tv_server_uptime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="--"
+                        android:textSize="16sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:layout_width="88dp"
+                        android:layout_height="88dp"
+                        android:padding="6dp">
+
+                        <com.google.android.material.progressindicator.CircularProgressIndicator
+                            android:id="@+id/progress_cpu"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="center"
+                            android:indeterminate="false"
+                            app:indicatorSize="76dp"
+                            app:trackThickness="10dp"
+                            app:indicatorColor="?attr/colorPrimary"
+                            app:trackColor="?attr/colorOutlineVariant" />
+
+                        <TextView
+                            android:id="@+id/tv_cpu_percent"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="--"
+                            android:textStyle="bold"
+                            android:textSize="16sp"
+                            android:textColor="?attr/colorOnSurface" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="CPU利用率"
+                        android:textSize="13sp"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:layout_width="88dp"
+                        android:layout_height="88dp"
+                        android:padding="6dp">
+
+                        <com.google.android.material.progressindicator.CircularProgressIndicator
+                            android:id="@+id/progress_memory"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="center"
+                            android:indeterminate="false"
+                            app:indicatorSize="76dp"
+                            app:trackThickness="10dp"
+                            app:indicatorColor="?attr/colorPrimary"
+                            app:trackColor="?attr/colorOutlineVariant" />
+
+                        <TextView
+                            android:id="@+id/tv_memory_percent"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center"
+                            android:text="--"
+                            android:textStyle="bold"
+                            android:textSize="16sp"
+                            android:textColor="?attr/colorOnSurface" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="内存利用率"
+                        android:textSize="13sp"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center_vertical|end">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="上行速率"
+                        android:textSize="12sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <TextView
+                        android:id="@+id/tv_upload_speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="--"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="下行速率"
+                        android:textSize="12sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <TextView
+                        android:id="@+id/tv_download_speed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="--"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -8,18 +8,20 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.material.materialswitch.MaterialSwitch;
+import com.tencent.bugly.crashreport.CrashReport;
 
 import cn.jdnjk.simpfun.R;
-import com.tencent.bugly.crashreport.CrashReport;
 import cn.jdnjk.simpfun.SWebView;
+import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 public class DebugFragment extends Fragment {
 
@@ -29,10 +31,25 @@ public class DebugFragment extends Fragment {
     private static final String SP_TOKEN = "token";
     private static final String KEY_TOKEN = "token";
 
+    private NestedScrollView scrollView;
+    private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_debug, container, false);
+        View root = inflater.inflate(R.layout.fragment_debug, container, false);
+        scrollView = root.findViewById(R.id.scroll_debug);
+        if (getActivity() instanceof cn.jdnjk.simpfun.MainActivity mainActivity) {
+            bottomNavBinding.attach(scrollView, mainActivity::onPrimaryScroll);
+        }
+        return root;
+    }
+
+    @Override
+    public void onDestroyView() {
+        bottomNavBinding.detach(scrollView);
+        scrollView = null;
+        super.onDestroyView();
     }
 
     @Override
@@ -42,12 +59,12 @@ public class DebugFragment extends Fragment {
         SharedPreferences spDebug = ctx.getSharedPreferences(SP_DEBUG, Context.MODE_PRIVATE);
         SharedPreferences spToken = ctx.getSharedPreferences(SP_TOKEN, Context.MODE_PRIVATE);
 
-        Button btnOpenSWebView = view.findViewById(R.id.btn_open_swebview);
-        SwitchMaterial swBugly = view.findViewById(R.id.switch_bugly);
+        View btnOpenSWebView = view.findViewById(R.id.btn_open_swebview);
+        MaterialSwitch swBugly = view.findViewById(R.id.switch_bugly);
         EditText etToken = view.findViewById(R.id.et_token);
         EditText etWebUrl = view.findViewById(R.id.et_web_url);
-        Button btnSave = view.findViewById(R.id.btn_save_token);
-        Button btnClear = view.findViewById(R.id.btn_clear_token);
+        View btnSave = view.findViewById(R.id.btn_save_token);
+        View btnClear = view.findViewById(R.id.btn_clear_token);
 
         boolean buglyEnabled = spDebug.getBoolean(KEY_BUGLY_ENABLED, true);
         swBugly.setChecked(buglyEnabled);

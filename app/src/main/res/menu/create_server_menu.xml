@@ -3,13 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/action_refresh"
-        android:icon="@drawable/ic_update"
+        android:icon="@drawable/ic_refresh"
         android:title="刷新"
         app:showAsAction="ifRoom"
         android:visible="false" />
     <item
         android:id="@+id/action_close"
-        android:icon="@android:drawable/ic_menu_close_clear_cancel"
+        android:icon="@drawable/ic_close_cancel"
         android:title="关闭"
         app:showAsAction="always" />
 </menu>
