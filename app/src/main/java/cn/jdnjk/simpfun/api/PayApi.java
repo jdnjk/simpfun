@@ -13,6 +13,7 @@ import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
 
 public class PayApi {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private static final java.util.Set<Integer> SUPPORTED_TRAFFIC_PACKAGES = new java.util.HashSet<>(java.util.Arrays.asList(1, 3, 10, 30));
 
     public interface Callback {
         void onSuccess(JSONObject data);
@@ -76,6 +77,36 @@ public class PayApi {
                 .url(BASE_URL + "/pay/web/meta")
                 .header("Authorization", token)
                 .get()
+                .build();
+
+        sendRequest(request, callback);
+    }
+
+    /**
+     * 购买流量包
+     * @param token 认证Token
+     * @param serverId 服务器ID
+     * @param traffic 流量包大小 (1/3/10/30)
+     * @param callback 回调
+     */
+    public void buyTrafficPackage(String token, int serverId, int traffic, Callback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            mainHandler.post(() -> callback.onFailure("未登录"));
+            return;
+        }
+        if (!SUPPORTED_TRAFFIC_PACKAGES.contains(traffic)) {
+            mainHandler.post(() -> callback.onFailure("流量不符合要求"));
+            return;
+        }
+
+        FormBody formBody = new FormBody.Builder()
+                .add("traffic", String.valueOf(traffic))
+                .build();
+
+        Request request = new Request.Builder()
+                .url(ApiClient.BASE_INS_URL + serverId + "/traffic")
+                .header("Authorization", token)
+                .put(formBody)
                 .build();
 
         sendRequest(request, callback);
