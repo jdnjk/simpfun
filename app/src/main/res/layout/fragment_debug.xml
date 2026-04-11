@@ -17,18 +17,9 @@
         android:paddingBottom="96dp">
 
         <TextView
-            android:id="@+id/tv_debug_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="调试"
-            android:textSize="34sp"
-            android:textColor="?attr/colorOnSurface"
-            android:layout_marginBottom="20dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="崩溃与调试"
+            android:text="日志上报"
             android:textSize="15sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:layout_marginStart="8dp"
@@ -68,7 +59,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="控制崩溃上报与调试分析"
+                    android:text="控制崩溃上报"
                     android:textSize="15sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
             </LinearLayout>

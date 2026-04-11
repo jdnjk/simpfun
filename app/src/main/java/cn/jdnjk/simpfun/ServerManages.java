@@ -28,9 +28,10 @@ import com.google.android.material.snackbar.Snackbar;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import cn.jdnjk.simpfun.api.MainApi;
+import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PowerApi;
 import cn.jdnjk.simpfun.databinding.ActivityMainBinding;
+import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 
 public class ServerManages extends AppCompatActivity {
 
@@ -54,7 +55,7 @@ public class ServerManages extends AppCompatActivity {
         NavigationView navigationView = binding.navView;
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
+                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_backup, R.id.nav_plans)
                 .setOpenableLayout(drawer)
                 .build();
 
@@ -85,96 +86,39 @@ public class ServerManages extends AppCompatActivity {
         return sp.getString("token", null);
     }
 
+    public int getDeviceId() {
+        return deviceId;
+    }
+
+    public JSONObject getCachedInstanceDetail() {
+        return InstanceDetailStore.getInstance().getResponse(deviceId);
+    }
+
+    public JSONObject getCachedInstanceDetailData() {
+        return InstanceDetailStore.getInstance().getDetailData(deviceId);
+    }
+
     private void fetchServerDetails() {
         String token = getToken();
         if (token == null) return;
+
+        JSONObject cachedDetail = InstanceDetailStore.getInstance().getDetailData(deviceId);
+        if (cachedDetail != null) {
+            applyServerDetail(cachedDetail);
+            return;
+        }
 
         new MainApi(this).getInstanceDetail(token, String.valueOf(deviceId), new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject jsonResponse) {
                 try {
-                    JSONObject data = jsonResponse.optJSONObject("data");
-                    if (data == null) {
-                        data = jsonResponse;
+                    InstanceDetailStore.getInstance().put(deviceId, jsonResponse);
+                    JSONObject detail = InstanceDetailStore.getInstance().getDetailData(deviceId);
+                    if (detail != null) {
+                        applyServerDetail(detail);
                     }
-
-                    String name;
-                    if (data.isNull("name")) {
-                        name = "未命名实例";
-                    } else {
-                        name = data.optString("name");
-                        if (name.isEmpty()) {
-                            name = "未命名实例";
-                        }
-                    }
-                    String status = data.optString("status", "offline");
-
-                    String statusText = switch (status) {
-                        case "offline" -> "已离线";
-                        case "running" -> "运行中";
-                        case "installing" -> "安装中";
-                        case "stopping" -> "停止中";
-                        case "starting" -> "启动中";
-                        default -> "未知状态";
-                    };
-
-                    String ipStr = "IP: N/A";
-                    String fullIp = "";
-                    JSONArray allocations = data.optJSONArray("allocations");
-                    if (allocations != null) {
-                        for (int i = 0; i < allocations.length(); i++) {
-                            JSONObject alloc = allocations.getJSONObject(i);
-                            if (alloc.optBoolean("is_default")) {
-                                String ip = alloc.optString("ip");
-                                int port = alloc.optInt("port");
-                                fullIp = ip + ":" + port;
-                                ipStr = "IP: " + fullIp;
-                                break;
-                            }
-                        }
-                        // If no default found, use the first one if available
-                        if (fullIp.isEmpty() && allocations.length() > 0) {
-                            JSONObject alloc = allocations.getJSONObject(0);
-                            String ip = alloc.optString("ip");
-                            int port = alloc.optInt("port");
-                            fullIp = ip + ":" + port;
-                            ipStr = "IP: " + fullIp;
-                        }
-                    }
-
-                    String finalName = name;
-                    String finalStatusText = statusText;
-                    String finalIpStr = ipStr;
-                    String finalFullIp = fullIp;
-
-                    runOnUiThread(() -> {
-                        NavigationView navigationView = binding.navView;
-                        View headerView = navigationView.getHeaderView(0);
-
-                        TextView textName = headerView.findViewById(R.id.textServerName);
-                        TextView textIp = headerView.findViewById(R.id.textServerIp);
-                        TextView textStatus = headerView.findViewById(R.id.textServerStatus);
-
-                        if (textName != null) {
-                            textName.setText(finalName);
-                            textName.setOnClickListener(v -> showRenameDialog(finalName));
-                        }
-                        if (textStatus != null) textStatus.setText(finalStatusText);
-                        if (textIp != null) {
-                            textIp.setText(finalIpStr);
-                            textIp.setOnClickListener(v -> {
-                                if (!finalFullIp.isEmpty()) {
-                                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                                    ClipData clip = ClipData.newPlainText("Server IP", finalFullIp);
-                                    clipboard.setPrimaryClip(clip);
-                                    Toast.makeText(ServerManages.this, "IP已复制", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                        }
-                    });
-
                 } catch (Exception e) {
-                    Log.e("ServerManages", "Error parsing server details", e);
+                    Log.e("ServerManages", "Error caching server details", e);
                 }
             }
 
@@ -183,6 +127,88 @@ public class ServerManages extends AppCompatActivity {
                 Log.e("ServerManages", "Failed to get server details: " + errorMsg);
             }
         });
+    }
+
+    private void applyServerDetail(JSONObject data) {
+        try {
+            String name;
+            if (data.isNull("name")) {
+                name = "未命名实例";
+            } else {
+                name = data.optString("name");
+                if (name.isEmpty()) {
+                    name = "未命名实例";
+                }
+            }
+            String status = data.optString("status", "offline");
+
+            String statusText = switch (status) {
+                case "offline" -> "已离线";
+                case "running" -> "运行中";
+                case "installing" -> "安装中";
+                case "stopping" -> "停止中";
+                case "starting" -> "启动中";
+                default -> "未知状态";
+            };
+
+            String ipStr = "IP: N/A";
+            String fullIp = "";
+            JSONArray allocations = data.optJSONArray("allocations");
+            if (allocations != null) {
+                for (int i = 0; i < allocations.length(); i++) {
+                    JSONObject alloc = allocations.getJSONObject(i);
+                    if (alloc.optBoolean("is_default")) {
+                        String ip = alloc.optString("ip");
+                        int port = alloc.optInt("port");
+                        fullIp = ip + ":" + port;
+                        ipStr = "IP: " + fullIp;
+                        break;
+                    }
+                }
+                // If no default found, use the first one if available
+                if (fullIp.isEmpty() && allocations.length() > 0) {
+                    JSONObject alloc = allocations.getJSONObject(0);
+                    String ip = alloc.optString("ip");
+                    int port = alloc.optInt("port");
+                    fullIp = ip + ":" + port;
+                    ipStr = "IP: " + fullIp;
+                }
+            }
+
+            String finalName = name;
+            String finalStatusText = statusText;
+            String finalIpStr = ipStr;
+            String finalFullIp = fullIp;
+
+            runOnUiThread(() -> {
+                NavigationView navigationView = binding.navView;
+                View headerView = navigationView.getHeaderView(0);
+
+                TextView textName = headerView.findViewById(R.id.textServerName);
+                TextView textIp = headerView.findViewById(R.id.textServerIp);
+                TextView textStatus = headerView.findViewById(R.id.textServerStatus);
+
+                if (textName != null) {
+                    textName.setText(finalName);
+                    textName.setOnClickListener(v -> showRenameDialog(finalName));
+                }
+                if (textStatus != null) textStatus.setText(finalStatusText);
+                if (textIp != null) {
+                    textIp.setText(finalIpStr);
+                    textIp.setOnClickListener(v -> {
+                        if (!finalFullIp.isEmpty()) {
+                            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                            ClipData clip = ClipData.newPlainText("Server IP", finalFullIp);
+                            clipboard.setPrimaryClip(clip);
+                            Toast.makeText(ServerManages.this, "IP已复制", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+
+        } catch (Exception e) {
+            Log.e("ServerManages", "Error parsing server details", e);
+        }
     }
 
     @Override
@@ -255,18 +281,22 @@ public class ServerManages extends AppCompatActivity {
         new MainApi(this).renameInstance(token, String.valueOf(deviceId), newName, new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
-                runOnUiThread(() -> {
-                    Toast.makeText(ServerManages.this, "重命名成功", Toast.LENGTH_SHORT).show();
-                    // Update the name in the UI
-                    NavigationView navigationView = binding.navView;
-                    View headerView = navigationView.getHeaderView(0);
-                    TextView textName = headerView.findViewById(R.id.textServerName);
-                    if (textName != null) {
-                        textName.setText(newName);
-                        // Update the click listener with the new name
-                        textName.setOnClickListener(v -> showRenameDialog(newName));
-                    }
-                });
+                InstanceDetailStore.getInstance().updateName(deviceId, newName);
+                JSONObject cachedDetail = InstanceDetailStore.getInstance().getDetailData(deviceId);
+                if (cachedDetail != null) {
+                    applyServerDetail(cachedDetail);
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ServerManages.this, "重命名成功", Toast.LENGTH_SHORT).show();
+                        NavigationView navigationView = binding.navView;
+                        View headerView = navigationView.getHeaderView(0);
+                        TextView textName = headerView.findViewById(R.id.textServerName);
+                        if (textName != null) {
+                            textName.setText(newName);
+                            textName.setOnClickListener(v -> showRenameDialog(newName));
+                        }
+                    });
+                }
             }
 
             @Override

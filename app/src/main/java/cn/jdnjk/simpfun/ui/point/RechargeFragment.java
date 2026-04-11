@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -48,17 +49,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.MainApi;
+import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.PayApi;
+import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.model.BenefitCardPlan;
 import cn.jdnjk.simpfun.model.BenefitCardTypeOption;
 import cn.jdnjk.simpfun.model.RechargeMode;
 import cn.jdnjk.simpfun.model.RechargeTier;
 import cn.jdnjk.simpfun.model.TrafficPackageOption;
 import cn.jdnjk.simpfun.utils.DialogUtils;
+import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 
 public class RechargeFragment extends Fragment {
 
@@ -108,8 +110,6 @@ public class RechargeFragment extends Fragment {
 
     private TierAdapter tierAdapter;
     private ModeAdapter modeAdapter;
-    private TrafficPackageAdapter trafficPackageAdapter;
-    private BenefitCardTypeAdapter benefitCardTypeAdapter;
     private BenefitCardPlanAdapter benefitCardPlanAdapter;
     private CardModeAdapter cardModeAdapter;
     private ArrayAdapter<String> trafficInstanceAdapter;
@@ -216,11 +216,11 @@ public class RechargeFragment extends Fragment {
         recyclerModes.setAdapter(modeAdapter);
 
         recyclerTrafficPackages.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        trafficPackageAdapter = new TrafficPackageAdapter();
+        TrafficPackageAdapter trafficPackageAdapter = new TrafficPackageAdapter();
         recyclerTrafficPackages.setAdapter(trafficPackageAdapter);
 
         recyclerCardTypes.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        benefitCardTypeAdapter = new BenefitCardTypeAdapter();
+        BenefitCardTypeAdapter benefitCardTypeAdapter = new BenefitCardTypeAdapter();
         recyclerCardTypes.setAdapter(benefitCardTypeAdapter);
 
         recyclerCardTiers.setLayoutManager(new GridLayoutManager(getContext(), 2));
@@ -307,7 +307,7 @@ public class RechargeFragment extends Fragment {
 
     private void fetchInstances(String token) {
         if (getContext() == null) return;
-        new MainApi(requireContext()).getInstanceList(token, new MainApi.Callback() {
+        new UserApi(requireContext()).getInstanceList(token, new UserApi.InstanceCallback() {
             @Override
             public void onSuccess(JSONObject data) {
                 updateInstances(data.optJSONArray("list"));
@@ -542,18 +542,21 @@ public class RechargeFragment extends Fragment {
             updateTrafficInstanceSummary();
             return;
         }
+
+        JSONObject cachedResponse = InstanceDetailStore.getInstance().getResponse(option.getId());
+        if (cachedResponse != null) {
+            applyInstanceDetail(option.getId(), cachedResponse);
+            return;
+        }
+
         instanceDetailLoading.put(option.getId(), true);
         updateTrafficInstanceSummary();
         new MainApi(requireContext()).getInstanceDetail(token, String.valueOf(option.getId()), new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
                 instanceDetailLoading.remove(option.getId());
-                JSONObject detail = data.optJSONObject("data");
-                JSONObject traffic = detail != null ? detail.optJSONObject("traffic") : null;
-                if (traffic != null) {
-                    instanceRemainBytes.put(option.getId(), traffic.optLong("remain_bytes", -1));
-                }
-                updateTrafficInstanceSummary();
+                InstanceDetailStore.getInstance().put(option.getId(), data);
+                applyInstanceDetail(option.getId(), data);
             }
 
             @Override
@@ -563,6 +566,15 @@ public class RechargeFragment extends Fragment {
                 updateTrafficInstanceSummary();
             }
         });
+    }
+
+    private void applyInstanceDetail(int deviceId, JSONObject data) {
+        JSONObject detail = data.optJSONObject("data");
+        JSONObject traffic = detail != null ? detail.optJSONObject("traffic") : null;
+        if (traffic != null) {
+            instanceRemainBytes.put(deviceId, traffic.optLong("remain_bytes", -1));
+        }
+        updateTrafficInstanceSummary();
     }
 
     private String formatTrafficBytes(long bytes) {
@@ -640,12 +652,15 @@ public class RechargeFragment extends Fragment {
                 + "我们尽力提供更多的服务器资源，但您应当理解：出于项目预算有限，我们无法承担过多成本。项目设置了全平台范围的每日充值上限，我们不保证您能够进行充值，也不保证您所需配置有足够剩余资源。<br><br>"
                 + "您悉知：<b>充值为您的个人意愿，是您有更高的需求，并非本项目所提倡的。您的充值并不能覆盖服务器运行成本，也不能帮助到我们业务。出于项目预算有限，无法保证您能够进行充值或使用到预期配置的服务器。如果您想支持我们，可考虑变更至 Pro 或直接进行普通充值。</b>";
 
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("充值前须知")
-                .setMessage(Html.fromHtml(content, Html.FROM_HTML_MODE_LEGACY))
-                .setCancelable(false)
-                .setNegativeButton("取消", null)
-                .setPositiveButton("已阅并继续 (15s)", null);
+        MaterialAlertDialogBuilder builder = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            builder = new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("充值前须知")
+                    .setMessage(Html.fromHtml(content, Html.FROM_HTML_MODE_LEGACY))
+                    .setCancelable(false)
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("已阅并继续 (15s)", null);
+        }
 
         androidx.appcompat.app.AlertDialog dialog = builder.create();
         dialog.show();
@@ -680,7 +695,7 @@ public class RechargeFragment extends Fragment {
 
         RechargeTier tier = tiers.get(selectedTierIndex);
         RechargeMode mode = modes.get(selectedModeIndex);
-        String token = Objects.requireNonNull(getActivity())
+        String token = requireActivity()
                 .getSharedPreferences("token", Context.MODE_PRIVATE)
                 .getString("token", "");
 
@@ -705,7 +720,7 @@ public class RechargeFragment extends Fragment {
 
         BenefitCardPlan plan = visibleBenefitCardPlans.get(selectedBenefitCardPlanIndex);
         RechargeMode mode = modes.get(selectedCardModeIndex);
-        String token = Objects.requireNonNull(getActivity())
+        String token = requireActivity()
                 .getSharedPreferences("token", Context.MODE_PRIVATE)
                 .getString("token", "");
 
@@ -790,7 +805,7 @@ public class RechargeFragment extends Fragment {
         btnBuyTraffic.setEnabled(false);
         btnBuyTraffic.setText("请求中...");
 
-        String token = Objects.requireNonNull(getActivity())
+        String token = requireActivity()
                 .getSharedPreferences("token", Context.MODE_PRIVATE)
                 .getString("token", "");
 

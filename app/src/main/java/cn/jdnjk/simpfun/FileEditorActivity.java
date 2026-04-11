@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import cn.jdnjk.simpfun.utils.EditorMenuHandler;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.widget.CodeEditor;
 import android.graphics.Typeface;
@@ -282,7 +283,7 @@ public class FileEditorActivity extends AppCompatActivity {
         btnSave.setOnClickListener(v -> saveFile());
 
         ImageView btnMore = findViewById(R.id.btn_more);
-        btnMore.setOnClickListener(v -> new cn.jdnjk.simpfun.utils.EditorMenuHandler(this, codeEditor, localPath)
+        btnMore.setOnClickListener(v -> new EditorMenuHandler(this, codeEditor, localPath)
                 .showMenu(v));
 
         codeEditor.subscribeEvent(ContentChangeEvent.class, (event, unsubscribe) -> {

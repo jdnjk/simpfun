@@ -14,13 +14,16 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Objects;
 
+import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
 
 public class UserApi {
     private final Context context;
     private final Handler mainHandler;
-    private final SharedPreferences UserInfo;
+    private final SharedPreferences userInfoPrefs;
 
     public interface AuthCallback {
         void onSuccess();
@@ -32,10 +35,15 @@ public class UserApi {
         void onFailure(String message);
     }
 
+    public interface InstanceCallback {
+        void onSuccess(JSONObject data);
+        void onFailure(String errorMsg);
+    }
+
     public UserApi(Context context) {
         this.context = context;
         this.mainHandler = new Handler(Looper.getMainLooper());
-        this.UserInfo = context.getSharedPreferences("user_info", Context.MODE_PRIVATE);
+        this.userInfoPrefs = context.getSharedPreferences("user_info", Context.MODE_PRIVATE);
     }
 
     public void UserInfo(String authorizationToken) {
@@ -101,8 +109,127 @@ public class UserApi {
         });
     }
 
+    /**
+     * 获取实例列表
+     * @param token 用户Token
+     * @param callback 回调
+     */
+    public void getInstanceList(String token, InstanceCallback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + "list")
+                .header("Authorization", token)
+                .build();
+
+        sendInstanceRequest(request, callback);
+    }
+
+    /**
+     * 绑定 QQ 号
+     * @param token 用户Token
+     * @param qqNumber QQ 号码
+     * @param callback 回调
+     */
+    public void bindQQ(String token, long qqNumber, InstanceCallback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+
+        if (qqNumber <= 0) {
+            invokeCallback(callback, false, "QQ 号码无效");
+            return;
+        }
+
+        RequestBody formBody = new FormBody.Builder()
+                .add("qq", String.valueOf(qqNumber))
+                .build();
+
+        Request request = new Request.Builder()
+                .url(BASE_URL + "/bindqq")
+                .post(formBody)
+                .header("Authorization", token)
+                .build();
+
+        sendInstanceRequest(request, callback);
+    }
+
+    private void sendInstanceRequest(Request request, InstanceCallback callback) {
+        OkHttpClient client = ApiClient.getInstance().getClient();
+
+        client.newCall(request).enqueue(new okhttp3.Callback() {
+            @Override
+            public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                Log.e("UserApi", "Instance request failed", e);
+                mainHandler.post(() -> invokeCallback(callback, false, "网络请求失败: " + e.getMessage()));
+            }
+
+            @Override
+            public void onResponse(@NotNull Call call, @NotNull Response response) {
+                mainHandler.post(() -> {
+                    if (!response.isSuccessful()) {
+                        invokeCallback(callback, false, "HTTP 错误: " + response.code());
+                        return;
+                    }
+
+                    String responseBody = null;
+                    try {
+                        responseBody = Objects.requireNonNull(response.body()).string();
+                        JSONObject json = new JSONObject(responseBody);
+                        int code = json.getInt("code");
+
+                        if (code == 200) {
+                            JSONObject data = new JSONObject();
+                            Iterator<String> keys = json.keys();
+                            while (keys.hasNext()) {
+                                String key = keys.next();
+                                if (!"code".equals(key)) {
+                                    data.put(key, json.get(key));
+                                }
+                            }
+                            invokeCallback(callback, true, null, data);
+                        } else {
+                            String msg = json.optString("msg", "操作失败");
+                            invokeCallback(callback, false, msg);
+                        }
+                    } catch (JSONException e) {
+                        Log.e("UserApi", "JSON parse error: " + responseBody, e);
+                        invokeCallback(callback, false, "数据解析错误");
+                    } catch (Exception e) {
+                        Log.e("UserApi", "Unexpected error", e);
+                        invokeCallback(callback, false, "未知错误");
+                    }
+                });
+            }
+        });
+    }
+
+    private void invokeCallback(InstanceCallback callback, boolean success, String errorMsg) {
+        if (callback != null) {
+            if (success) {
+                callback.onSuccess(new JSONObject());
+            } else {
+                callback.onFailure(errorMsg);
+            }
+        }
+    }
+
+    private void invokeCallback(InstanceCallback callback, boolean success, String errorMsg, JSONObject data) {
+        if (callback != null) {
+            if (success) {
+                callback.onSuccess(data);
+            } else {
+                callback.onFailure(errorMsg);
+            }
+        }
+    }
+
     private void saveUserInfo(JSONObject userInfo) {
-        SharedPreferences.Editor editor = UserInfo.edit();
+        SharedPreferences.Editor editor = userInfoPrefs.edit();
         try {
             editor.putInt("uid", userInfo.getInt("id"));
             editor.putString("username", userInfo.getString("username"));

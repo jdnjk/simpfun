@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="12dp"
+    android:layout_marginEnd="12dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="8dp"
+    app:cardUseCompatPadding="true"
+    app:cardBackgroundColor="#101722"
+    app:strokeColor="#1A2332"
+    app:strokeWidth="1dp"
+    app:cardCornerRadius="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <CheckBox
+                android:id="@+id/cbx_plan"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="#6F7A8B"
+                android:minWidth="0dp"
+                android:minHeight="0dp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_command"
+                style="@style/Widget.MaterialComponents.Chip.Action"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:clickable="false"
+                android:checkable="false"
+                android:textColor="@android:color/white"
+                app:chipMinHeight="30dp"
+                app:chipStrokeWidth="0dp"
+                app:chipStartPadding="10dp"
+                app:chipEndPadding="10dp"
+                tools:text="开机" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/btn_delete"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="2dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="删除"
+                android:src="@drawable/ic_delete_24"
+                app:tint="#B03030" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_scheduled_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#8D97A6"
+            android:textSize="13sp"
+            tools:text="2027-03-01 00:00:00" />
+
+        <LinearLayout
+            android:id="@+id/layout_repeat_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_repeated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#5E7BFF"
+                android:textSize="14sp"
+                tools:text="每 1 小时" />
+
+            <TextView
+                android:id="@+id/tv_next_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:textColor="#8D97A6"
+                android:textSize="13sp"
+                tools:text="下次: 2027-03-01 01:00:00" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_plan_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#6C7686"
+            android:textSize="13sp"
+            tools:text="#358420" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

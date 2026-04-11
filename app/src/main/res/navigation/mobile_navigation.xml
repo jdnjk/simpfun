@@ -18,8 +18,26 @@
             tools:layout="@layout/fragment_file_pane"/>
 
     <fragment
+            android:id="@+id/nav_manage"
+            android:name="cn.jdnjk.simpfun.ui.ins.manage.ManageFragment"
+            android:label="管理"
+            tools:layout="@layout/fragment_manage"/>
+
+    <fragment
             android:id="@+id/nav_slideshow"
             android:name="cn.jdnjk.simpfun.ui.ins.tasks.TasksFragment"
-            android:label="任务"
+            android:label="队列任务"
             tools:layout="@layout/fragment_tasks"/>
+
+    <fragment
+            android:id="@+id/nav_backup"
+            android:name="cn.jdnjk.simpfun.ui.ins.backups.BackupFragment"
+            android:label="备份"
+            tools:layout="@layout/fragment_backup"/>
+
+    <fragment
+            android:id="@+id/nav_plans"
+            android:name="cn.jdnjk.simpfun.ui.ins.plans.PlansFragment"
+            android:label="计划任务"
+            tools:layout="@layout/fragment_plans"/>
 </navigation>

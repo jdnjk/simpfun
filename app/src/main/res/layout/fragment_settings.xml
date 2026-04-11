@@ -17,16 +17,6 @@
         android:paddingBottom="96dp">
 
         <TextView
-            android:tag="settings_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="设置"
-            android:textSize="34sp"
-            android:textColor="?attr/colorOnSurface"
-            android:textStyle="normal"
-            android:layout_marginBottom="20dp" />
-
-        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="外观"

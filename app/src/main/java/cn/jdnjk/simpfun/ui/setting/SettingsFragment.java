@@ -25,7 +25,7 @@ import org.json.JSONObject;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.MainApi;
+import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
@@ -43,7 +43,7 @@ public class SettingsFragment extends Fragment {
     private TextView tvTerminalThemeCurrent;
     private TextView tvQqCurrent;
     private MaterialSwitch switchServerCardStyle;
-    private TextView tvSettingsTitle;
+    private TextView tvVersion;
     private NestedScrollView scrollView;
     private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
     private int debugTapCount = 0;
@@ -91,17 +91,17 @@ public class SettingsFragment extends Fragment {
         tvTerminalThemeCurrent = root.findViewById(R.id.tv_terminal_theme_current);
         tvQqCurrent = root.findViewById(R.id.tv_qq_current);
         switchServerCardStyle = root.findViewById(R.id.switch_server_card_style);
-        View titleView = root.findViewWithTag("settings_title");
-        tvSettingsTitle = titleView instanceof TextView ? (TextView) titleView : null;
 
-        TextView tvVersion = root.findViewById(R.id.tv_version);
+        tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME;
-        tvVersion.setText("当前版本：" + currentVersion);
+        tvVersion.setText(String.format("当前版本：%s", currentVersion));
+        tvVersion.setClickable(true);
+        tvVersion.setFocusable(true);
     }
 
     private void bindDebugTrigger() {
-        if (tvSettingsTitle == null) return;
-        tvSettingsTitle.setOnClickListener(v -> {
+        if (tvVersion == null) return;
+        tvVersion.setOnClickListener(v -> {
             debugTapCount++;
             debugTapHandler.removeCallbacks(resetTapRunnable);
             debugTapHandler.postDelayed(resetTapRunnable, DEBUG_TAP_WINDOW_MS);
@@ -257,7 +257,7 @@ public class SettingsFragment extends Fragment {
             return;
         }
 
-        new MainApi(requireContext()).bindQQ(token, qq, new MainApi.Callback() {
+        new UserApi(requireContext()).bindQQ(token, qq, new UserApi.InstanceCallback() {
             @Override
             public void onSuccess(JSONObject data) {
                 Toast.makeText(requireContext(), "绑定成功", Toast.LENGTH_SHORT).show();

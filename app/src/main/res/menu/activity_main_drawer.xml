@@ -13,8 +13,20 @@
                 android:icon="@drawable/folder"
                 android:title="文件"/>
         <item
+                android:id="@+id/nav_backup"
+                android:icon="@drawable/ic_backup"
+                android:title="备份"/>
+        <item
+                android:id="@+id/nav_manage"
+                android:icon="@drawable/ic_settings"
+                android:title="管理"/>
+        <item
                 android:id="@+id/nav_slideshow"
                 android:icon="@drawable/tasks"
-                android:title="任务"/>
+                android:title="队列任务"/>
+        <item
+                android:id="@+id/nav_plans"
+                android:icon="@drawable/tasks"
+                android:title="计划任务"/>
     </group>
 </menu>

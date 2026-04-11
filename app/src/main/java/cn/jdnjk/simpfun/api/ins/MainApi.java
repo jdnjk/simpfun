@@ -1,10 +1,17 @@
-package cn.jdnjk.simpfun.api;
+package cn.jdnjk.simpfun.api.ins;
 
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import okhttp3.*;
+
+import cn.jdnjk.simpfun.api.ApiClient;
+import okhttp3.Call;
+import okhttp3.FormBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
@@ -15,38 +22,18 @@ import java.util.Iterator;
 import java.util.Objects;
 
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
-import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
+import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 
 public class MainApi {
-
     private static final String TAG = "MainApi";
-    private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public MainApi(Context context) {
-        this.context = context;
     }
 
     public interface Callback {
         void onSuccess(JSONObject data);
         void onFailure(String errorMsg);
-    }
-
-    /**
-     * 获取实例列表
-     */
-    public void getInstanceList(String token, Callback callback) {
-        if (token == null || token.trim().isEmpty()) {
-            invokeCallback(callback, false, "Token 不能为空");
-            return;
-        }
-
-        Request request = new Request.Builder()
-                .url(BASE_INS_URL + "list")
-                .header("Authorization", token)
-                .build();
-
-        sendRequest(request, callback);
     }
 
     /**
@@ -70,7 +57,7 @@ public class MainApi {
                 .header("Authorization", token)
                 .build();
 
-        sendRequest(request, callback);
+        sendRequest(request, callback, parseDeviceId(serverId), null);
     }
 
     /**
@@ -100,36 +87,82 @@ public class MainApi {
                 .header("Authorization", token)
                 .build();
 
-        sendRequest(request, callback);
+        sendRequest(request, callback, parseDeviceId(serverId), newName);
     }
 
     /**
-     * 绑定 QQ 号
+     * 删除实例
+     * @param token 用户Token
+     * @param serverId 实例ID
+     * @param callback 回调
      */
-    public void bindQQ(String token, long qqNumber, Callback callback) {
+    public void deleteInstance(String token, String serverId, Callback callback) {
         if (token == null || token.trim().isEmpty()) {
             invokeCallback(callback, false, "Token 不能为空");
             return;
         }
-
-        if (qqNumber <= 0) {
-            invokeCallback(callback, false, "QQ 号码无效");
+        if (serverId == null || serverId.trim().isEmpty()) {
+            invokeCallback(callback, false, "Server ID 不能为空");
             return;
         }
 
-        RequestBody formBody = new FormBody.Builder()
-                .add("qq", String.valueOf(qqNumber))
+        RequestBody emptyBody = new FormBody.Builder().build();
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + serverId + "/delete")
+                .post(emptyBody)
+                .header("Authorization", token)
                 .build();
 
+        Integer deviceId = parseDeviceId(serverId);
+        sendRequest(request, new Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (deviceId != null) {
+                    InstanceDetailStore.getInstance().clear(deviceId);
+                }
+                if (callback != null) {
+                    callback.onSuccess(data);
+                }
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (callback != null) {
+                    callback.onFailure(errorMsg);
+                }
+            }
+        });
+    }
+
+    /**
+     * 获取 SFTP 信息
+     * @param token 用户Token
+     * @param serverId 实例ID
+     * @param callback 回调
+     */
+    public void getSftp(String token, String serverId, Callback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+        if (serverId == null || serverId.trim().isEmpty()) {
+            invokeCallback(callback, false, "Server ID 不能为空");
+            return;
+        }
+
         Request request = new Request.Builder()
-                .url(BASE_URL + "/bindqq")
-                .post(formBody)
+                .url(BASE_INS_URL + serverId + "/sftp")
                 .header("Authorization", token)
                 .build();
 
         sendRequest(request, callback);
     }
+
     private void sendRequest(Request request, Callback callback) {
+        sendRequest(request, callback, null, null);
+    }
+
+    private void sendRequest(Request request, Callback callback, Integer cacheDeviceId, String renamedName) {
         OkHttpClient client = ApiClient.getInstance().getClient();
 
         client.newCall(request).enqueue(new okhttp3.Callback() {
@@ -162,6 +195,15 @@ public class MainApi {
                                     data.put(key, json.get(key));
                                 }
                             }
+
+                            if (cacheDeviceId != null) {
+                                if (renamedName != null) {
+                                    InstanceDetailStore.getInstance().updateName(cacheDeviceId, renamedName);
+                                } else {
+                                    InstanceDetailStore.getInstance().put(cacheDeviceId, data);
+                                }
+                            }
+
                             invokeCallback(callback, true, null, data);
                         } else {
                             String msg = json.optString("msg", "操作失败");
@@ -177,6 +219,14 @@ public class MainApi {
                 });
             }
         });
+    }
+
+    private Integer parseDeviceId(String serverId) {
+        try {
+            return Integer.parseInt(serverId);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private void invokeCallback(Callback callback, boolean success, String errorMsg) {

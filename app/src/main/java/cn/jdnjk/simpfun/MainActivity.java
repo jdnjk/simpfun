@@ -28,7 +28,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import cn.jdnjk.simpfun.api.MainApi;
+import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
@@ -140,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void fetchInstanceList(String token) {
-        new MainApi(this).getInstanceList(token, new MainApi.Callback() {
+        new UserApi(this).getInstanceList(token, new UserApi.InstanceCallback() {
             @Override
             public void onSuccess(JSONObject data) {
                 try {

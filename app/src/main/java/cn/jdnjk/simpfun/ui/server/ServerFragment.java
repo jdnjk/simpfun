@@ -32,7 +32,7 @@ import java.util.Set;
 
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.MainApi;
+import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.model.ServerItem;
 import cn.jdnjk.simpfun.model.ServerStatsSnapshot;
 import cn.jdnjk.simpfun.service.ServerStatsListener;
@@ -167,8 +167,8 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
     private void refreshInstanceList() {
         swipeRefreshLayout.setRefreshing(true);
 
-        MainApi api = new MainApi(requireContext());
-        api.getInstanceList(getToken(), new MainApi.Callback() {
+        UserApi api = new UserApi(requireContext());
+        api.getInstanceList(getToken(), new UserApi.InstanceCallback() {
             @Override
             public void onSuccess(JSONObject data) {
                 JSONArray list = data.optJSONArray("list");
