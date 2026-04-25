@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 import androidx.appcompat.app.AppCompatDelegate;
 
 public class ThemeManager {
-    private static final String THEME_PREFS = "theme_preferences";
+    private static final String SETTINGS_PREFS = "setting_sp";
     private static final String THEME_MODE_KEY = "theme_mode";
 
     public static final int THEME_SYSTEM = 0;
@@ -13,10 +13,10 @@ public class ThemeManager {
     public static final int THEME_DARK = 2;
 
     private static ThemeManager instance;
-    private SharedPreferences preferences;
+    private final SharedPreferences preferences;
 
     private ThemeManager(Context context) {
-        preferences = context.getSharedPreferences(THEME_PREFS, Context.MODE_PRIVATE);
+        preferences = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE);
     }
 
     public static ThemeManager getInstance(Context context) {

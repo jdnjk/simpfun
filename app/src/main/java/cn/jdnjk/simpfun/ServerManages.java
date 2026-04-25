@@ -3,6 +3,7 @@ package cn.jdnjk.simpfun;
 import android.content.Context;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -36,10 +37,13 @@ import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 public class ServerManages extends AppCompatActivity {
 
     public static final String EXTRA_DEVICE_ID = "extra_device_id";
+    public static final String EXTRA_OPEN_NAV_ID = "extra_open_nav_id";
     private int deviceId = -1;
 
     private AppBarConfiguration mAppBarConfiguration;
     private ActivityMainBinding binding;
+    private NavController navController;
+    private NavigationView navigationView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,18 +56,36 @@ public class ServerManages extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         DrawerLayout drawer = binding.drawerLayout;
-        NavigationView navigationView = binding.navView;
+        navigationView = binding.navView;
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
                 R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_backup, R.id.nav_plans)
                 .setOpenableLayout(drawer)
                 .build();
 
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+        navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
 
+        handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
         extractDeviceId();
+        int openNavId = intent == null ? -1 : intent.getIntExtra(EXTRA_OPEN_NAV_ID, -1);
+        if (openNavId != -1 && navController != null) {
+            navController.navigate(openNavId);
+            if (navigationView != null) {
+                navigationView.setCheckedItem(openNavId);
+            }
+        }
     }
 
     private void extractDeviceId() {
@@ -71,7 +93,7 @@ public class ServerManages extends AppCompatActivity {
             deviceId = getIntent().getIntExtra(EXTRA_DEVICE_ID, -1);
 
             if (deviceId != -1) {
-                Log.d("ServerManages", "接收到 deviceId: " + deviceId);
+                Log.i("ServerManages", "接收到 deviceId: " + deviceId);
                 fetchServerDetails();
             } else {
                 Log.e("ServerManages", "未接收到有效的 deviceId");

@@ -67,7 +67,7 @@ public class InviteFragment extends Fragment {
                 String shareUrl = String.format("https://simpfun.cn/auth?type=register&code=%s", inviteCode);
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("text/plain");
-                shareIntent.putExtra(Intent.EXTRA_TEXT, "我在 Simpfun 发现了好玩的东西，快来和我一起玩吧！注册时填写我的推荐码：" + inviteCode + "，或者直接点击链接注册：" + shareUrl);
+                shareIntent.putExtra(Intent.EXTRA_TEXT, "我发现了一个宝藏服务商！注册时填写我的推荐码：" + inviteCode + "，或者直接点击链接注册：" + shareUrl);
                 startActivity(Intent.createChooser(shareIntent, "分享邀请链接"));
             }
         });

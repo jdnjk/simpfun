@@ -1,6 +1,7 @@
 package cn.jdnjk.simpfun.ui.auth;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
@@ -10,10 +11,8 @@ import android.text.method.LinkMovementMethod;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -22,7 +21,6 @@ import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.GetToken;
@@ -32,6 +30,10 @@ import cn.jdnjk.simpfun.SplashActivity;
 import java.util.Objects;
 
 public class AuthActivity extends AppCompatActivity {
+    private static final String SP_TOKEN = "token";
+    private static final String SP_USER_INFO = "user_info";
+    private static final String KEY_TOKEN = "token";
+    private static final String KEY_USERNAME = "username";
 
     private LinearProgressIndicator progressIndicator;
     private LinearLayout layoutStepUsername, layoutStepPassword, layoutUserCapsule;
@@ -41,7 +43,6 @@ public class AuthActivity extends AppCompatActivity {
     private MaterialCheckBox checkBoxShowPassword;
     private MaterialButton buttonNext;
     private TextView textRegisterLink, textForgotUsername, textForgotPassword;
-    private TextView textViewAgreement;
 
     private int currentStep = 1;
     private String savedUsername = "";
@@ -58,6 +59,7 @@ public class AuthActivity extends AppCompatActivity {
 
         // 读取深链待跳转数据
         pendingServerId = getIntent().getIntExtra(SplashActivity.EXTRA_DEEP_SERVER_ID, -1);
+        tryRestorePasswordStep();
     }
 
     private void initViews() {
@@ -77,7 +79,6 @@ public class AuthActivity extends AppCompatActivity {
         textRegisterLink = findViewById(R.id.textRegisterLink);
         textForgotUsername = findViewById(R.id.textForgotUsername);
         textForgotPassword = findViewById(R.id.textForgotPassword);
-        textViewAgreement = findViewById(R.id.textViewAgreement);
     }
 
     private void setupClickListeners() {
@@ -119,16 +120,6 @@ public class AuthActivity extends AppCompatActivity {
                     .show();
         });
     }
-
-    /*private void setupAgreement() {
-        String htmlText = "我已阅读并同意《<a href='https://www.yuque.com/simpfun/sfe/tos'>简幻欢用户协议</a>》和《<a href='https://github.com/jdnjk/simpfun/blob/master/eula/README.md'>软件许可协议</a>》";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            textViewAgreement.setText(Html.fromHtml(htmlText, Html.FROM_HTML_MODE_COMPACT));
-        } else {
-            textViewAgreement.setText(Html.fromHtml(htmlText));
-        }
-        textViewAgreement.setMovementMethod(LinkMovementMethod.getInstance());
-    }*/
 
     @Override
     public void onBackPressed() {
@@ -248,6 +239,35 @@ public class AuthActivity extends AppCompatActivity {
         });
     }
 
+    private void showPasswordStepDirectly() {
+        currentStep = 2;
+        layoutStepUsername.setVisibility(View.GONE);
+        textSubtitle.setVisibility(View.GONE);
+        textLoginTitle.setVisibility(View.GONE);
+        layoutStepPassword.setVisibility(View.VISIBLE);
+        layoutUserCapsule.setVisibility(View.VISIBLE);
+        textWelcomeUser.setText("欢迎 " + savedUsername);
+        layoutErrorPassword.setVisibility(View.GONE);
+        editTextUsername.setText(savedUsername);
+    }
+
+    private void tryRestorePasswordStep() {
+        SharedPreferences tokenPrefs = getSharedPreferences(SP_TOKEN, MODE_PRIVATE);
+        String token = tokenPrefs.getString(KEY_TOKEN, "");
+        if (TextUtils.isEmpty(token)) {
+            return;
+        }
+
+        SharedPreferences userInfoPrefs = getSharedPreferences(SP_USER_INFO, MODE_PRIVATE);
+        String username = userInfoPrefs.getString(KEY_USERNAME, "");
+        if (TextUtils.isEmpty(username)) {
+            return;
+        }
+
+        savedUsername = username;
+        showPasswordStepDirectly();
+    }
+
     private void handleStep2() {
         String password = Objects.requireNonNull(editTextPassword.getText()).toString().trim();
         if (TextUtils.isEmpty(password)) {
@@ -353,4 +373,3 @@ public class AuthActivity extends AppCompatActivity {
         dialog.show();
     }
 }
-

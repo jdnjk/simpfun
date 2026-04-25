@@ -1,13 +1,18 @@
 package cn.jdnjk.simpfun;
 
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 import android.graphics.Color;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -31,6 +36,7 @@ import android.widget.TextView;
 import android.widget.ImageView;
 import io.github.rosemoe.sora.event.ContentChangeEvent;
 import io.github.rosemoe.sora.event.SelectionChangeEvent;
+import org.jspecify.annotations.NonNull;
 
 public class FileEditorActivity extends AppCompatActivity {
 
@@ -53,18 +59,16 @@ public class FileEditorActivity extends AppCompatActivity {
         EXTENSION_TO_SCOPE.put(".log", "text.log");
         EXTENSION_TO_SCOPE.put(".yaml", "source.yaml");
         EXTENSION_TO_SCOPE.put(".yml", "source.yaml");
-        // EXTENSION_TO_SCOPE.put(".py", "source.python");
         EXTENSION_TO_SCOPE.put(".js", "source.js");
         EXTENSION_TO_SCOPE.put(".html", "text.html.basic");
         EXTENSION_TO_SCOPE.put(".htm", "text.html.basic");
         EXTENSION_TO_SCOPE.put(".xml", "text.xml");
         EXTENSION_TO_SCOPE.put(".md", "text.html.markdown");
         EXTENSION_TO_SCOPE.put(".markdown", "text.html.markdown");
-        // EXTENSION_TO_SCOPE.put(".css", "source.css");
-        // EXTENSION_TO_SCOPE.put(".php", "source.php");
-        // EXTENSION_TO_SCOPE.put(".sql", "source.sql");
-        // EXTENSION_TO_SCOPE.put(".sh", "source.shell");
-        // EXTENSION_TO_SCOPE.put(".bash", "source.shell");
+        EXTENSION_TO_SCOPE.put(".sh", "source.shell");
+        EXTENSION_TO_SCOPE.put(".bash", "source.shell");
+        EXTENSION_TO_SCOPE.put(".bashrc", "source.shell");
+        EXTENSION_TO_SCOPE.put(".profile", "source.shell");
     }
 
     private void ensureTextMateInited() {
@@ -184,6 +188,16 @@ public class FileEditorActivity extends AppCompatActivity {
     private int serverId = -1;
     private String remotePath;
 
+    private void applyWindowInsets() {
+        View root = findViewById(R.id.root_file_editor);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
+    }
+
     private void updateUIState() {
         // Filename
         String displayFileName = (isModified ? "*" : "") + (fileName == null ? "" : fileName);
@@ -249,6 +263,7 @@ public class FileEditorActivity extends AppCompatActivity {
         windowInsetsController.setAppearanceLightStatusBars(false); // Dark theme usually
 
         setContentView(R.layout.activity_file_editor);
+        applyWindowInsets();
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -333,17 +348,7 @@ public class FileEditorActivity extends AppCompatActivity {
                 return;
             }
             // Increase buffer size for large files
-            StringBuilder text = new StringBuilder();
-            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    text.append(line).append('\n');
-                }
-            }
-            // Remove last newline if added
-            if (text.length() > 0 && text.charAt(text.length() - 1) == '\n') {
-                text.setLength(text.length() - 1);
-            }
+            StringBuilder text = getStringBuilder(file);
 
             codeEditor.setText(text);
             isModified = false; // Initial load is not modified
@@ -351,6 +356,23 @@ public class FileEditorActivity extends AppCompatActivity {
             Toast.makeText(this, "加载失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
             Log.e("FileEditorActivity", "File load error", e);
         }
+    }
+
+    private static @NonNull StringBuilder getStringBuilder(File file) throws IOException {
+        StringBuilder text = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                text.append(line).append('\n');
+            }
+        }
+        // Remove last newline if added
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            if (!text.isEmpty() && text.charAt(text.length() - 1) == '\n') {
+                text.setLength(text.length() - 1);
+            }
+        }
+        return text;
     }
 
 

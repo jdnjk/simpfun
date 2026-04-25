@@ -4,8 +4,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,9 +28,11 @@ import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 public class SettingsFragment extends Fragment {
-
-    private static final int DEBUG_TAP_THRESHOLD = 5;
-    private static final long DEBUG_TAP_WINDOW_MS = 1000L;
+    private static final String SP_TOKEN = "token";
+    private static final String SP_USER_INFO = "user_info";
+    private static final String SP_SERVER_DATA = "server_data";
+    private static final String SP_DEVICE_ID = "deviceid";
+    private static final String KEY_TOKEN = "token";
 
     private SharedPreferences sp;
     private SharedPreferences userInfo;
@@ -43,18 +43,14 @@ public class SettingsFragment extends Fragment {
     private TextView tvTerminalThemeCurrent;
     private TextView tvQqCurrent;
     private MaterialSwitch switchServerCardStyle;
-    private TextView tvVersion;
     private NestedScrollView scrollView;
     private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
-    private int debugTapCount = 0;
-    private final Handler debugTapHandler = new Handler(Looper.getMainLooper());
-    private final Runnable resetTapRunnable = () -> debugTapCount = 0;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        sp = requireContext().getSharedPreferences("token", 0);
-        userInfo = requireContext().getSharedPreferences("user_info", 0);
+        sp = requireContext().getSharedPreferences(SP_TOKEN, 0);
+        userInfo = requireContext().getSharedPreferences(SP_USER_INFO, 0);
         themeManager = ThemeManager.getInstance(requireContext());
         terminalThemeManager = TerminalThemeManager.getInstance(requireContext());
         serverCardStyleManager = new ServerCardStyleManager(requireContext());
@@ -74,7 +70,6 @@ public class SettingsFragment extends Fragment {
         updateThemeDisplay();
         loadUserInfo();
         bindSwitches();
-        bindDebugTrigger();
 
         return root;
     }
@@ -92,36 +87,9 @@ public class SettingsFragment extends Fragment {
         tvQqCurrent = root.findViewById(R.id.tv_qq_current);
         switchServerCardStyle = root.findViewById(R.id.switch_server_card_style);
 
-        tvVersion = root.findViewById(R.id.tv_version);
+        TextView tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME;
         tvVersion.setText(String.format("当前版本：%s", currentVersion));
-        tvVersion.setClickable(true);
-        tvVersion.setFocusable(true);
-    }
-
-    private void bindDebugTrigger() {
-        if (tvVersion == null) return;
-        tvVersion.setOnClickListener(v -> {
-            debugTapCount++;
-            debugTapHandler.removeCallbacks(resetTapRunnable);
-            debugTapHandler.postDelayed(resetTapRunnable, DEBUG_TAP_WINDOW_MS);
-            if (debugTapCount >= DEBUG_TAP_THRESHOLD) {
-                debugTapHandler.removeCallbacks(resetTapRunnable);
-                debugTapCount = 0;
-                openDebugPage();
-            }
-        });
-    }
-
-    private void openDebugPage() {
-        int containerId = requireActivity().findViewById(R.id.nav_host_fragment) != null
-                ? R.id.nav_host_fragment
-                : R.id.fragment_container;
-        getParentFragmentManager()
-                .beginTransaction()
-                .replace(containerId, new DebugFragment())
-                .addToBackStack("debug")
-                .commit();
     }
 
     private void bindSwitches() {
@@ -203,13 +171,20 @@ public class SettingsFragment extends Fragment {
                 .setTitle("退出登录")
                 .setMessage("确定要退出当前账户吗？")
                 .setPositiveButton("退出", (dialog, which) -> {
-                    sp.edit().remove("token").apply();
+                    clearAccountData();
                     Intent intent = new Intent(requireContext(), AuthActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private void clearAccountData() {
+        requireContext().getSharedPreferences(SP_TOKEN, 0).edit().remove(KEY_TOKEN).apply();
+        requireContext().getSharedPreferences(SP_USER_INFO, 0).edit().clear().apply();
+        requireContext().getSharedPreferences(SP_SERVER_DATA, 0).edit().clear().apply();
+        requireContext().getSharedPreferences(SP_DEVICE_ID, 0).edit().clear().apply();
     }
 
     private void loadUserInfo() {

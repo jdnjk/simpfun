@@ -241,6 +241,7 @@ public class UserApi {
             editor.putLong("qq", userInfo.getLong("qq"));
             editor.putBoolean("pro", userInfo.getBoolean("is_pro"));
             editor.putBoolean("pro_valid", userInfo.getBoolean("pro_valid"));
+            editor.putLong("create_time", userInfo.optLong("create_time", 0L));
             JSONObject announcement = userInfo.getJSONObject("announcement");
             editor.putString("announcement_title", announcement.getString("title"));
             editor.putString("announcement_text", announcement.getString("text"));

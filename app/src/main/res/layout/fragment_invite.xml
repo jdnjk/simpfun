@@ -377,7 +377,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="• 好友注册并认证 = 好友获得150额外积分，您获得150积分 + 3钻石\n• 好友每日签到 = 您获得1积分\n• 变更为Pro的好友充值您将获得充值金额×4的积分，且会单独列出\n• 每日获得积分无上限哦～"
+                    android:text="• 好友注册并认证 = 好友获得25额外积分，您获得25积分 + 1钻石\n• 好友每日签到 = 您获得1积分\n• 变更为Pro的好友充值您将获得充值金额×4的积分，且会单独列出\n• 每日获得积分无上限哦～"
                     android:textSize="15sp"
                     android:textColor="?attr/colorOnSurface"
                     android:lineSpacingExtra="4dp" />

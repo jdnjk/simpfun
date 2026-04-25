@@ -57,7 +57,7 @@ public class FileBaseApi {
         });
     }
 
-    private String buildMsg(String prefix, Exception e) {
+    protected String buildMsg(String prefix, Exception e) {
         String m = (e == null ? null : e.getMessage());
         if (m == null || m.trim().isEmpty() || "null".equalsIgnoreCase(m.trim())) {
             return prefix;

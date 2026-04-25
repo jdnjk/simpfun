@@ -1,6 +1,12 @@
 {
   "languages": [
     {
+      "grammar": "editor/textmate/shellscript/syntaxes/shell-unix-bash.tmLanguage.json",
+      "name": "shellscript",
+      "scopeName": "source.shell",
+      "languageConfiguration": "editor/textmate/shellscript/language-configuration.json"
+    },
+    {
       "grammar": "editor/textmate/yaml/syntaxes/yaml.tmLanguage.json",
       "name": "yaml",
       "scopeName": "source.yaml",

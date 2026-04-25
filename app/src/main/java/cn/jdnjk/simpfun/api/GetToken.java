@@ -17,6 +17,7 @@ import java.util.Objects;
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
 
 public class GetToken {
+    private static final int ERROR_CODE_UNKNOWN = -1;
 
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -37,11 +38,11 @@ public class GetToken {
      */
     public void login(String username, String password, Callback callback) {
         if (username == null || username.trim().isEmpty()) {
-            invokeCallback(callback, false,null, "请输入用户名", null);
+            invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "请输入用户名", null);
             return;
         }
         if (password == null || password.trim().isEmpty()) {
-            invokeCallback(callback, false, null, "请输入密码", null);
+            invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "请输入密码", null);
             return;
         }
 
@@ -63,11 +64,11 @@ public class GetToken {
      */
     public void register(String username, String password, @Nullable String inviteCode, Callback callback) {
         if (username == null || username.trim().isEmpty()) {
-            invokeCallback(callback, false, null, "请输入用户名", null);
+            invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "请输入用户名", null);
             return;
         }
         if (password == null || password.trim().isEmpty()) {
-            invokeCallback(callback, false, null, "请输入密码", null);
+            invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "请输入密码", null);
             return;
         }
 
@@ -95,7 +96,8 @@ public class GetToken {
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                mainHandler.post(() -> invokeCallback(callback, false, null, "网络请求失败: " + e.getMessage(), null));
+                mainHandler.post(() -> invokeCallback(callback, false, ERROR_CODE_UNKNOWN,
+                        "网络请求失败: " + e.getMessage(), null));
             }
 
             @Override
@@ -122,11 +124,11 @@ public class GetToken {
                             invokeCallback(callback, false, code, msg, null);
                         }
                     } catch (JSONException e) {
-                        invokeCallback(callback, false, null, "数据解析错误",null);
+                        invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "数据解析错误", null);
                     } catch (IOException e) {
-                        invokeCallback(callback, false, null,"读取响应失败",null);
+                        invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "读取响应失败", null);
                     } catch (Exception e) {
-                        invokeCallback(callback, false, null, "未知异常", null);
+                        invokeCallback(callback, false, ERROR_CODE_UNKNOWN, "未知异常", null);
                     }
                 });
             }
@@ -138,7 +140,7 @@ public class GetToken {
         sp.edit().putString(TOKEN_KEY, token).apply();
     }
 
-    private void invokeCallback(Callback callback, boolean success, Integer code, String errorMsg, String token) {
+    private void invokeCallback(Callback callback, boolean success, int code, String errorMsg, String token) {
         if (callback != null) {
             if (success) {
                 callback.onSuccess(token);

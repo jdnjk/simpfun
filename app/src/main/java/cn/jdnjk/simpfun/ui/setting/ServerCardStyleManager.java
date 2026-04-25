@@ -4,7 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 public class ServerCardStyleManager {
-    private static final String SP_NAME = "ui_preferences";
+    private static final String SP_NAME = "setting_sp";
     private static final String KEY_MODERN_SERVER_CARD = "modern_server_card";
 
     private final SharedPreferences preferences;

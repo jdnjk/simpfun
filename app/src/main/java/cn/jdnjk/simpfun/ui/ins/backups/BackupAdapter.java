@@ -30,14 +30,20 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
         void onSelectionChanged(int selectedCount);
     }
 
+    public interface ActionListener {
+        void onActionMenuClick(BackupItem item, View anchor);
+    }
+
     private final List<BackupItem> backups = new ArrayList<>();
     private final Set<Integer> selectedIds = new HashSet<>();
     private final Listener listener;
+    private final ActionListener actionListener;
 
     private boolean multiSelectMode = false;
 
-    public BackupAdapter(Listener listener) {
+    public BackupAdapter(Listener listener, ActionListener actionListener) {
         this.listener = listener;
+        this.actionListener = actionListener;
     }
 
     public void setData(List<BackupItem> list) {
@@ -111,17 +117,30 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
         boolean selected = selectedIds.contains(item.getId());
         holder.cbSelected.setVisibility(multiSelectMode ? View.VISIBLE : View.GONE);
         holder.cbSelected.setChecked(selected);
+        holder.btnMore.setVisibility(multiSelectMode ? View.GONE : View.VISIBLE);
 
         int strokeColor = holder.itemView.getResources().getColor(
                 selected ? R.color.md_theme_primary : R.color.md_theme_outlineVariant,
                 null
         );
         holder.cardBackup.setStrokeColor(ColorStateList.valueOf(strokeColor));
-        holder.cardBackup.setStrokeWidth(selected ? 2 : 1);
+        holder.cardBackup.setStrokeWidth(1);
 
         holder.itemView.setOnClickListener(v -> {
-            toggleSelection(item.getId());
-            notifyItemChanged(position);
+            if (multiSelectMode) {
+                toggleSelection(item.getId());
+                notifyItemChanged(position);
+            } else if (actionListener != null) {
+                actionListener.onActionMenuClick(item, holder.btnMore);
+            }
+        });
+        holder.btnMore.setOnClickListener(v -> {
+            if (multiSelectMode) {
+                toggleSelection(item.getId());
+                notifyItemChanged(position);
+            } else if (actionListener != null) {
+                actionListener.onActionMenuClick(item, holder.btnMore);
+            }
         });
     }
 
@@ -131,20 +150,10 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
     }
 
     private void toggleSelection(int backupId) {
-        if (multiSelectMode) {
-            if (selectedIds.contains(backupId)) {
-                selectedIds.remove(backupId);
-            } else {
-                selectedIds.add(backupId);
-            }
+        if (selectedIds.contains(backupId)) {
+            selectedIds.remove(backupId);
         } else {
-            if (selectedIds.contains(backupId)) {
-                selectedIds.clear();
-            } else {
-                selectedIds.clear();
-                selectedIds.add(backupId);
-            }
-            notifyDataSetChanged();
+            selectedIds.add(backupId);
         }
         notifySelectionChanged();
     }
@@ -200,6 +209,7 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
         final TextView tvWindows;
         final TextView tvExpire;
         final TextView tvId;
+        final TextView btnMore;
         final CheckBox cbSelected;
 
         BackupVH(@NonNull View itemView) {
@@ -210,8 +220,8 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
             tvWindows = itemView.findViewById(R.id.tv_backup_windows);
             tvExpire = itemView.findViewById(R.id.tv_backup_expire);
             tvId = itemView.findViewById(R.id.tv_backup_id);
+            btnMore = itemView.findViewById(R.id.btn_backup_more);
             cbSelected = itemView.findViewById(R.id.cb_selected);
         }
     }
 }
-

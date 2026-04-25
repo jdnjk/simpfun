@@ -12,7 +12,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
+import android.widget.PopupMenu;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -21,6 +22,8 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -37,12 +40,9 @@ public class BackupFragment extends Fragment {
 
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
-    private LinearLayout emptyStateLayout;
+    private View emptyStateLayout;
+    private TextView tvBackupSummary;
     private Button btnToggleMulti;
-    private Button btnRestore;
-    private Button btnRename;
-    private Button btnDownload;
-    private Button btnDelete;
 
     private BackupAdapter adapter;
     private boolean isLoading = false;
@@ -55,36 +55,52 @@ public class BackupFragment extends Fragment {
         swipeRefreshLayout = root.findViewById(R.id.swipe_refresh_layout);
         recyclerView = root.findViewById(R.id.recycler_view_backups);
         emptyStateLayout = root.findViewById(R.id.empty_state_layout);
+        tvBackupSummary = root.findViewById(R.id.tv_backup_summary);
         btnToggleMulti = root.findViewById(R.id.btn_toggle_multi);
-        Button btnNewBackup = root.findViewById(R.id.btn_new_backup);
-        btnRestore = root.findViewById(R.id.btn_restore);
-        btnRename = root.findViewById(R.id.btn_rename);
-        btnDownload = root.findViewById(R.id.btn_download);
-        btnDelete = root.findViewById(R.id.btn_delete);
+        FloatingActionButton btnNewBackup = root.findViewById(R.id.btn_new_backup);
 
         recyclerView.setLayoutManager(new GridLayoutManager(requireContext(), calculateSpanCount()));
 
-        adapter = new BackupAdapter(this::updateActionButtons);
+        adapter = new BackupAdapter(this::updateActionButtons, this::showBackupActionMenu);
         recyclerView.setAdapter(adapter);
 
         swipeRefreshLayout.setOnRefreshListener(() -> loadBackups(true));
 
-        btnToggleMulti.setOnClickListener(v -> toggleMultiMode());
+        btnToggleMulti.setOnClickListener(v -> handleSelectionButtonClick());
         btnNewBackup.setOnClickListener(v -> showCreateBackupDialog());
-
-        btnRestore.setOnClickListener(v -> restoreSelectedBackup());
-        btnRename.setOnClickListener(v -> renameSelectedBackup());
-        btnDownload.setOnClickListener(v -> downloadSelectedBackup());
-        btnDelete.setOnClickListener(v -> deleteSelectedBackups());
 
         loadBackups(true);
         return root;
     }
 
+    private void handleSelectionButtonClick() {
+        if (adapter.isMultiSelectMode() && adapter.getSelectedCount() > 0) {
+            showSelectionMenu();
+            return;
+        }
+        toggleMultiMode();
+    }
+
     private void toggleMultiMode() {
         boolean nextMode = !adapter.isMultiSelectMode();
         adapter.setMultiSelectMode(nextMode);
-        btnToggleMulti.setText(nextMode ? "完成" : "多选");
+        updateActionButtons(adapter.getSelectedCount());
+    }
+
+    private void showSelectionMenu() {
+        PopupMenu popupMenu = new PopupMenu(requireContext(), btnToggleMulti);
+        popupMenu.getMenu().add("删除所选");
+        popupMenu.getMenu().add("完成选择");
+        popupMenu.setOnMenuItemClickListener(item -> {
+            String title = String.valueOf(item.getTitle());
+            if ("删除所选".equals(title)) {
+                deleteSelectedBackups();
+            } else if ("完成选择".equals(title)) {
+                toggleMultiMode();
+            }
+            return true;
+        });
+        popupMenu.show();
     }
 
     private void loadBackups(boolean showSpinner) {
@@ -100,6 +116,7 @@ public class BackupFragment extends Fragment {
         String token = getToken();
         if (token == null || token.trim().isEmpty()) {
             finishLoading();
+            updateSummary(-1);
             showToast("尚未登录");
             return;
         }
@@ -107,6 +124,7 @@ public class BackupFragment extends Fragment {
         int deviceId = getDeviceId();
         if (deviceId <= 0) {
             finishLoading();
+            updateSummary(-1);
             showToast("设备ID无效");
             return;
         }
@@ -136,23 +154,42 @@ public class BackupFragment extends Fragment {
                 }
 
                 adapter.setData(items);
+                updateSummary(items.size());
                 updateEmptyState(items.isEmpty());
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 finishLoading();
+                updateSummary(-1);
                 showToast("获取备份失败: " + errorMsg);
             }
         });
     }
 
-    private void restoreSelectedBackup() {
-        BackupItem selected = getSingleSelected("还原");
-        if (selected == null) {
-            return;
-        }
+    private void showBackupActionMenu(BackupItem item, View anchor) {
+        PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
+        popupMenu.getMenu().add("还原");
+        popupMenu.getMenu().add("重命名");
+        popupMenu.getMenu().add("下载");
+        popupMenu.getMenu().add("删除");
+        popupMenu.setOnMenuItemClickListener(menuItem -> {
+            String title = String.valueOf(menuItem.getTitle());
+            if ("还原".equals(title)) {
+                restoreBackup(item);
+            } else if ("重命名".equals(title)) {
+                renameBackup(item);
+            } else if ("下载".equals(title)) {
+                downloadBackup(item);
+            } else if ("删除".equals(title)) {
+                confirmDeleteSingleBackup(item);
+            }
+            return true;
+        });
+        popupMenu.show();
+    }
 
+    private void restoreBackup(BackupItem selected) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认还原")
                 .setMessage("将还原到备份 #" + selected.getId() + "，确认继续？")
@@ -180,12 +217,7 @@ public class BackupFragment extends Fragment {
                 .show();
     }
 
-    private void renameSelectedBackup() {
-        BackupItem selected = getSingleSelected("重命名");
-        if (selected == null) {
-            return;
-        }
-
+    private void renameBackup(BackupItem selected) {
         final EditText input = new EditText(requireContext());
         input.setText(selected.getTag());
         input.setSelection(input.getText().length());
@@ -224,12 +256,7 @@ public class BackupFragment extends Fragment {
                 .show();
     }
 
-    private void downloadSelectedBackup() {
-        BackupItem selected = getSingleSelected("下载");
-        if (selected == null) {
-            return;
-        }
-
+    private void downloadBackup(BackupItem selected) {
         String token = getToken();
         int deviceId = getDeviceId();
         if (token == null || deviceId <= 0) {
@@ -288,6 +315,19 @@ public class BackupFragment extends Fragment {
             tag = "backup-" + item.getId();
         }
         return tag + ".bin";
+    }
+
+    private void confirmDeleteSingleBackup(BackupItem item) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("确认删除")
+                .setMessage("确定删除备份 “" + getBackupDisplayName(item) + "” 吗？")
+                .setPositiveButton("删除", (dialog, which) -> {
+                    List<BackupItem> selected = new ArrayList<>();
+                    selected.add(item);
+                    deleteBackupsConcurrent(selected);
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void deleteSelectedBackups() {
@@ -381,26 +421,17 @@ public class BackupFragment extends Fragment {
                 .show();
     }
 
-    @Nullable
-    private BackupItem getSingleSelected(String actionName) {
-        List<BackupItem> selected = adapter.getSelectedItems();
-        if (selected.isEmpty()) {
-            showToast("请先选择备份");
-            return null;
+    private String getBackupDisplayName(BackupItem item) {
+        String tag = item.getTag() == null ? "" : item.getTag().trim();
+        if (!tag.isEmpty()) {
+            return tag;
         }
-        if (selected.size() > 1) {
-            showToast(actionName + "仅支持单个备份");
-            return null;
-        }
-        return selected.get(0);
+        return "#" + item.getId();
     }
 
     private void updateActionButtons(int selectedCount) {
-        boolean single = selectedCount == 1;
-        btnRestore.setEnabled(single);
-        btnRename.setEnabled(single);
-        btnDownload.setEnabled(single);
-        btnDelete.setEnabled(selectedCount > 0);
+        boolean selecting = adapter != null && adapter.isMultiSelectMode();
+        btnToggleMulti.setText(selecting ? "完成" : "选择");
     }
 
     private void finishLoading() {
@@ -413,6 +444,19 @@ public class BackupFragment extends Fragment {
     private void updateEmptyState(boolean isEmpty) {
         recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
         emptyStateLayout.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+    }
+
+    private void updateSummary(int backupCount) {
+        if (tvBackupSummary == null) {
+            return;
+        }
+        if (backupCount < 0) {
+            tvBackupSummary.setText("备份列表加载失败");
+        } else if (backupCount == 0) {
+            tvBackupSummary.setText("暂无备份");
+        } else {
+            tvBackupSummary.setText("共 " + backupCount + " 个备份");
+        }
     }
 
     private void showToast(String msg) {
@@ -429,8 +473,8 @@ public class BackupFragment extends Fragment {
 
     private int calculateSpanCount() {
         int widthDp = getResources().getConfiguration().screenWidthDp;
-        if (widthDp >= 720) return 3;
-        if (widthDp >= 360) return 2;
+        if (widthDp >= 840) return 3;
+        if (widthDp >= 600) return 2;
         return 1;
     }
 

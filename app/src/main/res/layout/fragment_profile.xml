@@ -1,190 +1,265 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:id="@+id/swipe_refresh"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipe_refresh"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
 
-        <androidx.core.widget.NestedScrollView
-                android:id="@+id/scroll_profile"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scrollbars="vertical">
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_profile"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:scrollbars="none">
 
         <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="20dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="112dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:paddingBottom="96dp">
+                android:gravity="end"
+                android:orientation="horizontal">
 
-            <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CCCCCC" />
+                <ImageView
+                    android:id="@+id/iv_theme_mode"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:clickable="true"
+                    android:contentDescription="颜色模式"
+                    android:focusable="true"
+                    android:src="@drawable/ic_theme_auto"
+                    android:layout_marginEnd="12dp"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    app:tint="?attr/colorOnSurface" />
 
-            <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginVertical="12dp">
-
-                <TextView
-                        android:id="@+id/tv_username"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="用户名：加载中"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/md_theme_onSurface_highContrast" />
-
-                <TextView
-                        android:id="@+id/tv_uid"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="UID: 0"
-                        android:textSize="16sp"
-                        android:textColor="#555" />
+                <ImageView
+                    android:id="@+id/iv_settings"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:clickable="true"
+                    android:contentDescription="设置"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_settings"
+                    app:tint="?attr/colorOnSurface" />
             </LinearLayout>
 
-            <TextView
-                    android:id="@+id/tv_qq"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="QQ: 未绑定"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="8dp"
-                    android:textColor="#555" />
-
-            <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CCCCCC" />
-
             <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginVertical="12dp">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <FrameLayout
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="@drawable/bg_profile_avatar">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/app_name"
+                        android:src="@drawable/ic_user_outline"
+                        app:tint="?attr/colorPrimary" />
+                </FrameLayout>
 
                 <LinearLayout
-                        android:id="@+id/layout_click_point"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:clickable="true"
-                        android:background="?attr/selectableItemBackground"
-                        android:padding="8dp">
-
-                    <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="积分"
-                            android:textSize="14sp"
-                            android:textColor="#555" />
-
-                    <TextView
-                            android:id="@+id/tv_point"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
-                </LinearLayout>
-
-                <View
-                        android:layout_width="1dp"
-                        android:layout_height="40dp"
-                        android:background="#CCCCCC" />
-
-                <LinearLayout
-                        android:id="@+id/layout_click_diamond"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:padding="8dp"
-                        android:clickable="true"
-                        android:background="?attr/selectableItemBackground">
-
-                    <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="钻石"
-                            android:textSize="14sp"
-                            android:textColor="#555" />
-
-                    <TextView
-                            android:id="@+id/tv_diamond"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="0"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:textColor="#E91E63" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CCCCCC" />
-
-            <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="公告"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="8dp"
-                    android:textColor="#333" />
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-            <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="8dp"
-                    app:cardElevation="4dp"
-                    app:cardBackgroundColor="#F9F9F9"
-                    xmlns:app="http://schemas.android.com/apk/res-auto">
-
-                <LinearLayout
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="12dp"
-                        android:background="@color/md_theme_inverseOnSurface_highContrast">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <TextView
-                            android:id="@+id/tv_announcement_title"
-                            android:layout_width="match_parent"
+                        <TextView
+                            android:id="@+id/tv_username"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="暂无公告"
-                            android:textSize="16sp"
+                            android:maxLines="1"
+                            android:text="用户名"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="24sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_user_badge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/bg_profile_badge_primary"
+                            android:paddingStart="8dp"
+                            android:paddingTop="3dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="3dp"
+                            android:text="Pro"
+                            android:textColor="?attr/colorOnPrimaryContainer"
+                            android:textSize="11sp"
                             android:textStyle="bold"
-                            android:textIsSelectable="true"
-                            android:textColor="#1A73E8" />
+                            android:visibility="gone" />
+                    </LinearLayout>
 
                     <TextView
-                            android:id="@+id/tv_announcement_text"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="暂无内容"
-                            android:textSize="14sp"
-                            android:textIsSelectable="true"
-                            android:textColor="@color/md_theme_onSurface_highContrast"
-                            android:lineSpacingExtra="4dp" />
+                        android:id="@+id/tv_uid_qq"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="UID: 0  QQ: 未绑定"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="14sp" />
                 </LinearLayout>
-            </androidx.cardview.widget.CardView>
+            </LinearLayout>
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:orientation="vertical">
 
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="0dp"
+                    app:strokeColor="?attr/colorOutlineVariant"
+                    app:strokeWidth="1dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="96dp"
+                        android:baselineAligned="false"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp"
+                        android:paddingTop="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingBottom="16dp">
+
+                        <LinearLayout
+                            android:id="@+id/layout_click_point"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp">
+
+                            <TextView
+                                android:id="@+id/tv_point"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="28sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="积分"
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="48dp"
+                            android:layout_marginHorizontal="8dp"
+                            android:background="?attr/colorOutlineVariant" />
+
+                        <LinearLayout
+                            android:id="@+id/layout_click_diamond"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tv_diamond"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="28sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="钻石"
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerLowest"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tv_announcement_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="暂无公告"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textIsSelectable="true"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_announcement_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:lineSpacingExtra="5dp"
+                        android:text="暂无内容"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="14sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

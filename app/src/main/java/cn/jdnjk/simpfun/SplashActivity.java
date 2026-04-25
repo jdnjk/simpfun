@@ -15,21 +15,31 @@ import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.ui.setting.ThemeManager;
 import com.tencent.bugly.crashreport.CrashReport;
 
+import java.io.File;
+
 import static cn.jdnjk.simpfun.BuildConfig.*;
 
 public class SplashActivity extends AppCompatActivity {
-
+    private static final String SETTINGS_SP = "setting_sp";
+    private static final String LEGACY_DEBUG_SP = "debug_settings";
+    private static final String LEGACY_UI_SP = "ui_preferences";
+    private static final String LEGACY_TERMINAL_THEME_SP = "terminal_theme_preferences";
+    private static final String LEGACY_THEME_SP = "theme_preferences";
     private int deepLinkDeviceId = -1; // 深链指定的服务器ID
     private boolean deepLinkError = false; // 深链是否错误
     private String deepLinkRaw = null; // 原始深链内容
-    private static final String SP_DEBUG = "debug_settings";
+    private static final String SP_DEBUG = SETTINGS_SP;
     private static final String KEY_BUGLY_ENABLED = "bugly_enabled";
+    private static final String KEY_THEME_MODE = "theme_mode";
+    private static final String KEY_TERMINAL_THEME_MODE = "terminal_theme_mode";
+    private static final String KEY_MODERN_SERVER_CARD = "modern_server_card";
 
     public static final String EXTRA_DEEP_SERVER_ID = "extra_deep_server_id";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        migrateLegacySettingPreferences();
         ThemeManager.getInstance(this).initializeTheme();
         final SharedPreferences spDebug = getSharedPreferences(SP_DEBUG, Context.MODE_PRIVATE);
 
@@ -69,6 +79,60 @@ public class SplashActivity extends AppCompatActivity {
                 finish();
             }
         }, 1500);
+    }
+
+    private void migrateLegacySettingPreferences() {
+        SharedPreferences targetPrefs = getSharedPreferences(SETTINGS_SP, Context.MODE_PRIVATE);
+        SharedPreferences.Editor targetEditor = targetPrefs.edit();
+        boolean migrated = false;
+
+        migrated |= migrateBooleanKey(LEGACY_DEBUG_SP, KEY_BUGLY_ENABLED, targetPrefs, targetEditor);
+        migrated |= migrateBooleanKey(LEGACY_UI_SP, KEY_MODERN_SERVER_CARD, targetPrefs, targetEditor);
+        migrated |= migrateIntKey(LEGACY_TERMINAL_THEME_SP, KEY_TERMINAL_THEME_MODE, targetPrefs, targetEditor);
+        migrated |= migrateIntKey(LEGACY_THEME_SP, KEY_THEME_MODE, targetPrefs, targetEditor);
+
+        if (migrated && !targetEditor.commit()) {
+            Log.w("SplashActivity", "Failed to migrate legacy settings");
+            return;
+        }
+
+        cleanupLegacyPrefs(LEGACY_DEBUG_SP);
+        cleanupLegacyPrefs(LEGACY_UI_SP);
+        cleanupLegacyPrefs(LEGACY_TERMINAL_THEME_SP);
+        cleanupLegacyPrefs(LEGACY_THEME_SP);
+    }
+
+    private boolean migrateBooleanKey(String legacyPrefsName, String key, SharedPreferences targetPrefs,
+            SharedPreferences.Editor targetEditor) {
+        SharedPreferences legacyPrefs = getSharedPreferences(legacyPrefsName, Context.MODE_PRIVATE);
+        if (!legacyPrefs.contains(key) || targetPrefs.contains(key)) {
+            return false;
+        }
+        targetEditor.putBoolean(key, legacyPrefs.getBoolean(key, false));
+        return true;
+    }
+
+    private boolean migrateIntKey(String legacyPrefsName, String key, SharedPreferences targetPrefs,
+            SharedPreferences.Editor targetEditor) {
+        SharedPreferences legacyPrefs = getSharedPreferences(legacyPrefsName, Context.MODE_PRIVATE);
+        if (!legacyPrefs.contains(key) || targetPrefs.contains(key)) {
+            return false;
+        }
+        targetEditor.putInt(key, legacyPrefs.getInt(key, 0));
+        return true;
+    }
+
+    private void cleanupLegacyPrefs(String prefsName) {
+        SharedPreferences legacyPrefs = getSharedPreferences(prefsName, Context.MODE_PRIVATE);
+        if (!legacyPrefs.getAll().isEmpty()) {
+            legacyPrefs.edit().clear().apply();
+        }
+
+        File sharedPrefsDir = new File(getApplicationInfo().dataDir, "shared_prefs");
+        File prefsFile = new File(sharedPrefsDir, prefsName + ".xml");
+        if (prefsFile.exists() && !prefsFile.delete()) {
+            Log.w("SplashActivity", "Failed to delete legacy prefs file: " + prefsName);
+        }
     }
 
     private void parseDeepLink() {

@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 
 public class TerminalThemeManager {
-    private static final String TERMINAL_THEME_PREFS = "terminal_theme_preferences";
+    private static final String SETTINGS_PREFS = "setting_sp";
     private static final String TERMINAL_THEME_MODE_KEY = "terminal_theme_mode";
     public static final int TERMINAL_THEME_FOLLOW_SYSTEM = 0;
     public static final int TERMINAL_THEME_FORCE_LIGHT = 1;
@@ -15,12 +15,12 @@ public class TerminalThemeManager {
     public static final int DARK_BACKGROUND_COLOR = Color.parseColor("#000000");
     public static final int DARK_TEXT_COLOR = Color.parseColor("#FFFFFF");
     private static TerminalThemeManager instance;
-    private SharedPreferences preferences;
-    private Context context;
+    private final SharedPreferences preferences;
+    private final Context context;
 
     private TerminalThemeManager(Context context) {
         this.context = context.getApplicationContext();
-        preferences = this.context.getSharedPreferences(TERMINAL_THEME_PREFS, Context.MODE_PRIVATE);
+        preferences = this.context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE);
     }
 
     public static TerminalThemeManager getInstance(Context context) {

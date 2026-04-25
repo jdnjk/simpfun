@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Html;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -652,17 +653,20 @@ public class RechargeFragment extends Fragment {
                 + "我们尽力提供更多的服务器资源，但您应当理解：出于项目预算有限，我们无法承担过多成本。项目设置了全平台范围的每日充值上限，我们不保证您能够进行充值，也不保证您所需配置有足够剩余资源。<br><br>"
                 + "您悉知：<b>充值为您的个人意愿，是您有更高的需求，并非本项目所提倡的。您的充值并不能覆盖服务器运行成本，也不能帮助到我们业务。出于项目预算有限，无法保证您能够进行充值或使用到预期配置的服务器。如果您想支持我们，可考虑变更至 Pro 或直接进行普通充值。</b>";
 
-        MaterialAlertDialogBuilder builder = null;
+        Spanned message;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            builder = new MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("充值前须知")
-                    .setMessage(Html.fromHtml(content, Html.FROM_HTML_MODE_LEGACY))
-                    .setCancelable(false)
-                    .setNegativeButton("取消", null)
-                    .setPositiveButton("已阅并继续 (15s)", null);
+            message = Html.fromHtml(content, Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            message = Html.fromHtml(content);
         }
 
-        androidx.appcompat.app.AlertDialog dialog = builder.create();
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("充值前须知")
+                .setMessage(message)
+                .setCancelable(false)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("已阅并继续 (15s)", null)
+                .create();
         dialog.show();
 
         android.widget.Button positiveButton = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE);
@@ -890,9 +894,29 @@ public class RechargeFragment extends Fragment {
             super.onDestroy();
         }
 
-        private int getPrimaryColor() {
-            return ContextCompat.getColor(requireContext(), R.color.md_theme_primary);
-        }
+    private int getPrimaryColor() {
+        return ContextCompat.getColor(requireContext(), R.color.md_theme_primary);
+    }
+
+    private int getSelectedCardColor() {
+        return ContextCompat.getColor(requireContext(), R.color.md_theme_primaryContainer);
+    }
+
+    private int getDefaultCardColor() {
+        return ContextCompat.getColor(requireContext(), R.color.md_theme_surfaceContainerLowest);
+    }
+
+    private int getSelectedTextColor() {
+        return ContextCompat.getColor(requireContext(), R.color.md_theme_onPrimaryContainer);
+    }
+
+    private int getDefaultTitleColor() {
+        return ContextCompat.getColor(requireContext(), R.color.md_theme_onSurface);
+    }
+
+    private int getDefaultSubtitleColor() {
+        return ContextCompat.getColor(requireContext(), R.color.md_theme_onSurfaceVariant);
+    }
 
         private class TierAdapter extends RecyclerView.Adapter<TierAdapter.VH> {
             @NonNull
@@ -908,8 +932,11 @@ public class RechargeFragment extends Fragment {
                 RechargeMode mode = modes.size() > selectedModeIndex ? modes.get(selectedModeIndex) : null;
                 holder.tvMoney.setText(tier.getPrice(mode != null ? mode.getId() : "") + "元");
                 boolean selected = selectedTierIndex == position;
+                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
                 holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 4 : 0);
+                holder.card.setStrokeWidth(selected ? 2 : 0);
+                holder.tvPoints.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
+                holder.tvMoney.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
                 holder.card.setOnClickListener(v -> {
                     int adapterPosition = holder.getBindingAdapterPosition();
                     if (adapterPosition == RecyclerView.NO_POSITION) return;
@@ -951,8 +978,11 @@ public class RechargeFragment extends Fragment {
                 holder.tvName.setText(mode.getName());
                 holder.tvRule.setText(mode.getRule());
                 boolean selected = selectedModeIndex == position;
+                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
                 holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 4 : 0);
+                holder.card.setStrokeWidth(selected ? 2 : 0);
+                holder.tvName.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
+                holder.tvRule.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
                 holder.card.setOnClickListener(v -> {
                     int adapterPosition = holder.getBindingAdapterPosition();
                     if (adapterPosition == RecyclerView.NO_POSITION) return;
@@ -995,8 +1025,11 @@ public class RechargeFragment extends Fragment {
                 holder.tvTitle.setText(option.getTrafficLabel());
                 holder.tvSubtitle.setText(option.getPointCostLabel());
                 boolean selected = selectedTrafficPackageIndex == position;
+                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
                 holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 4 : 0);
+                holder.card.setStrokeWidth(selected ? 2 : 0);
+                holder.tvTitle.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
+                holder.tvSubtitle.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
                 holder.card.setOnClickListener(v -> {
                     int adapterPosition = holder.getBindingAdapterPosition();
                     if (adapterPosition == RecyclerView.NO_POSITION) return;
@@ -1038,8 +1071,11 @@ public class RechargeFragment extends Fragment {
                 holder.tvName.setText(option.getName());
                 holder.tvRule.setText(option.getDescription());
                 boolean selected = selectedBenefitCardTypeIndex == position;
+                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
                 holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 4 : 0);
+                holder.card.setStrokeWidth(selected ? 2 : 0);
+                holder.tvName.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
+                holder.tvRule.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
                 holder.card.setOnClickListener(v -> {
                     int adapterPosition = holder.getBindingAdapterPosition();
                     if (adapterPosition == RecyclerView.NO_POSITION) return;
@@ -1084,8 +1120,11 @@ public class RechargeFragment extends Fragment {
                 holder.tvTitle.setText(plan.getDaysLabel());
                 holder.tvSubtitle.setText(plan.getPrice(mode != null ? mode.getId() : "") + "元");
                 boolean selected = selectedBenefitCardPlanIndex == position;
+                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
                 holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 4 : 0);
+                holder.card.setStrokeWidth(selected ? 2 : 0);
+                holder.tvTitle.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
+                holder.tvSubtitle.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
                 holder.card.setOnClickListener(v -> {
                     int adapterPosition = holder.getBindingAdapterPosition();
                     if (adapterPosition == RecyclerView.NO_POSITION) return;
@@ -1127,8 +1166,11 @@ public class RechargeFragment extends Fragment {
                 holder.tvName.setText(mode.getName());
                 holder.tvRule.setText(mode.getRule());
                 boolean selected = selectedCardModeIndex == position;
+                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
                 holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 4 : 0);
+                holder.card.setStrokeWidth(selected ? 2 : 0);
+                holder.tvName.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
+                holder.tvRule.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
                 holder.card.setOnClickListener(v -> {
                     int adapterPosition = holder.getBindingAdapterPosition();
                     if (adapterPosition == RecyclerView.NO_POSITION) return;

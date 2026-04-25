@@ -11,6 +11,10 @@ import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
@@ -26,6 +30,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.view.MenuHost;
+import androidx.core.view.MenuProvider;
+import androidx.lifecycle.Lifecycle;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -82,7 +89,6 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
     }
 
     @Nullable
@@ -102,6 +108,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         recyclerViewOutput.setAdapter(terminalAdapter);
 
         applyTerminalColors();
+        setupToolbarAiMenu();
 
         buttonSend.setOnClickListener(v -> sendCommand());
 
@@ -188,44 +195,52 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         }
     }
 
-    @Override
-    public void onCreateOptionsMenu(@NonNull android.view.Menu menu, @NonNull android.view.MenuInflater inflater) {
+    private void setupToolbarAiMenu() {
+        MenuHost menuHost = requireActivity();
+        menuHost.addMenuProvider(new MenuProvider() {
+            @Override
+            public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
+                SubMenu aiMenu = menu.addSubMenu(Menu.NONE, R.id.action_terminal_ai, 0, "AI助手");
+                aiMenu.setIcon(R.drawable.ic_ai_assistant);
+                aiMenu.add(Menu.NONE, R.id.action_ai_history, 0, "AI历史记录");
+                aiMenu.add(Menu.NONE, R.id.action_ai_troubleshoot, 1, "AI疑难解答");
+                aiMenu.add(Menu.NONE, R.id.action_ai_analyze, 2, "AI故障分析");
+                aiMenu.getItem().setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+            }
+
+            @Override
+            public boolean onMenuItemSelected(@NonNull MenuItem item) {
+                return handleAiMenuItem(item.getItemId());
+            }
+        }, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
     }
 
-    @Override
-    public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
-        if (item.getItemId() == R.id.action_ai) {
-            View aiIconView = requireActivity().findViewById(R.id.action_ai);
-            showAiMenu(aiIconView != null ? aiIconView : recyclerViewOutput);
-            return true;
+    private boolean handleAiMenuItem(int itemId) {
+        if (itemId != R.id.action_ai_history
+                && itemId != R.id.action_ai_troubleshoot
+                && itemId != R.id.action_ai_analyze) {
+            return false;
         }
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void showAiMenu(View anchor) {
         if (isAiRequestRunning) {
             Toast.makeText(getContext(), "AI 正在处理中，请稍候", Toast.LENGTH_SHORT).show();
-            return;
+            return true;
         }
 
-        android.widget.PopupMenu popup = new android.widget.PopupMenu(getContext(), anchor);
-        popup.inflate(R.menu.menu_terminal_ai);
-        popup.setOnMenuItemClickListener(item -> {
-            SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
-            int deviceId = sp.getInt("device_id", -1);
-            if (deviceId == -1) return false;
-
-            int itemId = item.getItemId();
-            if (itemId == R.id.action_ai_history) {
-                handleAiHistory(deviceId);
-            } else if (itemId == R.id.action_ai_troubleshoot) {
-                handleAiTroubleshoot(deviceId);
-            } else if (itemId == R.id.action_ai_analyze) {
-                handleAiAnalyze(deviceId);
-            }
+        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        int deviceId = sp.getInt("device_id", -1);
+        if (deviceId == -1) {
+            Toast.makeText(getContext(), "设备信息缺失", Toast.LENGTH_SHORT).show();
             return true;
-        });
-        popup.show();
+        }
+
+        if (itemId == R.id.action_ai_history) {
+            handleAiHistory(deviceId);
+        } else if (itemId == R.id.action_ai_troubleshoot) {
+            handleAiTroubleshoot(deviceId);
+        } else if (itemId == R.id.action_ai_analyze) {
+            handleAiAnalyze(deviceId);
+        }
+        return true;
     }
 
     private void handleAiHistory(int deviceId) {
@@ -582,19 +597,14 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         if (context == null) return false;
         android.net.ConnectivityManager cm = (android.net.ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return false;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            android.net.Network network = cm.getActiveNetwork();
-            if (network == null) return false;
-            android.net.NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
-            return capabilities != null &&
-                    (capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
-                    || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
-                    || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
-                    || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN));
-        } else {
-            android.net.NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-            return activeNetwork != null && activeNetwork.isConnected();
-        }
+        android.net.Network network = cm.getActiveNetwork();
+        if (network == null) return false;
+        android.net.NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+        return capabilities != null &&
+                (capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
+                || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
+                || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN));
     }
 
     private static class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineVH> {

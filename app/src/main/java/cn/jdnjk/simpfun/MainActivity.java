@@ -32,7 +32,6 @@ import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
-import cn.jdnjk.simpfun.ui.setting.SettingsFragment;
 
 public class MainActivity extends AppCompatActivity {
     private JSONArray instanceList;
@@ -91,22 +90,20 @@ public class MainActivity extends AppCompatActivity {
         }
 
         navView.setOnItemSelectedListener(item -> {
-            Fragment fragment = null;
             int itemId = item.getItemId();
             if (itemId == R.id.navigation_server) {
-                fragment = new ServerFragment();
-            } else if (itemId == R.id.navigation_invite) {
-                fragment = new InviteFragment();
-            } else if (itemId == R.id.navigation_profile) {
-                fragment = new ProfileFragment();
-            } else if (itemId == R.id.navigation_settings) {
-                fragment = new SettingsFragment();
-            }
-
-            if (fragment != null) {
-                loadFragment(fragment);
+                loadFragment(new ServerFragment());
                 return true;
             }
+            if (itemId == R.id.navigation_invite) {
+                loadFragment(new InviteFragment());
+                return true;
+            }
+            if (itemId == R.id.navigation_profile) {
+                loadFragment(new ProfileFragment());
+                return true;
+            }
+
             SharedPreferences sp = getSharedPreferences("server_data", Context.MODE_PRIVATE);
             String cachedJson = sp.getString("instance_list", null);
             if (cachedJson != null) {

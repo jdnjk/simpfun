@@ -42,6 +42,7 @@
                 android:id="@+id/button_send"
                 android:layout_width="40dp"
                 android:layout_height="48dp"
+                android:layout_marginStart="8dp"
                 android:contentDescription="发送"
                 app:icon="@drawable/ic_send"
                 app:iconGravity="textStart"/>

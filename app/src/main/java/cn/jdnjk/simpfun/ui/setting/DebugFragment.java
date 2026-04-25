@@ -41,7 +41,7 @@ import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 public class DebugFragment extends Fragment {
 
-    private static final String SP_DEBUG = "debug_settings";
+    private static final String SP_DEBUG = "setting_sp";
     private static final String KEY_BUGLY_ENABLED = "bugly_enabled";
 
     private static final String SP_TOKEN = "token";
