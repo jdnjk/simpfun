@@ -30,7 +30,7 @@ public class BenefitCardPlan {
     }
 
     public String getPrice(String modeId) {
-        return "public".equals(modeId) ? publicMoney : normalMoney;
+        return RechargeMode.MODE_PUBLIC.equals(modeId) ? publicMoney : normalMoney;
     }
 
     public String getDaysLabel() {

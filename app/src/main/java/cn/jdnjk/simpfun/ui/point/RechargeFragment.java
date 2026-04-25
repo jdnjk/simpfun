@@ -5,7 +5,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -23,20 +22,15 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.RadioButton;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.alipay.sdk.app.PayTask;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
 
@@ -52,9 +46,10 @@ import java.util.Locale;
 import java.util.Map;
 
 import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.PayApi;
 import cn.jdnjk.simpfun.api.UserApi;
+import cn.jdnjk.simpfun.api.ins.MainApi;
+import cn.jdnjk.simpfun.databinding.FragmentRechargeLayoutBinding;
 import cn.jdnjk.simpfun.model.BenefitCardPlan;
 import cn.jdnjk.simpfun.model.BenefitCardTypeOption;
 import cn.jdnjk.simpfun.model.RechargeMode;
@@ -64,38 +59,13 @@ import cn.jdnjk.simpfun.utils.DialogUtils;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 
 public class RechargeFragment extends Fragment {
+    private static final String PAY_METHOD_ALIPAY = "ali_pay_1";
+    private static final String PAY_METHOD_WECHAT = "wx_pay_2";
 
-    private TextView tvUsername;
-    private TextView tvUid;
-    private TextView tvCurrentPoint;
-    private TextView tvDoubleSignCard;
-    private TextView tvAutoSignCard;
-    private TabLayout tabCategory;
-    private View layoutRechargePoints;
-    private View layoutRechargeTraffic;
-    private View layoutRechargeCards;
-    private TextView tvUnderConstruction;
-    private RecyclerView recyclerTiers;
-    private RecyclerView recyclerModes;
-    private RecyclerView recyclerTrafficPackages;
-    private RecyclerView recyclerCardTypes;
-    private RecyclerView recyclerCardTiers;
-    private RecyclerView recyclerCardModes;
-    private Spinner spinnerTrafficInstance;
-    private TextView tvTrafficInstanceSummary;
-    private RadioButton radioWechat;
-    private RadioButton radioAlipay;
-    private RadioButton radioWechatCard;
-    private RadioButton radioAlipayCard;
-    private MaterialButton btnPay;
-    private MaterialButton btnBuyTraffic;
-    private MaterialButton btnPayCard;
-    private TextView tvWechatName;
-    private TextView tvAlipayName;
-    private TextView tvWechatNameCard;
-    private TextView tvAlipayNameCard;
-
+    private FragmentRechargeLayoutBinding binding;
     private WebView hiddenPayWebView;
+    private androidx.appcompat.app.AlertDialog publicRechargeNoticeDialog;
+    private androidx.appcompat.app.AlertDialog trafficConfirmDialog;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final PayApi payApi = new PayApi();
 
@@ -109,10 +79,12 @@ public class RechargeFragment extends Fragment {
     private final Map<Integer, Long> instanceRemainBytes = new HashMap<>();
     private final Map<Integer, Boolean> instanceDetailLoading = new HashMap<>();
 
-    private TierAdapter tierAdapter;
-    private ModeAdapter modeAdapter;
-    private BenefitCardPlanAdapter benefitCardPlanAdapter;
-    private CardModeAdapter cardModeAdapter;
+    private RechargeOptionAdapter tierAdapter;
+    private RechargeOptionAdapter modeAdapter;
+    private RechargeOptionAdapter trafficPackageAdapter;
+    private RechargeOptionAdapter benefitCardTypeAdapter;
+    private RechargeOptionAdapter benefitCardPlanAdapter;
+    private RechargeOptionAdapter cardModeAdapter;
     private ArrayAdapter<String> trafficInstanceAdapter;
 
     private int selectedTierIndex = 0;
@@ -122,56 +94,27 @@ public class RechargeFragment extends Fragment {
     private int selectedBenefitCardTypeIndex = 0;
     private int selectedBenefitCardPlanIndex = 0;
     private int selectedCardModeIndex = 0;
-    private String selectedPaymentMethod = "ali_pay_1";
+    private String selectedPaymentMethod = PAY_METHOD_ALIPAY;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_recharge_layout, container, false);
+        binding = FragmentRechargeLayoutBinding.inflate(inflater, container, false);
 
-        bindViews(view);
         initTrafficPackages();
         initBenefitCardTypes();
         setupTabs();
         setupRecyclers();
         setupTrafficSelector();
-        setupListeners(view);
+        setupListeners();
         initHiddenPayWebView();
         fetchData();
 
-        return view;
+        return binding.getRoot();
     }
 
-    private void bindViews(View view) {
-        tvUsername = view.findViewById(R.id.tv_username);
-        tvUid = view.findViewById(R.id.tv_uid);
-        tvCurrentPoint = view.findViewById(R.id.tv_current_point);
-        tvDoubleSignCard = view.findViewById(R.id.tv_double_sign_card);
-        tvAutoSignCard = view.findViewById(R.id.tv_auto_sign_card);
-        tabCategory = view.findViewById(R.id.tab_category);
-        layoutRechargePoints = view.findViewById(R.id.layout_recharge_points);
-        layoutRechargeTraffic = view.findViewById(R.id.layout_recharge_traffic);
-        layoutRechargeCards = view.findViewById(R.id.layout_recharge_cards);
-        tvUnderConstruction = view.findViewById(R.id.tv_under_construction);
-        recyclerTiers = view.findViewById(R.id.recycler_tiers);
-        recyclerModes = view.findViewById(R.id.recycler_modes);
-        recyclerTrafficPackages = view.findViewById(R.id.recycler_traffic_packages);
-        recyclerCardTypes = view.findViewById(R.id.recycler_card_types);
-        recyclerCardTiers = view.findViewById(R.id.recycler_card_tiers);
-        recyclerCardModes = view.findViewById(R.id.recycler_card_modes);
-        spinnerTrafficInstance = view.findViewById(R.id.spinner_traffic_instance);
-        tvTrafficInstanceSummary = view.findViewById(R.id.tv_traffic_instance_summary);
-        radioWechat = view.findViewById(R.id.radio_wechat);
-        radioAlipay = view.findViewById(R.id.radio_alipay);
-        radioWechatCard = view.findViewById(R.id.radio_wechat_card);
-        radioAlipayCard = view.findViewById(R.id.radio_alipay_card);
-        btnPay = view.findViewById(R.id.btn_pay);
-        btnBuyTraffic = view.findViewById(R.id.btn_buy_traffic);
-        btnPayCard = view.findViewById(R.id.btn_pay_card);
-        tvWechatName = view.findViewById(R.id.tv_wechat_name);
-        tvAlipayName = view.findViewById(R.id.tv_alipay_name);
-        tvWechatNameCard = view.findViewById(R.id.tv_wechat_name_card);
-        tvAlipayNameCard = view.findViewById(R.id.tv_alipay_name_card);
+    private boolean isViewAlive() {
+        return binding != null && isAdded();
     }
 
     private void initTrafficPackages() {
@@ -192,14 +135,15 @@ public class RechargeFragment extends Fragment {
     }
 
     private void setupTabs() {
-        tabCategory.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+        binding.tabCategory.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
+                if (!isViewAlive()) return;
                 int position = tab.getPosition();
-                layoutRechargePoints.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
-                layoutRechargeTraffic.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
-                layoutRechargeCards.setVisibility(position == 2 ? View.VISIBLE : View.GONE);
-                tvUnderConstruction.setVisibility(View.GONE);
+                binding.layoutRechargePoints.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
+                binding.layoutRechargeTraffic.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
+                binding.layoutRechargeCards.setVisibility(position == 2 ? View.VISIBLE : View.GONE);
+                binding.tvUnderConstruction.setVisibility(View.GONE);
             }
 
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
@@ -208,37 +152,66 @@ public class RechargeFragment extends Fragment {
     }
 
     private void setupRecyclers() {
-        recyclerTiers.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        tierAdapter = new TierAdapter();
-        recyclerTiers.setAdapter(tierAdapter);
+        binding.recyclerTiers.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        tierAdapter = new RechargeOptionAdapter(R.layout.item_recharge_tier, R.id.tv_tier_points, R.id.tv_tier_money, position -> {
+            selectedTierIndex = position;
+            updatePointPayButtonText();
+        });
+        binding.recyclerTiers.setAdapter(tierAdapter);
 
-        recyclerModes.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        modeAdapter = new ModeAdapter();
-        recyclerModes.setAdapter(modeAdapter);
+        binding.recyclerModes.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        modeAdapter = new RechargeOptionAdapter(R.layout.item_recharge_mode, R.id.tv_mode_name, R.id.tv_mode_rule, position -> {
+            selectedModeIndex = position;
+            refreshPointTierRows();
+            updatePointPayButtonText();
+        });
+        binding.recyclerModes.setAdapter(modeAdapter);
 
-        recyclerTrafficPackages.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        TrafficPackageAdapter trafficPackageAdapter = new TrafficPackageAdapter();
-        recyclerTrafficPackages.setAdapter(trafficPackageAdapter);
+        binding.recyclerTrafficPackages.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        trafficPackageAdapter = new RechargeOptionAdapter(R.layout.item_recharge_tier, R.id.tv_tier_points, R.id.tv_tier_money, position -> {
+            selectedTrafficPackageIndex = position;
+            updateTrafficBuyButtonText();
+        });
+        binding.recyclerTrafficPackages.setAdapter(trafficPackageAdapter);
 
-        recyclerCardTypes.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        BenefitCardTypeAdapter benefitCardTypeAdapter = new BenefitCardTypeAdapter();
-        recyclerCardTypes.setAdapter(benefitCardTypeAdapter);
+        binding.recyclerCardTypes.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        benefitCardTypeAdapter = new RechargeOptionAdapter(R.layout.item_recharge_mode, R.id.tv_mode_name, R.id.tv_mode_rule, position -> {
+            selectedBenefitCardTypeIndex = position;
+            selectedBenefitCardPlanIndex = 0;
+            refreshVisibleBenefitCardPlans();
+            updateCardPayButtonText();
+        });
+        binding.recyclerCardTypes.setAdapter(benefitCardTypeAdapter);
 
-        recyclerCardTiers.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        benefitCardPlanAdapter = new BenefitCardPlanAdapter();
-        recyclerCardTiers.setAdapter(benefitCardPlanAdapter);
+        binding.recyclerCardTiers.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        benefitCardPlanAdapter = new RechargeOptionAdapter(R.layout.item_recharge_tier, R.id.tv_tier_points, R.id.tv_tier_money, position -> {
+            selectedBenefitCardPlanIndex = position;
+            updateCardPayButtonText();
+        });
+        binding.recyclerCardTiers.setAdapter(benefitCardPlanAdapter);
 
-        recyclerCardModes.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        cardModeAdapter = new CardModeAdapter();
-        recyclerCardModes.setAdapter(cardModeAdapter);
+        binding.recyclerCardModes.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        cardModeAdapter = new RechargeOptionAdapter(R.layout.item_recharge_mode, R.id.tv_mode_name, R.id.tv_mode_rule, position -> {
+            selectedCardModeIndex = position;
+            refreshBenefitCardPlanRows();
+            updateCardPayButtonText();
+        });
+        binding.recyclerCardModes.setAdapter(cardModeAdapter);
+
+        refreshPointTierRows();
+        refreshPointModeRows();
+        refreshTrafficPackageRows();
+        refreshBenefitCardTypeRows();
+        refreshVisibleBenefitCardPlans();
+        refreshCardModeRows();
     }
 
     private void setupTrafficSelector() {
-        if (getContext() == null) return;
+        if (!isViewAlive()) return;
         trafficInstanceAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, new ArrayList<>());
         trafficInstanceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerTrafficInstance.setAdapter(trafficInstanceAdapter);
-        spinnerTrafficInstance.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        binding.spinnerTrafficInstance.setAdapter(trafficInstanceAdapter);
+        binding.spinnerTrafficInstance.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedInstanceIndex = position;
@@ -256,14 +229,14 @@ public class RechargeFragment extends Fragment {
         });
     }
 
-    private void setupListeners(View view) {
-        view.findViewById(R.id.btn_wechat_pay).setOnClickListener(v -> selectPaymentMethod("wx_pay_2"));
-        view.findViewById(R.id.btn_alipay).setOnClickListener(v -> selectPaymentMethod("ali_pay_1"));
-        view.findViewById(R.id.btn_wechat_pay_card).setOnClickListener(v -> selectPaymentMethod("wx_pay_2"));
-        view.findViewById(R.id.btn_alipay_card).setOnClickListener(v -> selectPaymentMethod("ali_pay_1"));
-        btnPay.setOnClickListener(v -> createPointOrder());
-        btnBuyTraffic.setOnClickListener(v -> buyTrafficPackage());
-        btnPayCard.setOnClickListener(v -> createBenefitCardOrder());
+    private void setupListeners() {
+        binding.btnWechatPay.setOnClickListener(v -> selectPaymentMethod(PAY_METHOD_WECHAT));
+        binding.btnAlipay.setOnClickListener(v -> selectPaymentMethod(PAY_METHOD_ALIPAY));
+        binding.btnWechatPayCard.setOnClickListener(v -> selectPaymentMethod(PAY_METHOD_WECHAT));
+        binding.btnAlipayCard.setOnClickListener(v -> selectPaymentMethod(PAY_METHOD_ALIPAY));
+        binding.btnPay.setOnClickListener(v -> createPointOrder());
+        binding.btnBuyTraffic.setOnClickListener(v -> buyTrafficPackage());
+        binding.btnPayCard.setOnClickListener(v -> createBenefitCardOrder());
     }
 
     private void selectPaymentMethod(String method) {
@@ -272,12 +245,13 @@ public class RechargeFragment extends Fragment {
     }
 
     private void updatePaymentSelection() {
-        boolean alipay = "ali_pay_1".equals(selectedPaymentMethod);
-        boolean wechat = "wx_pay_2".equals(selectedPaymentMethod);
-        radioAlipay.setChecked(alipay);
-        radioWechat.setChecked(wechat);
-        radioAlipayCard.setChecked(alipay);
-        radioWechatCard.setChecked(wechat);
+        if (!isViewAlive()) return;
+        boolean alipay = PAY_METHOD_ALIPAY.equals(selectedPaymentMethod);
+        boolean wechat = PAY_METHOD_WECHAT.equals(selectedPaymentMethod);
+        binding.radioAlipay.setChecked(alipay);
+        binding.radioWechat.setChecked(wechat);
+        binding.radioAlipayCard.setChecked(alipay);
+        binding.radioWechatCard.setChecked(wechat);
     }
 
     private void fetchData() {
@@ -289,6 +263,7 @@ public class RechargeFragment extends Fragment {
         payApi.getRechargeMeta(token, new PayApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
+                if (!isViewAlive()) return;
                 if (data.optInt("code") == 200) {
                     JSONObject resultData = data.optJSONObject("data");
                     if (resultData != null) {
@@ -307,39 +282,40 @@ public class RechargeFragment extends Fragment {
     }
 
     private void fetchInstances(String token) {
-        if (getContext() == null) return;
-        new UserApi(requireContext()).getInstanceList(token, new UserApi.InstanceCallback() {
+        if (!isViewAlive()) return;
+        new UserApi(requireContext().getApplicationContext()).getInstanceList(token, new UserApi.InstanceCallback() {
             @Override
             public void onSuccess(JSONObject data) {
+                if (!isViewAlive()) return;
                 updateInstances(data.optJSONArray("list"));
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 Log.e("RechargeFragment", "fetchInstances failed: " + errorMsg);
+                if (!isViewAlive()) return;
                 updateInstances(null);
-                tvTrafficInstanceSummary.setText("实例列表加载失败");
+                binding.tvTrafficInstanceSummary.setText("实例列表加载失败");
             }
         });
     }
 
     private void updateRechargeMetaUI(JSONObject data) {
+        if (!isViewAlive()) return;
         try {
             JSONObject user = data.optJSONObject("user");
             if (user != null) {
-                tvUid.setText("UID: " + user.optInt("uid"));
-                tvCurrentPoint.setText("当前积分: " + user.optInt("point"));
+                binding.tvUid.setText("UID: " + user.optInt("uid"));
+                binding.tvCurrentPoint.setText("当前积分: " + user.optInt("point"));
 
-                if (getContext() != null) {
-                    SharedPreferences userInfoSp = getContext().getSharedPreferences("user_info", Context.MODE_PRIVATE);
-                    tvUsername.setText(userInfoSp.getString("username", "用户"));
-                }
+                SharedPreferences userInfoSp = requireContext().getSharedPreferences("user_info", Context.MODE_PRIVATE);
+                binding.tvUsername.setText(userInfoSp.getString("username", "用户"));
 
-                bindCardStatus(tvDoubleSignCard,
+                bindCardStatus(binding.tvDoubleSignCard,
                         user.optLong("double_sign_card_valid_time", 0),
                         user.optBoolean("double_sign_card_is_valid", false),
                         "双倍积分卡");
-                bindCardStatus(tvAutoSignCard,
+                bindCardStatus(binding.tvAutoSignCard,
                         user.optLong("auto_sign_card_valid_time", 0),
                         user.optBoolean("auto_sign_card_is_valid", false),
                         "自动签到卡");
@@ -360,19 +336,19 @@ public class RechargeFragment extends Fragment {
     }
 
     private void bindChannelNames(@Nullable JSONArray channels) {
-        if (channels == null) return;
+        if (!isViewAlive() || channels == null) return;
         for (int i = 0; i < channels.length(); i++) {
             JSONObject c = channels.optJSONObject(i);
             if (c == null) continue;
             String id = c.optString("id");
             String name = c.optString("name");
-            if ("wx_pay_2".equals(id)) {
-                tvWechatName.setText(name);
-                tvWechatNameCard.setText(name);
+            if (PAY_METHOD_WECHAT.equals(id)) {
+                binding.tvWechatName.setText(name);
+                binding.tvWechatNameCard.setText(name);
             }
-            if ("ali_pay_1".equals(id)) {
-                tvAlipayName.setText(name);
-                tvAlipayNameCard.setText(name);
+            if (PAY_METHOD_ALIPAY.equals(id)) {
+                binding.tvAlipayName.setText(name);
+                binding.tvAlipayNameCard.setText(name);
             }
         }
     }
@@ -393,7 +369,7 @@ public class RechargeFragment extends Fragment {
             }
         }
         if (selectedTierIndex >= tiers.size()) selectedTierIndex = 0;
-        tierAdapter.notifyDataSetChanged();
+        refreshPointTierRows();
     }
 
     private void parseRechargeModes(JSONObject data) {
@@ -402,11 +378,11 @@ public class RechargeFragment extends Fragment {
         if (rechargeModes != null) {
             JSONObject pub = rechargeModes.optJSONObject("public_recharge");
             if (pub != null) {
-                modes.add(new RechargeMode("public", pub.optString("name"), pub.optString("rule")));
+                modes.add(new RechargeMode(RechargeMode.MODE_PUBLIC, pub.optString("name"), pub.optString("rule")));
             }
             JSONObject pro = rechargeModes.optJSONObject("pro_recharge");
             if (pro != null) {
-                modes.add(new RechargeMode("normal", pro.optString("name"), pro.optString("rule")));
+                modes.add(new RechargeMode(RechargeMode.MODE_NORMAL, pro.optString("name"), pro.optString("rule")));
             }
         }
         if (!modes.isEmpty()) {
@@ -414,8 +390,10 @@ public class RechargeFragment extends Fragment {
             selectedModeIndex = defaultIndex;
             selectedCardModeIndex = defaultIndex;
         }
-        modeAdapter.notifyDataSetChanged();
-        cardModeAdapter.notifyDataSetChanged();
+        refreshPointModeRows();
+        refreshCardModeRows();
+        refreshPointTierRows();
+        refreshBenefitCardPlanRows();
     }
 
     private void parseBenefitCardPlans(JSONObject data) {
@@ -461,7 +439,7 @@ public class RechargeFragment extends Fragment {
         if (selectedBenefitCardPlanIndex >= visibleBenefitCardPlans.size()) {
             selectedBenefitCardPlanIndex = 0;
         }
-        benefitCardPlanAdapter.notifyDataSetChanged();
+        refreshBenefitCardPlanRows();
     }
 
     private void bindCardStatus(TextView view, long validTimeSeconds, boolean valid, String title) {
@@ -499,42 +477,43 @@ public class RechargeFragment extends Fragment {
     }
 
     private void bindInstanceAdapter() {
-        if (trafficInstanceAdapter == null) return;
+        if (!isViewAlive() || trafficInstanceAdapter == null) return;
         trafficInstanceAdapter.clear();
         for (InstanceOption option : instanceOptions) {
             trafficInstanceAdapter.add(option.getDisplayLabel());
         }
         trafficInstanceAdapter.notifyDataSetChanged();
-        spinnerTrafficInstance.setEnabled(!instanceOptions.isEmpty());
+        binding.spinnerTrafficInstance.setEnabled(!instanceOptions.isEmpty());
         if (!instanceOptions.isEmpty() && selectedInstanceIndex >= 0 && selectedInstanceIndex < instanceOptions.size()) {
-            spinnerTrafficInstance.setSelection(selectedInstanceIndex, false);
+            binding.spinnerTrafficInstance.setSelection(selectedInstanceIndex, false);
         }
     }
 
     private void updateTrafficInstanceSummary() {
+        if (!isViewAlive()) return;
         if (instanceOptions.isEmpty() || selectedInstanceIndex < 0 || selectedInstanceIndex >= instanceOptions.size()) {
-            tvTrafficInstanceSummary.setText("暂无可选实例，请先创建服务器实例");
+            binding.tvTrafficInstanceSummary.setText("暂无可选实例，请先创建服务器实例");
             return;
         }
         InstanceOption option = instanceOptions.get(selectedInstanceIndex);
         Long remainBytes = instanceRemainBytes.get(option.getId());
         Boolean loading = instanceDetailLoading.get(option.getId());
         if (Boolean.TRUE.equals(loading)) {
-            tvTrafficInstanceSummary.setText("已选择实例：" + option.getName() + "（ID: " + option.getId() + "） · 正在获取剩余流量...");
+            binding.tvTrafficInstanceSummary.setText("已选择实例：" + option.getName() + "（ID: " + option.getId() + "） · 正在获取剩余流量...");
             return;
         }
         if (remainBytes != null && remainBytes >= 0) {
-            tvTrafficInstanceSummary.setText("已选择实例：" + option.getName() + "（ID: " + option.getId() + "） · 剩余流量 " + formatTrafficBytes(remainBytes));
+            binding.tvTrafficInstanceSummary.setText("已选择实例：" + option.getName() + "（ID: " + option.getId() + "） · 剩余流量 " + formatTrafficBytes(remainBytes));
             return;
         }
-        tvTrafficInstanceSummary.setText("已选择实例：" + option.getName() + "（ID: " + option.getId() + "）");
+        binding.tvTrafficInstanceSummary.setText("已选择实例：" + option.getName() + "（ID: " + option.getId() + "）");
     }
 
     private void requestSelectedInstanceDetail() {
-        if (getActivity() == null || selectedInstanceIndex < 0 || selectedInstanceIndex >= instanceOptions.size()) {
+        if (!isViewAlive() || selectedInstanceIndex < 0 || selectedInstanceIndex >= instanceOptions.size()) {
             return;
         }
-        String token = getActivity().getSharedPreferences("token", Context.MODE_PRIVATE).getString("token", "");
+        String token = requireActivity().getSharedPreferences("token", Context.MODE_PRIVATE).getString("token", "");
         if (token.isEmpty()) {
             return;
         }
@@ -556,20 +535,22 @@ public class RechargeFragment extends Fragment {
             @Override
             public void onSuccess(JSONObject data) {
                 instanceDetailLoading.remove(option.getId());
-                InstanceDetailStore.getInstance().put(option.getId(), data);
+                if (!isViewAlive()) return;
                 applyInstanceDetail(option.getId(), data);
             }
 
             @Override
             public void onFailure(String errorMsg) {
-                instanceDetailLoading.remove(option.getId());
                 Log.e("RechargeFragment", "getInstanceDetail failed: " + errorMsg);
+                instanceDetailLoading.remove(option.getId());
+                if (!isViewAlive()) return;
                 updateTrafficInstanceSummary();
             }
         });
     }
 
     private void applyInstanceDetail(int deviceId, JSONObject data) {
+        if (!isViewAlive()) return;
         JSONObject detail = data.optJSONObject("data");
         JSONObject traffic = detail != null ? detail.optJSONObject("traffic") : null;
         if (traffic != null) {
@@ -587,42 +568,45 @@ public class RechargeFragment extends Fragment {
     }
 
     private void updatePointPayButtonText() {
+        if (!isViewAlive()) return;
         if (tiers.isEmpty() || selectedTierIndex >= tiers.size()) {
-            btnPay.setText("立即支付 0元");
+            binding.btnPay.setText("立即支付 0元");
             return;
         }
         RechargeTier tier = tiers.get(selectedTierIndex);
         RechargeMode mode = modes.size() > selectedModeIndex ? modes.get(selectedModeIndex) : null;
-        btnPay.setText("立即支付 " + tier.getPrice(mode != null ? mode.getId() : "") + "元");
+        binding.btnPay.setText("立即支付 " + tier.getPrice(mode != null ? mode.getId() : "") + "元");
     }
 
     private void updateTrafficBuyButtonText() {
+        if (!isViewAlive()) return;
         if (trafficPackages.isEmpty() || selectedTrafficPackageIndex >= trafficPackages.size()) {
-            btnBuyTraffic.setText("立即购买 0积分");
-            btnBuyTraffic.setEnabled(false);
+            binding.btnBuyTraffic.setText("立即购买 0积分");
+            binding.btnBuyTraffic.setEnabled(false);
             return;
         }
         TrafficPackageOption option = trafficPackages.get(selectedTrafficPackageIndex);
-        btnBuyTraffic.setText("立即购买 " + option.getPointCost() + "积分");
-        btnBuyTraffic.setEnabled(!instanceOptions.isEmpty() && selectedInstanceIndex >= 0);
+        binding.btnBuyTraffic.setText("立即购买 " + option.getPointCost() + "积分");
+        binding.btnBuyTraffic.setEnabled(!instanceOptions.isEmpty() && selectedInstanceIndex >= 0);
     }
 
     private void updateCardPayButtonText() {
+        if (!isViewAlive()) return;
         if (visibleBenefitCardPlans.isEmpty() || selectedBenefitCardPlanIndex >= visibleBenefitCardPlans.size()) {
-            btnPayCard.setText("立即支付 0元");
+            binding.btnPayCard.setText("立即支付 0元");
             return;
         }
         BenefitCardPlan plan = visibleBenefitCardPlans.get(selectedBenefitCardPlanIndex);
         RechargeMode mode = modes.size() > selectedCardModeIndex ? modes.get(selectedCardModeIndex) : null;
-        btnPayCard.setText("立即支付 " + plan.getPrice(mode != null ? mode.getId() : "") + "元");
+        binding.btnPayCard.setText("立即支付 " + plan.getPrice(mode != null ? mode.getId() : "") + "元");
     }
 
     private void createPointOrder() {
-        if (getActivity() == null || tiers.isEmpty() || modes.isEmpty()) return;
+        if (!isViewAlive() || tiers.isEmpty() || modes.isEmpty()) return;
 
         RechargeMode mode = modes.get(selectedModeIndex);
         Runnable action = this::executePointOrder;
-        if ("public".equals(mode.getId())) {
+        if (RechargeMode.MODE_PUBLIC.equals(mode.getId())) {
             showPublicRechargeNotice(action);
         } else {
             action.run();
@@ -630,11 +614,11 @@ public class RechargeFragment extends Fragment {
     }
 
     private void createBenefitCardOrder() {
-        if (getActivity() == null || visibleBenefitCardPlans.isEmpty() || modes.isEmpty()) return;
+        if (!isViewAlive() || visibleBenefitCardPlans.isEmpty() || modes.isEmpty()) return;
 
         RechargeMode mode = modes.get(selectedCardModeIndex);
         Runnable action = this::executeBenefitCardOrder;
-        if ("public".equals(mode.getId())) {
+        if (RechargeMode.MODE_PUBLIC.equals(mode.getId())) {
             showPublicRechargeNotice(action);
         } else {
             action.run();
@@ -642,6 +626,7 @@ public class RechargeFragment extends Fragment {
     }
 
     private void showPublicRechargeNotice(Runnable onConfirm) {
+        if (!isViewAlive()) return;
         String content = "（下滑查看更多）<br><br>"
                 + "简幻欢目前仍为公益项目，<b>并非以盈利为目的</b>，初衷是给广大用户提供一个<b>「好用」</b>的服务器平台，达成<b>「人人都可免费开属于自己的服务器」</b>的目标。<br><br>"
                 + "然而在项目实际运行时，发现：<br>"
@@ -667,15 +652,18 @@ public class RechargeFragment extends Fragment {
                 .setNegativeButton("取消", null)
                 .setPositiveButton("已阅并继续 (15s)", null)
                 .create();
+        publicRechargeNoticeDialog = dialog;
         dialog.show();
 
         android.widget.Button positiveButton = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE);
         positiveButton.setEnabled(false);
 
         final int[] countdown = {15};
-        Runnable runnable = new Runnable() {
+        final Runnable[] countdownRunnable = new Runnable[1];
+        countdownRunnable[0] = new Runnable() {
             @Override
             public void run() {
+                if (!isViewAlive()) return;
                 if (countdown[0] > 0) {
                     countdown[0]--;
                     positiveButton.setText("已阅并继续 (" + countdown[0] + "s)");
@@ -690,12 +678,19 @@ public class RechargeFragment extends Fragment {
                 }
             }
         };
-        mainHandler.postDelayed(runnable, 1000);
+        dialog.setOnDismissListener(d -> {
+            mainHandler.removeCallbacks(countdownRunnable[0]);
+            if (publicRechargeNoticeDialog == dialog) {
+                publicRechargeNoticeDialog = null;
+            }
+        });
+        mainHandler.postDelayed(countdownRunnable[0], 1000);
     }
 
     private void executePointOrder() {
-        btnPay.setEnabled(false);
-        btnPay.setText("请求中...");
+        if (!isViewAlive()) return;
+        binding.btnPay.setEnabled(false);
+        binding.btnPay.setText("请求中...");
 
         RechargeTier tier = tiers.get(selectedTierIndex);
         RechargeMode mode = modes.get(selectedModeIndex);
@@ -706,21 +701,24 @@ public class RechargeFragment extends Fragment {
         payApi.createOrder(token, "point", tier.getPoint(), selectedPaymentMethod, mode.getId(), new PayApi.Callback() {
             @Override
             public void onSuccess(JSONObject json) {
-                handlePayOrderResponse(json, btnPay, RechargeFragment.this::updatePointPayButtonText);
+                if (!isViewAlive()) return;
+                handlePayOrderResponse(json, binding.btnPay, RechargeFragment.this::updatePointPayButtonText);
             }
 
             @Override
             public void onFailure(String errorMsg) {
+                if (!isViewAlive()) return;
                 showToast("请求失败: " + errorMsg);
-                btnPay.setEnabled(true);
+                binding.btnPay.setEnabled(true);
                 updatePointPayButtonText();
             }
         });
     }
 
     private void executeBenefitCardOrder() {
-        btnPayCard.setEnabled(false);
-        btnPayCard.setText("请求中...");
+        if (!isViewAlive()) return;
+        binding.btnPayCard.setEnabled(false);
+        binding.btnPayCard.setText("请求中...");
 
         BenefitCardPlan plan = visibleBenefitCardPlans.get(selectedBenefitCardPlanIndex);
         RechargeMode mode = modes.get(selectedCardModeIndex);
@@ -731,22 +729,25 @@ public class RechargeFragment extends Fragment {
         payApi.createOrder(token, plan.getItemId(), plan.getDays(), selectedPaymentMethod, mode.getId(), new PayApi.Callback() {
             @Override
             public void onSuccess(JSONObject json) {
-                handlePayOrderResponse(json, btnPayCard, RechargeFragment.this::updateCardPayButtonText);
+                if (!isViewAlive()) return;
+                handlePayOrderResponse(json, binding.btnPayCard, RechargeFragment.this::updateCardPayButtonText);
             }
 
             @Override
             public void onFailure(String errorMsg) {
+                if (!isViewAlive()) return;
                 showToast("请求失败: " + errorMsg);
-                btnPayCard.setEnabled(true);
+                binding.btnPayCard.setEnabled(true);
                 updateCardPayButtonText();
             }
         });
     }
 
     private void handlePayOrderResponse(JSONObject json, MaterialButton button, Runnable resetAction) {
+        if (!isViewAlive()) return;
         if (json.optInt("code") == 200) {
             String url = json.optString("url");
-            if ("ali_pay_1".equals(selectedPaymentMethod)) {
+            if (PAY_METHOD_ALIPAY.equals(selectedPaymentMethod)) {
                 if (hiddenPayWebView != null) hiddenPayWebView.loadUrl(url);
             } else {
                 copyToClipboard(url);
@@ -760,7 +761,7 @@ public class RechargeFragment extends Fragment {
     }
 
     private void buyTrafficPackage() {
-        if (getActivity() == null || instanceOptions.isEmpty() || selectedInstanceIndex < 0 || selectedInstanceIndex >= instanceOptions.size()) {
+        if (!isViewAlive() || instanceOptions.isEmpty() || selectedInstanceIndex < 0 || selectedInstanceIndex >= instanceOptions.size()) {
             showToast("请先选择需要购买流量的实例");
             return;
         }
@@ -775,6 +776,7 @@ public class RechargeFragment extends Fragment {
     }
 
     private void showTrafficConfirmDialog(InstanceOption instance, TrafficPackageOption option) {
+        if (!isViewAlive()) return;
         StringBuilder message = new StringBuilder()
                 .append("将为以下实例购买流量包：\n\n")
                 .append(instance.getName())
@@ -797,17 +799,25 @@ public class RechargeFragment extends Fragment {
                 .append("\n\n")
                 .append("确认继续吗？");
 
-        new MaterialAlertDialogBuilder(requireContext())
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("确认购买流量")
                 .setMessage(message.toString())
                 .setNegativeButton("取消", null)
-                .setPositiveButton("确认购买", (dialog, which) -> executeBuyTrafficPackage(instance, option))
-                .show();
+                .setPositiveButton("确认购买", (dialogInterface, which) -> executeBuyTrafficPackage(instance, option))
+                .create();
+        trafficConfirmDialog = dialog;
+        dialog.setOnDismissListener(d -> {
+            if (trafficConfirmDialog == dialog) {
+                trafficConfirmDialog = null;
+            }
+        });
+        dialog.show();
     }
 
     private void executeBuyTrafficPackage(InstanceOption instance, TrafficPackageOption option) {
-        btnBuyTraffic.setEnabled(false);
-        btnBuyTraffic.setText("请求中...");
+        if (!isViewAlive()) return;
+        binding.btnBuyTraffic.setEnabled(false);
+        binding.btnBuyTraffic.setText("请求中...");
 
         String token = requireActivity()
                 .getSharedPreferences("token", Context.MODE_PRIVATE)
@@ -816,16 +826,18 @@ public class RechargeFragment extends Fragment {
         payApi.buyTrafficPackage(token, instance.getId(), option.getTraffic(), new PayApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
+                if (!isViewAlive()) return;
                 showToast(data.optString("msg", "购买流量成功"));
                 fetchData();
-                btnBuyTraffic.setEnabled(true);
+                binding.btnBuyTraffic.setEnabled(true);
                 updateTrafficBuyButtonText();
             }
 
             @Override
             public void onFailure(String errorMsg) {
+                if (!isViewAlive()) return;
                 showToast(errorMsg);
-                btnBuyTraffic.setEnabled(true);
+                binding.btnBuyTraffic.setEnabled(true);
                 updateTrafficBuyButtonText();
             }
         });
@@ -840,7 +852,7 @@ public class RechargeFragment extends Fragment {
     }
 
     private void showToast(String msg) {
-        if (getContext() == null) return;
+        if (!isAdded() || getContext() == null) return;
         DialogUtils.showMessageDialog(getContext(), "提示", msg);
     }
 
@@ -861,365 +873,173 @@ public class RechargeFragment extends Fragment {
         });
     }
 
-        private boolean handlePayUrl(WebView view, @Nullable String url) {
-            if (url == null) return false;
-            if (url.startsWith("http") || url.startsWith("https")) {
-                if (getActivity() == null) {
-                    view.loadUrl(url);
-                    return true;
-                }
-                final PayTask task = new PayTask(getActivity());
-                boolean isIntercepted = task.payInterceptorWithUrl(url, true, result -> {
-                    String returnUrl = result.getReturnUrl();
-                    if (!TextUtils.isEmpty(returnUrl)) {
-                        mainHandler.post(() -> view.loadUrl(returnUrl));
-                    }
-                });
-                if (!isIntercepted) view.loadUrl(url);
+    private boolean handlePayUrl(WebView view, @Nullable String url) {
+        if (url == null) return false;
+        if (url.startsWith("http") || url.startsWith("https")) {
+            if (getActivity() == null) {
+                view.loadUrl(url);
                 return true;
             }
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-            } catch (Exception ignored) {
-            }
+            final PayTask task = new PayTask(getActivity());
+            boolean isIntercepted = task.payInterceptorWithUrl(url, true, result -> {
+                String returnUrl = result.getReturnUrl();
+                if (!TextUtils.isEmpty(returnUrl)) {
+                    mainHandler.post(() -> {
+                        if (hiddenPayWebView == view) {
+                            view.loadUrl(returnUrl);
+                        }
+                    });
+                }
+            });
+            if (!isIntercepted) view.loadUrl(url);
             return true;
         }
-
-        @Override
-        public void onDestroy() {
-            if (hiddenPayWebView != null) {
-                hiddenPayWebView.destroy();
-                hiddenPayWebView = null;
+        try {
+            if (isAdded()) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             }
-            super.onDestroy();
+        } catch (Exception ignored) {
         }
-
-    private int getPrimaryColor() {
-        return ContextCompat.getColor(requireContext(), R.color.md_theme_primary);
+        return true;
     }
 
-    private int getSelectedCardColor() {
-        return ContextCompat.getColor(requireContext(), R.color.md_theme_primaryContainer);
+    @Override
+    public void onDestroyView() {
+        mainHandler.removeCallbacksAndMessages(null);
+        if (publicRechargeNoticeDialog != null) {
+            publicRechargeNoticeDialog.dismiss();
+            publicRechargeNoticeDialog = null;
+        }
+        if (trafficConfirmDialog != null) {
+            trafficConfirmDialog.dismiss();
+            trafficConfirmDialog = null;
+        }
+        if (hiddenPayWebView != null) {
+            hiddenPayWebView.setWebViewClient(null);
+            hiddenPayWebView.destroy();
+            hiddenPayWebView = null;
+        }
+        if (binding != null) {
+            binding.recyclerTiers.setAdapter(null);
+            binding.recyclerModes.setAdapter(null);
+            binding.recyclerTrafficPackages.setAdapter(null);
+            binding.recyclerCardTypes.setAdapter(null);
+            binding.recyclerCardTiers.setAdapter(null);
+            binding.recyclerCardModes.setAdapter(null);
+            binding.spinnerTrafficInstance.setOnItemSelectedListener(null);
+            binding.spinnerTrafficInstance.setAdapter(null);
+            binding = null;
+        }
+        tierAdapter = null;
+        modeAdapter = null;
+        trafficPackageAdapter = null;
+        benefitCardTypeAdapter = null;
+        benefitCardPlanAdapter = null;
+        cardModeAdapter = null;
+        trafficInstanceAdapter = null;
+        super.onDestroyView();
     }
 
-    private int getDefaultCardColor() {
-        return ContextCompat.getColor(requireContext(), R.color.md_theme_surfaceContainerLowest);
-    }
-
-    private int getSelectedTextColor() {
-        return ContextCompat.getColor(requireContext(), R.color.md_theme_onPrimaryContainer);
-    }
-
-    private int getDefaultTitleColor() {
-        return ContextCompat.getColor(requireContext(), R.color.md_theme_onSurface);
-    }
-
-    private int getDefaultSubtitleColor() {
-        return ContextCompat.getColor(requireContext(), R.color.md_theme_onSurfaceVariant);
-    }
-
-        private class TierAdapter extends RecyclerView.Adapter<TierAdapter.VH> {
-            @NonNull
-            @Override
-            public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recharge_tier, parent, false));
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull VH holder, int position) {
-                RechargeTier tier = tiers.get(position);
-                holder.tvPoints.setText(tier.getPoint() + "积分");
-                RechargeMode mode = modes.size() > selectedModeIndex ? modes.get(selectedModeIndex) : null;
-                holder.tvMoney.setText(tier.getPrice(mode != null ? mode.getId() : "") + "元");
-                boolean selected = selectedTierIndex == position;
-                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
-                holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 2 : 0);
-                holder.tvPoints.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
-                holder.tvMoney.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
-                holder.card.setOnClickListener(v -> {
-                    int adapterPosition = holder.getBindingAdapterPosition();
-                    if (adapterPosition == RecyclerView.NO_POSITION) return;
-                    selectedTierIndex = adapterPosition;
-                    notifyDataSetChanged();
-                    updatePointPayButtonText();
-                });
-            }
-
-            @Override
-            public int getItemCount() {
-                return tiers.size();
-            }
-
-            class VH extends RecyclerView.ViewHolder {
-                final MaterialCardView card;
-                final TextView tvPoints;
-                final TextView tvMoney;
-
-                VH(View v) {
-                    super(v);
-                    card = (MaterialCardView) v;
-                    tvPoints = v.findViewById(R.id.tv_tier_points);
-                    tvMoney = v.findViewById(R.id.tv_tier_money);
-                }
-            }
-        }
-
-        private class ModeAdapter extends RecyclerView.Adapter<ModeAdapter.VH> {
-            @NonNull
-            @Override
-            public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recharge_mode, parent, false));
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull VH holder, int position) {
-                RechargeMode mode = modes.get(position);
-                holder.tvName.setText(mode.getName());
-                holder.tvRule.setText(mode.getRule());
-                boolean selected = selectedModeIndex == position;
-                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
-                holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 2 : 0);
-                holder.tvName.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
-                holder.tvRule.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
-                holder.card.setOnClickListener(v -> {
-                    int adapterPosition = holder.getBindingAdapterPosition();
-                    if (adapterPosition == RecyclerView.NO_POSITION) return;
-                    selectedModeIndex = adapterPosition;
-                    notifyDataSetChanged();
-                    tierAdapter.notifyDataSetChanged();
-                    updatePointPayButtonText();
-                });
-            }
-
-            @Override
-            public int getItemCount() {
-                return modes.size();
-            }
-
-            class VH extends RecyclerView.ViewHolder {
-                final MaterialCardView card;
-                final TextView tvName;
-                final TextView tvRule;
-
-                VH(View v) {
-                    super(v);
-                    card = (MaterialCardView) v;
-                    tvName = v.findViewById(R.id.tv_mode_name);
-                    tvRule = v.findViewById(R.id.tv_mode_rule);
-                }
-            }
-        }
-
-        private class TrafficPackageAdapter extends RecyclerView.Adapter<TrafficPackageAdapter.VH> {
-            @NonNull
-            @Override
-            public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recharge_tier, parent, false));
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull VH holder, int position) {
-                TrafficPackageOption option = trafficPackages.get(position);
-                holder.tvTitle.setText(option.getTrafficLabel());
-                holder.tvSubtitle.setText(option.getPointCostLabel());
-                boolean selected = selectedTrafficPackageIndex == position;
-                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
-                holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 2 : 0);
-                holder.tvTitle.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
-                holder.tvSubtitle.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
-                holder.card.setOnClickListener(v -> {
-                    int adapterPosition = holder.getBindingAdapterPosition();
-                    if (adapterPosition == RecyclerView.NO_POSITION) return;
-                    selectedTrafficPackageIndex = adapterPosition;
-                    notifyDataSetChanged();
-                    updateTrafficBuyButtonText();
-                });
-            }
-
-            @Override
-            public int getItemCount() {
-                return trafficPackages.size();
-            }
-
-            class VH extends RecyclerView.ViewHolder {
-                final MaterialCardView card;
-                final TextView tvTitle;
-                final TextView tvSubtitle;
-
-                VH(View v) {
-                    super(v);
-                    card = (MaterialCardView) v;
-                    tvTitle = v.findViewById(R.id.tv_tier_points);
-                    tvSubtitle = v.findViewById(R.id.tv_tier_money);
-                }
-            }
-        }
-
-        private class BenefitCardTypeAdapter extends RecyclerView.Adapter<BenefitCardTypeAdapter.VH> {
-            @NonNull
-            @Override
-            public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recharge_mode, parent, false));
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull VH holder, int position) {
-                BenefitCardTypeOption option = benefitCardTypes.get(position);
-                holder.tvName.setText(option.getName());
-                holder.tvRule.setText(option.getDescription());
-                boolean selected = selectedBenefitCardTypeIndex == position;
-                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
-                holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 2 : 0);
-                holder.tvName.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
-                holder.tvRule.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
-                holder.card.setOnClickListener(v -> {
-                    int adapterPosition = holder.getBindingAdapterPosition();
-                    if (adapterPosition == RecyclerView.NO_POSITION) return;
-                    selectedBenefitCardTypeIndex = adapterPosition;
-                    selectedBenefitCardPlanIndex = 0;
-                    notifyDataSetChanged();
-                    refreshVisibleBenefitCardPlans();
-                    updateCardPayButtonText();
-                });
-            }
-
-            @Override
-            public int getItemCount() {
-                return benefitCardTypes.size();
-            }
-
-            class VH extends RecyclerView.ViewHolder {
-                final MaterialCardView card;
-                final TextView tvName;
-                final TextView tvRule;
-
-                VH(View v) {
-                    super(v);
-                    card = (MaterialCardView) v;
-                    tvName = v.findViewById(R.id.tv_mode_name);
-                    tvRule = v.findViewById(R.id.tv_mode_rule);
-                }
-            }
-        }
-
-        private class BenefitCardPlanAdapter extends RecyclerView.Adapter<BenefitCardPlanAdapter.VH> {
-            @NonNull
-            @Override
-            public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recharge_tier, parent, false));
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull VH holder, int position) {
-                BenefitCardPlan plan = visibleBenefitCardPlans.get(position);
-                RechargeMode mode = modes.size() > selectedCardModeIndex ? modes.get(selectedCardModeIndex) : null;
-                holder.tvTitle.setText(plan.getDaysLabel());
-                holder.tvSubtitle.setText(plan.getPrice(mode != null ? mode.getId() : "") + "元");
-                boolean selected = selectedBenefitCardPlanIndex == position;
-                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
-                holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 2 : 0);
-                holder.tvTitle.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
-                holder.tvSubtitle.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
-                holder.card.setOnClickListener(v -> {
-                    int adapterPosition = holder.getBindingAdapterPosition();
-                    if (adapterPosition == RecyclerView.NO_POSITION) return;
-                    selectedBenefitCardPlanIndex = adapterPosition;
-                    notifyDataSetChanged();
-                    updateCardPayButtonText();
-                });
-            }
-
-            @Override
-            public int getItemCount() {
-                return visibleBenefitCardPlans.size();
-            }
-
-            class VH extends RecyclerView.ViewHolder {
-                final MaterialCardView card;
-                final TextView tvTitle;
-                final TextView tvSubtitle;
-
-                VH(View v) {
-                    super(v);
-                    card = (MaterialCardView) v;
-                    tvTitle = v.findViewById(R.id.tv_tier_points);
-                    tvSubtitle = v.findViewById(R.id.tv_tier_money);
-                }
-            }
-        }
-
-        private class CardModeAdapter extends RecyclerView.Adapter<CardModeAdapter.VH> {
-            @NonNull
-            @Override
-            public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                return new VH(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recharge_mode, parent, false));
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull VH holder, int position) {
-                RechargeMode mode = modes.get(position);
-                holder.tvName.setText(mode.getName());
-                holder.tvRule.setText(mode.getRule());
-                boolean selected = selectedCardModeIndex == position;
-                holder.card.setCardBackgroundColor(selected ? getSelectedCardColor() : getDefaultCardColor());
-                holder.card.setStrokeColor(selected ? getPrimaryColor() : Color.TRANSPARENT);
-                holder.card.setStrokeWidth(selected ? 2 : 0);
-                holder.tvName.setTextColor(selected ? getSelectedTextColor() : getDefaultTitleColor());
-                holder.tvRule.setTextColor(selected ? getSelectedTextColor() : getDefaultSubtitleColor());
-                holder.card.setOnClickListener(v -> {
-                    int adapterPosition = holder.getBindingAdapterPosition();
-                    if (adapterPosition == RecyclerView.NO_POSITION) return;
-                    selectedCardModeIndex = adapterPosition;
-                    notifyDataSetChanged();
-                    benefitCardPlanAdapter.notifyDataSetChanged();
-                    updateCardPayButtonText();
-                });
-            }
-
-            @Override
-            public int getItemCount() {
-                return modes.size();
-            }
-
-            class VH extends RecyclerView.ViewHolder {
-                final MaterialCardView card;
-                final TextView tvName;
-                final TextView tvRule;
-
-                VH(View v) {
-                    super(v);
-                    card = (MaterialCardView) v;
-                    tvName = v.findViewById(R.id.tv_mode_name);
-                    tvRule = v.findViewById(R.id.tv_mode_rule);
-                }
-            }
-        }
-
-        private static class InstanceOption {
-            private final int id;
-            private final String name;
-
-            InstanceOption(int id, String name) {
-                this.id = id;
-                this.name = name;
-            }
-
-            int getId() {
-                return id;
-            }
-
-            String getName() {
-                return name;
-            }
-
-            String getDisplayLabel() {
-                return name + "（ID: " + id + "）";
-            }
+    private void refreshPointTierRows() {
+        if (tierAdapter != null) {
+            tierAdapter.setData(buildPointTierRows(), selectedTierIndex);
         }
     }
 
+    private void refreshPointModeRows() {
+        if (modeAdapter != null) {
+            modeAdapter.setData(buildModeRows(), selectedModeIndex);
+        }
+    }
+
+    private void refreshTrafficPackageRows() {
+        if (trafficPackageAdapter != null) {
+            trafficPackageAdapter.setData(buildTrafficPackageRows(), selectedTrafficPackageIndex);
+        }
+    }
+
+    private void refreshBenefitCardTypeRows() {
+        if (benefitCardTypeAdapter != null) {
+            benefitCardTypeAdapter.setData(buildBenefitCardTypeRows(), selectedBenefitCardTypeIndex);
+        }
+    }
+
+    private void refreshBenefitCardPlanRows() {
+        if (benefitCardPlanAdapter != null) {
+            benefitCardPlanAdapter.setData(buildBenefitCardPlanRows(), selectedBenefitCardPlanIndex);
+        }
+    }
+
+    private void refreshCardModeRows() {
+        if (cardModeAdapter != null) {
+            cardModeAdapter.setData(buildModeRows(), selectedCardModeIndex);
+        }
+    }
+
+    private List<RechargeOptionRow> buildPointTierRows() {
+        List<RechargeOptionRow> rows = new ArrayList<>();
+        RechargeMode mode = modes.size() > selectedModeIndex ? modes.get(selectedModeIndex) : null;
+        String modeId = mode != null ? mode.getId() : "";
+        for (RechargeTier tier : tiers) {
+            rows.add(new RechargeOptionRow(tier.getPoint() + "积分", tier.getPrice(modeId) + "元"));
+        }
+        return rows;
+    }
+
+    private List<RechargeOptionRow> buildModeRows() {
+        List<RechargeOptionRow> rows = new ArrayList<>();
+        for (RechargeMode mode : modes) {
+            rows.add(new RechargeOptionRow(mode.getName(), mode.getRule()));
+        }
+        return rows;
+    }
+
+    private List<RechargeOptionRow> buildTrafficPackageRows() {
+        List<RechargeOptionRow> rows = new ArrayList<>();
+        for (TrafficPackageOption option : trafficPackages) {
+            rows.add(new RechargeOptionRow(option.getTrafficLabel(), option.getPointCostLabel()));
+        }
+        return rows;
+    }
+
+    private List<RechargeOptionRow> buildBenefitCardTypeRows() {
+        List<RechargeOptionRow> rows = new ArrayList<>();
+        for (BenefitCardTypeOption option : benefitCardTypes) {
+            rows.add(new RechargeOptionRow(option.getName(), option.getDescription()));
+        }
+        return rows;
+    }
+
+    private List<RechargeOptionRow> buildBenefitCardPlanRows() {
+        List<RechargeOptionRow> rows = new ArrayList<>();
+        RechargeMode mode = modes.size() > selectedCardModeIndex ? modes.get(selectedCardModeIndex) : null;
+        String modeId = mode != null ? mode.getId() : "";
+        for (BenefitCardPlan plan : visibleBenefitCardPlans) {
+            rows.add(new RechargeOptionRow(plan.getDaysLabel(), plan.getPrice(modeId) + "元"));
+        }
+        return rows;
+    }
+
+
+    private static class InstanceOption {
+        private final int id;
+        private final String name;
+
+        InstanceOption(int id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+
+        int getId() {
+            return id;
+        }
+
+        String getName() {
+            return name;
+        }
+
+        String getDisplayLabel() {
+            return name + "（ID: " + id + "）";
+        }
+    }
+}

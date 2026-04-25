@@ -24,7 +24,7 @@ public class RechargeTier {
     }
 
     public String getPrice(String modeId) {
-        return "normal".equals(modeId) ? proMoney : publicMoney;
+        return RechargeMode.MODE_NORMAL.equals(modeId) ? proMoney : publicMoney;
     }
 }
 

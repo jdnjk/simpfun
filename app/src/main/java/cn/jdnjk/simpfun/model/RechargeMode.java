@@ -1,6 +1,9 @@
 package cn.jdnjk.simpfun.model;
 
 public class RechargeMode {
+    public static final String MODE_PUBLIC = "public";
+    public static final String MODE_NORMAL = "normal";
+
     private final String id;
     private final String name;
     private final String rule;
