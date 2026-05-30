@@ -17,7 +17,20 @@
                 android:layout_width="match_parent"
                 android:background="?attr/colorPrimary"
                 app:popupTheme="@style/Theme.Simpfun"
-                android:layout_height="?attr/actionBarSize"/>
+                android:layout_height="?attr/actionBarSize">
+
+            <TextView
+                    android:id="@+id/toolbar_file_path_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:ellipsize="middle"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorOnPrimary"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+
+        </androidx.appcompat.widget.Toolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 

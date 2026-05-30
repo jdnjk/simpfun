@@ -129,7 +129,7 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlanViewHold
             btnDelete = itemView.findViewById(R.id.btn_delete);
 
             btnDelete.setOnClickListener(v -> {
-                int pos = getAdapterPosition();
+                int pos = getBindingAdapterPosition();
                 if (pos != RecyclerView.NO_POSITION && listener != null) {
                     listener.onDeleteClick(plans.get(pos));
                 }

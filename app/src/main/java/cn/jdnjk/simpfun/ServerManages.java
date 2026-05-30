@@ -18,8 +18,10 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
@@ -32,6 +34,7 @@ import org.json.JSONObject;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PowerApi;
 import cn.jdnjk.simpfun.databinding.ActivityMainBinding;
+import cn.jdnjk.simpfun.ui.ins.term.TerminalFragment;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 
 public class ServerManages extends AppCompatActivity {
@@ -44,6 +47,7 @@ public class ServerManages extends AppCompatActivity {
     private ActivityMainBinding binding;
     private NavController navController;
     private NavigationView navigationView;
+    private TextView toolbarFilePathTitle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +57,7 @@ public class ServerManages extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbarFilePathTitle = findViewById(R.id.toolbar_file_path_title);
         setSupportActionBar(toolbar);
 
         DrawerLayout drawer = binding.drawerLayout;
@@ -66,6 +71,11 @@ public class ServerManages extends AppCompatActivity {
         navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
+        navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
+            if (destination.getId() != R.id.nav_gallery) {
+                clearFilePathTitle();
+            }
+        });
 
         handleIntent(getIntent());
     }
@@ -90,16 +100,31 @@ public class ServerManages extends AppCompatActivity {
 
     private void extractDeviceId() {
         if (getIntent() != null) {
+            int previousDeviceId = deviceId;
             deviceId = getIntent().getIntExtra(EXTRA_DEVICE_ID, -1);
 
             if (deviceId != -1) {
                 Log.i("ServerManages", "接收到 deviceId: " + deviceId);
                 fetchServerDetails();
+                if (previousDeviceId > 0 && previousDeviceId != deviceId) {
+                    notifyTerminalDeviceChanged();
+                }
             } else {
                 Log.e("ServerManages", "未接收到有效的 deviceId");
                 Snackbar.make(binding.getRoot(), "服务器信息无效", Snackbar.LENGTH_INDEFINITE)
                         .setAction("关闭", v -> finish()).show();
             }
+        }
+    }
+
+    private void notifyTerminalDeviceChanged() {
+        Fragment host = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment_content_main);
+        if (!(host instanceof NavHostFragment navHostFragment)) {
+            return;
+        }
+        Fragment current = navHostFragment.getChildFragmentManager().getPrimaryNavigationFragment();
+        if (current instanceof TerminalFragment terminalFragment) {
+            terminalFragment.onHostDeviceChanged();
         }
     }
 
@@ -118,6 +143,25 @@ public class ServerManages extends AppCompatActivity {
 
     public JSONObject getCachedInstanceDetailData() {
         return InstanceDetailStore.getInstance().getDetailData(deviceId);
+    }
+
+    public void setFilePathTitle(String path, View.OnClickListener clickListener) {
+        if (toolbarFilePathTitle == null || getSupportActionBar() == null) {
+            return;
+        }
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+        toolbarFilePathTitle.setText(path);
+        toolbarFilePathTitle.setVisibility(View.VISIBLE);
+        toolbarFilePathTitle.setOnClickListener(clickListener);
+    }
+
+    public void clearFilePathTitle() {
+        if (toolbarFilePathTitle == null || getSupportActionBar() == null) {
+            return;
+        }
+        toolbarFilePathTitle.setVisibility(View.GONE);
+        toolbarFilePathTitle.setOnClickListener(null);
+        getSupportActionBar().setDisplayShowTitleEnabled(true);
     }
 
     private void fetchServerDetails() {

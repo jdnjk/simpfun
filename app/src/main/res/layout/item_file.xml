@@ -1,56 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              xmlns:app="http://schemas.android.com/apk/res-auto"
-              android:layout_width="match_parent"
-              android:layout_height="wrap_content"
-              android:orientation="horizontal"
-              android:paddingStart="16dp"
-              android:paddingEnd="16dp"
-              android:paddingTop="12dp"
-              android:paddingBottom="12dp"
-              android:clickable="true"
-              android:focusable="true"
-              android:gravity="center_vertical"
-              android:background="?android:attr/selectableItemBackground">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="10dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="6dp"
+    android:paddingBottom="8dp">
 
-    <!-- 图标加大，移除 tint 以显示原始颜色（如文件夹黄色） -->
     <ImageView
-            android:id="@+id/image_view_icon"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_gravity="center_vertical"
-            android:contentDescription="@string/folder_icon_desc"
-            android:src="@drawable/ic_folder_material" />
+        android:id="@+id/image_view_icon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="center_vertical"
+        android:contentDescription="@string/folder_icon_desc"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_folder_material" />
 
     <LinearLayout
-            android:layout_width="0dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/text_view_name"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="16dp"
-            android:orientation="vertical"
-            android:gravity="center_vertical">
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/file_name_placeholder"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="14sp" />
 
         <TextView
-                android:id="@+id/text_view_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/file_name_placeholder"
-                android:textSize="16sp"
-                android:textColor="?android:attr/textColorPrimary"
-                android:ellipsize="end"
-                android:maxLines="1" />
-
-        <TextView
-                android:id="@+id/text_view_info"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/file_time_placeholder"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary"
-                android:ellipsize="end"
-                android:maxLines="1" />
+            android:id="@+id/text_view_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/file_time_placeholder"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="11sp" />
 
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/button_file_more"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="2dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="⋮"
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textSize="20sp" />
+
+    <CheckBox
+        android:id="@+id/check_box_selected"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:buttonTint="?attr/colorPrimary"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
 
 </LinearLayout>

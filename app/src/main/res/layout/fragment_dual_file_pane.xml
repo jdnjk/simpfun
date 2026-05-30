@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/local_pane_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="?attr/colorOutlineVariant" />
+
+        <FrameLayout
+            android:id="@+id/server_pane_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/dual_bottom_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurfaceContainer"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+                android:id="@+id/btn_dual_back"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="返回"
+                app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
+                android:id="@+id/btn_dual_forward"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@drawable/ic_arrow_forward"
+                android:contentDescription="前进"
+                app:tint="?attr/colorOnSurface" />
+
+
+        <ImageButton
+                android:id="@+id/btn_dual_new"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@drawable/ic_add_24"
+                android:contentDescription="新建"
+                app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
+                android:id="@+id/btn_dual_parent"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@drawable/ic_arrow_upward"
+                android:contentDescription="上一级"
+                app:tint="?attr/colorOnSurface" />
+
+        <ImageButton
+                android:id="@+id/btn_dual_swap"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="?attr/selectableItemBackground"
+                android:src="@drawable/ic_swap_horiz"
+                android:contentDescription="互换"
+                app:tint="?attr/colorOnSurface" />
+
+    </LinearLayout>
+
+</LinearLayout>

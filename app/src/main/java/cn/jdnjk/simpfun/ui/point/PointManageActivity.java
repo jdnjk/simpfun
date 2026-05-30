@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun.ui.point;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.MenuItem;
 
@@ -7,6 +8,11 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
@@ -41,6 +47,13 @@ public class PointManageActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        WindowInsetsControllerCompat windowInsetsController =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        if (windowInsetsController != null) {
+            windowInsetsController.setAppearanceLightStatusBars(true);
+        }
         setContentView(R.layout.activity_point_manage);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -51,6 +64,7 @@ public class PointManageActivity extends AppCompatActivity {
 
         tabLayout = findViewById(R.id.tab_layout);
         viewPager = findViewById(R.id.view_pager);
+        applyWindowInsets();
 
         viewPager.setAdapter(new FragmentStateAdapter(this) {
             @NonNull
@@ -83,6 +97,21 @@ public class PointManageActivity extends AppCompatActivity {
         } else {
             viewPager.setCurrentItem(0, false);
         }
+    }
+
+    private void applyWindowInsets() {
+        View root = findViewById(R.id.point_manage_root);
+        View appBar = findViewById(R.id.app_bar_layout);
+        int initialAppBarTop = appBar.getPaddingTop();
+        int initialViewPagerBottom = viewPager.getPaddingBottom();
+        viewPager.setClipToPadding(false);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets safeInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            Insets navigationInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+            appBar.setPadding(appBar.getPaddingLeft(), initialAppBarTop + safeInsets.top, appBar.getPaddingRight(), appBar.getPaddingBottom());
+            viewPager.setPadding(viewPager.getPaddingLeft(), viewPager.getPaddingTop(), viewPager.getPaddingRight(), initialViewPagerBottom + navigationInsets.bottom);
+            return insets;
+        });
     }
 
     @Override

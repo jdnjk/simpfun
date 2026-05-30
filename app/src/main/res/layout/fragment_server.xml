@@ -1,71 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_server"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorSurface"
+        android:elevation="0dp"
+        app:menu="@menu/server_menu"
+        app:title="服务器列表"
+        app:titleTextColor="?attr/colorOnSurface" />
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipe_refresh_layout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
-    <FrameLayout
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-        <androidx.recyclerview.widget.RecyclerView
+            <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_view_servers"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
-        <LinearLayout
+            <LinearLayout
                 android:id="@+id/empty_state_layout"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
                 android:gravity="center"
-                android:visibility="gone"
-                android:padding="24dp">
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:visibility="gone">
 
-            <ImageView
+                <ImageView
                     android:layout_width="120dp"
                     android:layout_height="120dp"
-                    android:src="@drawable/ic_cloud_off"
                     android:layout_marginBottom="16dp"
                     android:alpha="0.3"
-                    android:contentDescription="空状态图标" />
+                    android:contentDescription="空状态图标"
+                    android:src="@drawable/ic_cloud_off" />
 
-            <TextView
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:text="这里好空旷啊"
-                    android:textSize="18sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
-                    android:layout_marginBottom="8dp" />
+                    android:textSize="18sp" />
 
-            <TextView
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:alpha="0.7"
                     android:text="暂时没有服务器实例"
-                    android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
-                    android:alpha="0.7" />
+                    android:textSize="14sp" />
 
-        </LinearLayout>
+            </LinearLayout>
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-                android:id="@+id/fab_add_server"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom|end"
-                android:layout_marginEnd="20dp"
-                android:layout_marginBottom="20dp"
-                android:contentDescription="创建服务器"
-                android:visibility="visible"
-                android:elevation="8dp"
-                android:src="@android:drawable/ic_input_add"
-                app:useCompatPadding="true"
-                app:backgroundTint="?attr/colorPrimary"
-                app:tint="?attr/colorOnPrimary"
-                app:maxImageSize="32dp" />
+        </FrameLayout>
 
-    </FrameLayout>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+</LinearLayout>

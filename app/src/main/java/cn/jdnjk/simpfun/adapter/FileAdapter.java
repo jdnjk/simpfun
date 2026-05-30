@@ -1,8 +1,10 @@
 package cn.jdnjk.simpfun.adapter;
 
+import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -10,7 +12,9 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.DecimalFormat;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.model.FileItem;
@@ -20,18 +24,43 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         void onClick(FileItem item);
     }
 
+    public interface OnItemMoreClickListener {
+        void onClick(FileItem item, View anchor);
+    }
+
     public interface OnItemLongClickListener {
-        void onLongClick(FileItem item);
+        void onLongClick(FileItem item, View anchor);
+    }
+
+    public interface PathResolver {
+        String resolve(FileItem item);
     }
 
     private final List<FileItem> data;
     private final OnItemClickListener clickListener;
     private final OnItemLongClickListener longClickListener;
+    private final OnItemMoreClickListener moreClickListener;
+    private PathResolver pathResolver;
+    private Set<String> selectedPaths = Collections.emptySet();
+    private boolean selectionMode;
 
     public FileAdapter(List<FileItem> data, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
+        this(data, clickListener, longClickListener, (item, anchor) -> clickListener.onClick(item));
+    }
+
+    public FileAdapter(List<FileItem> data, OnItemClickListener clickListener, OnItemLongClickListener longClickListener,
+            OnItemMoreClickListener moreClickListener) {
         this.data = data;
         this.clickListener = clickListener;
         this.longClickListener = longClickListener;
+        this.moreClickListener = moreClickListener;
+    }
+
+    public void setSelectionState(boolean selectionMode, Set<String> selectedPaths, PathResolver pathResolver) {
+        this.selectionMode = selectionMode;
+        this.selectedPaths = selectedPaths == null ? Collections.emptySet() : selectedPaths;
+        this.pathResolver = pathResolver;
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -43,7 +72,11 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        holder.bind(data.get(position), clickListener, longClickListener);
+        FileItem item = data.get(position);
+        String path = pathResolver == null ? item.getName() : pathResolver.resolve(item);
+        boolean selectable = selectionMode && !item.isParentEntry();
+        boolean selected = selectable && selectedPaths.contains(path);
+        holder.bind(item, clickListener, longClickListener, moreClickListener, selectionMode, selectable, selected);
     }
 
     @Override
@@ -55,15 +88,20 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         private final ImageView icon;
         private final TextView name;
         private final TextView info;
+        private final TextView moreButton;
+        private final CheckBox selectedCheckBox;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
             icon = itemView.findViewById(R.id.image_view_icon);
             name = itemView.findViewById(R.id.text_view_name);
             info = itemView.findViewById(R.id.text_view_info);
+            moreButton = itemView.findViewById(R.id.button_file_more);
+            selectedCheckBox = itemView.findViewById(R.id.check_box_selected);
         }
 
-        void bind(FileItem item, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
+        void bind(FileItem item, OnItemClickListener clickListener, OnItemLongClickListener longClickListener,
+                OnItemMoreClickListener moreClickListener, boolean selectionMode, boolean selectable, boolean selected) {
             name.setText(item.getName());
             if (item.isParentEntry()) {
                 icon.setImageResource(R.drawable.ic_folder_material);
@@ -80,11 +118,22 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
                 info.setText(itemView.getContext().getString(R.string.folder_info_format, item.getModifiedAt()));
             }
 
+            selectedCheckBox.setVisibility(selectable ? View.VISIBLE : View.GONE);
+            selectedCheckBox.setChecked(selected);
+            moreButton.setVisibility(selectionMode || item.isParentEntry() ? View.GONE : View.VISIBLE);
+            if (selected) {
+                int selectedColor = itemView.getResources().getColor(R.color.md_theme_secondaryContainer, null);
+                itemView.setBackgroundTintList(ColorStateList.valueOf(selectedColor));
+            } else {
+                itemView.setBackgroundTintList(null);
+            }
+
             itemView.setOnClickListener(v -> clickListener.onClick(item));
             itemView.setOnLongClickListener(v -> {
-                longClickListener.onLongClick(item);
+                longClickListener.onLongClick(item, itemView);
                 return true;
             });
+            moreButton.setOnClickListener(v -> moreClickListener.onClick(item, moreButton));
         }
 
         private String formatSize(long size) {
@@ -98,4 +147,3 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         }
     }
 }
-

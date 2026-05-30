@@ -6,3 +6,4 @@ app/release/
 app/debug/
 /sign.properties
 /local.properties
+.qoder

@@ -24,6 +24,7 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.model.InviteData;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
+import cn.jdnjk.simpfun.utils.PageDataStore;
 
 public class InviteFragment extends Fragment {
 
@@ -51,7 +52,7 @@ public class InviteFragment extends Fragment {
         Button btnCopyCode = root.findViewById(R.id.btn_copy_code);
         Button btnShareLink = root.findViewById(R.id.btn_share_link);
 
-        swipeRefresh.setOnRefreshListener(this::loadInviteData);
+        swipeRefresh.setOnRefreshListener(() -> loadInviteData(true));
 
         btnCopyCode.setOnClickListener(v -> {
             if (!inviteCode.isEmpty()) {
@@ -72,7 +73,7 @@ public class InviteFragment extends Fragment {
             }
         });
 
-        loadInviteData();
+        loadInviteData(false);
 
         return root;
     }
@@ -84,8 +85,7 @@ public class InviteFragment extends Fragment {
         super.onDestroyView();
     }
 
-    private void loadInviteData() {
-        swipeRefresh.setRefreshing(true);
+    private void loadInviteData(boolean forceRefresh) {
         SharedPreferences authInfo = requireContext().getSharedPreferences("token", Context.MODE_PRIVATE);
         String token = authInfo.getString("token", null);
 
@@ -95,17 +95,22 @@ public class InviteFragment extends Fragment {
             return;
         }
 
+        if (!forceRefresh) {
+            InviteData cachedData = PageDataStore.getInstance().getInviteData(token);
+            if (cachedData != null) {
+                renderInviteData(cachedData);
+                return;
+            }
+        }
+
+        swipeRefresh.setRefreshing(true);
         UserApi userApi = new UserApi(requireContext());
         userApi.getInviteData(token, new UserApi.InviteCallback() {
             @Override
             public void onSuccess(InviteData data) {
                 if (isAdded()) {
-                    inviteCode = data.getInviteCode();
-                    tvInviteCode.setText(inviteCode);
-                    tvRegisterTimes.setText(String.valueOf(data.getRegisterTimes()));
-                    tvRegisterVerifyTimes.setText(String.valueOf(data.getRegisterVerifyTimes()));
-                    tvTotalIncome.setText(String.valueOf(data.getRegisterTotalIncome()));
-                    tvProIncome.setText(String.valueOf(data.getRegisterTotalIncomeFromPro()));
+                    PageDataStore.getInstance().putInviteData(token, data);
+                    renderInviteData(data);
                     swipeRefresh.setRefreshing(false);
                 }
             }
@@ -118,5 +123,14 @@ public class InviteFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void renderInviteData(InviteData data) {
+        inviteCode = data.getInviteCode();
+        tvInviteCode.setText(inviteCode);
+        tvRegisterTimes.setText(String.valueOf(data.getRegisterTimes()));
+        tvRegisterVerifyTimes.setText(String.valueOf(data.getRegisterVerifyTimes()));
+        tvTotalIncome.setText(String.valueOf(data.getRegisterTotalIncome()));
+        tvProIncome.setText(String.valueOf(data.getRegisterTotalIncomeFromPro()));
     }
 }

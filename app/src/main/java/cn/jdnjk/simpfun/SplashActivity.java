@@ -5,8 +5,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -41,6 +39,7 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         migrateLegacySettingPreferences();
         ThemeManager.getInstance(this).initializeTheme();
+        setContentView(R.layout.activity_splash);
         final SharedPreferences spDebug = getSharedPreferences(SP_DEBUG, Context.MODE_PRIVATE);
 
         parseDeepLink();
@@ -49,36 +48,34 @@ public class SplashActivity extends AppCompatActivity {
             return;
         }
 
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            SharedPreferences sp = getSharedPreferences("token", MODE_PRIVATE);
-            String token = sp.getString("token", null);
+        SharedPreferences sp = getSharedPreferences("token", MODE_PRIVATE);
+        String token = sp.getString("token", null);
 
-            if (token != null && !token.isEmpty()) {
-                new UserApi(this).UserInfo(token, new UserApi.AuthCallback() {
-                    @Override
-                    public void onSuccess() {
-                        boolean buglyEnabled = spDebug.getBoolean(KEY_BUGLY_ENABLED, true);
-                        if (buglyEnabled) {
-                            initBugly();
-                        }
-                        navigateAfterAuth();
+        if (token != null && !token.isEmpty()) {
+            new UserApi(this).UserInfo(token, new UserApi.AuthCallback() {
+                @Override
+                public void onSuccess() {
+                    boolean buglyEnabled = spDebug.getBoolean(KEY_BUGLY_ENABLED, true);
+                    if (buglyEnabled) {
+                        initBugly();
                     }
+                    navigateAfterAuth();
+                }
 
-                    @Override
-                    public void onFailure() {
-                        Intent auth = new Intent(SplashActivity.this, AuthActivity.class);
-                        if (deepLinkDeviceId != -1) auth.putExtra(EXTRA_DEEP_SERVER_ID, deepLinkDeviceId);
-                        startActivity(auth);
-                        finish();
-                    }
-                });
-            } else {
-                Intent auth = new Intent(SplashActivity.this, AuthActivity.class);
-                if (deepLinkDeviceId != -1) auth.putExtra(EXTRA_DEEP_SERVER_ID, deepLinkDeviceId);
-                startActivity(auth);
-                finish();
-            }
-        }, 1500);
+                @Override
+                public void onFailure() {
+                    Intent auth = new Intent(SplashActivity.this, AuthActivity.class);
+                    if (deepLinkDeviceId != -1) auth.putExtra(EXTRA_DEEP_SERVER_ID, deepLinkDeviceId);
+                    startActivity(auth);
+                    finish();
+                }
+            });
+        } else {
+            Intent auth = new Intent(SplashActivity.this, AuthActivity.class);
+            if (deepLinkDeviceId != -1) auth.putExtra(EXTRA_DEEP_SERVER_ID, deepLinkDeviceId);
+            startActivity(auth);
+            finish();
+        }
     }
 
     private void migrateLegacySettingPreferences() {
@@ -142,18 +139,18 @@ public class SplashActivity extends AppCompatActivity {
         if (data == null) return;
         if (!"simpfun".equalsIgnoreCase(data.getScheme())) return;
         deepLinkRaw = data.toString();
-        String host = data.getHost(); // simpfun://server?id=xxx -> host=server
+        String host = data.getHost(); // simpfun://server/xxx -> host=server
         if (host == null || host.isEmpty()) {
             return;
         }
         if ("server".equalsIgnoreCase(host)) {
-            String idStr = data.getQueryParameter("id");
-            if (idStr == null) {
+            java.util.List<String> pathSegments = data.getPathSegments();
+            if (pathSegments.isEmpty()) {
                 deepLinkError = true; // 缺少ID
                 return;
             }
             try {
-                deepLinkDeviceId = Integer.parseInt(idStr);
+                deepLinkDeviceId = Integer.parseInt(pathSegments.get(0));
                 Log.d("SplashActivity", "服务器ID=" + deepLinkDeviceId);
             } catch (NumberFormatException e) {
                 deepLinkError = true; // ID格式错误

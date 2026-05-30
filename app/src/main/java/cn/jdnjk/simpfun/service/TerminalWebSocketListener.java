@@ -1,9 +1,8 @@
 package cn.jdnjk.simpfun.service;
 
-import org.json.JSONObject;
-
 public interface TerminalWebSocketListener {
     void onLogReceived(String line);
+    void onConsoleCleared();
     void onStatusChanged(String status);
     void onConnected();
     void onDisconnected(String reason);

@@ -38,6 +38,8 @@
                     android:text="服务器名称"
                     android:textSize="18sp"
                     android:textStyle="bold"
+                    android:maxLines="2"
+                    android:ellipsize="end"
                     android:textColor="?attr/colorOnSurface" />
 
                 <TextView
@@ -89,16 +91,9 @@
                         android:text="服务器名称"
                         android:textStyle="bold"
                         android:textSize="20sp"
+                        android:maxLines="2"
+                        android:ellipsize="end"
                         android:textColor="?attr/colorOnSurface" />
-
-                    <TextView
-                        android:id="@+id/tv_server_id_modern"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:text="ID: 0"
-                        android:textSize="13sp"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -113,6 +108,15 @@
                         android:layout_height="wrap_content"
                         android:text="--"
                         android:textSize="16sp"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <TextView
+                        android:id="@+id/tv_server_id_modern"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="ID: 0"
+                        android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
             </LinearLayout>

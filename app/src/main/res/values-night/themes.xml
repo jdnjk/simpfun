@@ -49,4 +49,12 @@
         <item name="colorSurfaceContainerHighest">@color/md_theme_surfaceContainerHighest</item>
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Simpfun.BottomSheet</item>
     </style>
+
+    <style name="Theme.Simpfun.Splash" parent="Theme.Simpfun">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
 </resources>

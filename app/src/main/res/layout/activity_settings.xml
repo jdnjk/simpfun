@@ -16,7 +16,8 @@
         app:title="设置"
         app:titleTextColor="?attr/colorOnSurface"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:navigationIconTint="?attr/colorOnSurface" />
+        app:navigationIconTint="?attr/colorOnSurface"
+        app:menu="@menu/settings_menu" />
 
     <FrameLayout
         android:id="@+id/fragment_container"

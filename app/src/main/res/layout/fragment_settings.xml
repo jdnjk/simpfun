@@ -188,7 +188,7 @@
                 android:layout_height="28dp"
                 android:layout_marginEnd="18dp"
                 android:src="@drawable/ic_refresh"
-                android:contentDescription="当前版本"
+                android:contentDescription="当���版本"
                 app:tint="?attr/colorOnSurfaceVariant" />
 
             <LinearLayout
@@ -216,24 +216,20 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/option_tutorial"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="76dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingHorizontal="8dp"
-            android:paddingVertical="10dp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true">
+            android:paddingVertical="10dp">
 
             <ImageView
                 android:layout_width="28dp"
                 android:layout_height="28dp"
                 android:layout_marginEnd="18dp"
-                android:src="@drawable/ic_document"
-                android:contentDescription="教程文档"
+                android:src="@drawable/ic_folder_material"
+                android:contentDescription="文件双排模式"
                 app:tint="?attr/colorOnSurfaceVariant" />
 
             <LinearLayout
@@ -245,7 +241,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="教程文档"
+                    android:text="文件双排模式"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface" />
 
@@ -253,10 +249,66 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="查看使用教程"
+                    android:text="左侧本地存储，右侧服务器文件"
                     android:textSize="15sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switch_file_dual_pane"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="18dp"
+                    android:src="@drawable/term"
+                    android:contentDescription="SFTP线程数"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="SFTP 传输线程"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <EditText
+                    android:id="@+id/et_sftp_thread_count"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:textSize="16sp"
+                    android:background="@null"
+                    android:textColor="?attr/colorPrimary"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/slider_sftp_thread_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="46dp"
+                android:valueFrom="1.0"
+                android:valueTo="32.0"
+                android:stepSize="1.0" />
         </LinearLayout>
 
         <TextView

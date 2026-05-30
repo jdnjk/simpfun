@@ -13,9 +13,9 @@
 
     <fragment
             android:id="@+id/nav_gallery"
-            android:name="cn.jdnjk.simpfun.ui.ins.files.FilePaneFragment"
+            android:name="cn.jdnjk.simpfun.ui.ins.files.FilePaneHostFragment"
             android:label="文件"
-            tools:layout="@layout/fragment_file_pane"/>
+            tools:layout="@layout/fragment_file_pane_host"/>
 
     <fragment
             android:id="@+id/nav_manage"

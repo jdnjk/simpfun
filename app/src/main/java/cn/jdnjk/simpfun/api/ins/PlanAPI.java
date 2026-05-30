@@ -1,6 +1,5 @@
 package cn.jdnjk.simpfun.api.ins;
 
-import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import androidx.annotation.Nullable;
@@ -12,16 +11,12 @@ import org.json.JSONObject;
 import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
-import java.util.Objects;
 
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
 
 public class PlanAPI {
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-
-    public PlanAPI(Context context) {
-    }
 
     public interface Callback {
         void onSuccess(JSONObject response);
@@ -159,25 +154,27 @@ public class PlanAPI {
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
-                mainHandler.post(() -> {
-                    String responseBody = null;
-                    try {
-                        responseBody = Objects.requireNonNull(response.body()).string();
-                        JSONObject json = new JSONObject(responseBody);
-                        int code = json.getInt("code");
-
-                        if (code == 200) {
-                            invokeCallback(callback, json, true, null);
-                        } else {
-                            String msg = json.optString("msg", "操作失败");
-                            invokeCallback(callback, null, false, msg);
-                        }
-                    } catch (JSONException e) {
-                        invokeCallback(callback, null, false, "数据解析错误");
-                    } catch (Exception e) {
-                        invokeCallback(callback, null, false, "未知错误");
+                String responseBody;
+                try (ResponseBody body = response.body()) {
+                    if (body == null) {
+                        mainHandler.post(() -> invokeCallback(callback, null, false, "响应为空"));
+                        return;
                     }
-                });
+                    responseBody = body.string();
+                    JSONObject json = new JSONObject(responseBody);
+                    int code = json.getInt("code");
+
+                    if (code == 200) {
+                        mainHandler.post(() -> invokeCallback(callback, json, true, null));
+                    } else {
+                        String msg = json.optString("msg", "操作失败");
+                        mainHandler.post(() -> invokeCallback(callback, null, false, msg));
+                    }
+                } catch (JSONException e) {
+                    mainHandler.post(() -> invokeCallback(callback, null, false, "数据解析错误"));
+                } catch (Exception e) {
+                    mainHandler.post(() -> invokeCallback(callback, null, false, "未知错误"));
+                }
             }
         });
     }

@@ -9,14 +9,14 @@
 
     <!-- File list related strings -->
     <string name="error_format">错误: %s</string>
-    <string name="file_info_format">%s • %s</string>
-    <string name="folder_info_format">%s</string>
+    <string name="file_info_format">%1$s • %2$s</string>
+    <string name="folder_info_format">%1$s</string>
     <string name="compressed_files_default_name">compressed_files</string>
     
     <!-- Additional strings for FileListFragment -->
     <string name="error_message">错误: %s</string>
-    <string name="file_info">%s • %s</string>
-    <string name="folder_info"> %s</string>
+    <string name="file_info">%1$s • %2$s</string>
+    <string name="folder_info"> %1$s</string>
     <string name="default_archive_name">compressed_files</string>
 
     <!-- Task related strings -->
@@ -67,11 +67,39 @@
     <string name="loading_text">加载中...</string>
     <string name="new_file">新建文件</string>
     <string name="new_folder">新建文件夹</string>
+    <string name="file">文件</string>
+    <string name="folder">文件夹</string>
     <string name="editor_undo">撤销</string>
     <string name="editor_redo">重做</string>
     <string name="editor_save">保存</string>
     <string name="root_path">/</string>
     <string name="cursor_placeholder">1:1</string>
+    <string name="upload_file">上传文件</string>
+    <string name="retry">重试</string>
+    <string name="file_actions_title">文件操作</string>
+    <string name="file_action_open">打开/编辑</string>
+    <string name="file_action_open_local">打开</string>
+    <string name="file_action_open_folder">打开文件夹</string>
+    <string name="file_action_download">下载</string>
+    <string name="file_action_rename">重命名</string>
+    <string name="file_action_delete">删除</string>
+    <string name="file_action_copy">创建副本</string>
+    <string name="file_action_move">移动到...</string>
+    <string name="file_action_archive">压缩</string>
+    <string name="file_action_unarchive">解压</string>
+    <string name="file_action_toolbox_fix">修复权限和编码</string>
+    <string name="file_selection_count">已选择 %1$d 项</string>
+    <string name="file_selection_cancel">取消选择</string>
+    <string name="file_selection_invert">反选</string>
+    <string name="file_selection_cut">剪切</string>
+    <string name="file_selection_delete">删除</string>
+    <string name="file_selection_archive">压缩</string>
+    <string name="file_move_pending">准备移动：%1$s</string>
+    <string name="file_move_here">移动到当前目录</string>
+    <string name="file_move_cancel">取消移动</string>
+    <string name="file_empty_title">当前目录为空</string>
+    <string name="file_empty_desc">可以新建文件、文件夹或上传文件。</string>
+    <string name="file_error_title">加载失败</string>
     <!-- Buy Point Activity -->
     <string name="title_buy_points">记录</string>
     <string name="tab_points">积分</string>

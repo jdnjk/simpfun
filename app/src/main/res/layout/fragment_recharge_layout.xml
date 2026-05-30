@@ -184,10 +184,10 @@
                                 android:focusable="false" />
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
                                 android:src="@drawable/ic_wechat"
-                                android:layout_marginStart="8dp" />
+                                android:layout_marginStart="10dp" />
 
                             <TextView
                                 android:id="@+id/tv_wechat_name"
@@ -225,8 +225,8 @@
                                 android:focusable="false" />
 
                             <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
                                 android:src="@drawable/ic_alipay"
                                 android:layout_marginStart="8dp" />
 
@@ -462,7 +462,7 @@
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:src="@drawable/ic_alipay"
-                                android:layout_marginStart="8dp" />
+                                android:layout_marginStart="10dp" />
 
                             <TextView
                                 android:id="@+id/tv_alipay_name_card"

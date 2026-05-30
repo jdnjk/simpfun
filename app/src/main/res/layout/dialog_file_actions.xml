@@ -9,11 +9,13 @@
         android:id="@+id/text_view_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
         android:padding="16dp"
-        android:text="文件名"
+        android:text="@string/file_actions_title"
+        android:textColor="?android:attr/textColorPrimary"
         android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="?android:attr/textColorPrimary" />
+        android:textStyle="bold" />
 
     <View
         android:layout_width="match_parent"
@@ -21,28 +23,44 @@
         android:background="?android:attr/listDivider" />
 
     <TextView
+        android:id="@+id/action_open"
+        style="@style/FileActionText"
+        android:text="@string/file_action_open" />
+
+    <TextView
+        android:id="@+id/action_download"
+        style="@style/FileActionText"
+        android:text="@string/file_action_download" />
+
+    <TextView
         android:id="@+id/action_rename"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:text="重命名"
-        android:textSize="16sp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:background="?android:attr/selectableItemBackground"
-        android:drawablePadding="16dp"
-        android:gravity="center_vertical" />
+        style="@style/FileActionText"
+        android:text="@string/file_action_rename" />
+
+    <TextView
+        android:id="@+id/action_copy"
+        style="@style/FileActionText"
+        android:text="@string/file_action_copy" />
+
+    <TextView
+        android:id="@+id/action_move"
+        style="@style/FileActionText"
+        android:text="@string/file_action_move" />
+
+    <TextView
+        android:id="@+id/action_archive"
+        style="@style/FileActionText"
+        android:text="@string/file_action_archive" />
+
+    <TextView
+        android:id="@+id/action_unarchive"
+        style="@style/FileActionText"
+        android:text="@string/file_action_unarchive" />
 
     <TextView
         android:id="@+id/action_delete"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="16dp"
-        android:text="删除"
-        android:textSize="16sp"
-        android:textColor="?attr/colorError"
-        android:background="?android:attr/selectableItemBackground"
-        android:drawablePadding="16dp"
-        android:gravity="center_vertical" />
+        style="@style/FileActionText"
+        android:text="@string/file_action_delete"
+        android:textColor="?attr/colorError" />
 
 </LinearLayout>
-

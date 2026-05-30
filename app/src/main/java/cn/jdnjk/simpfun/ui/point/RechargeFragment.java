@@ -61,9 +61,12 @@ import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 public class RechargeFragment extends Fragment {
     private static final String PAY_METHOD_ALIPAY = "ali_pay_1";
     private static final String PAY_METHOD_WECHAT = "wx_pay_2";
+    private static final String PAY_OK_URL = "https://api.simpcloud.cn/pics/pay_ok.png";
+    private static final long PAY_BUTTON_LOCK_MS = 10_000L;
 
     private FragmentRechargeLayoutBinding binding;
     private WebView hiddenPayWebView;
+    private boolean paySuccessHandled;
     private androidx.appcompat.app.AlertDialog publicRechargeNoticeDialog;
     private androidx.appcompat.app.AlertDialog trafficConfirmDialog;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -664,8 +667,8 @@ public class RechargeFragment extends Fragment {
             @Override
             public void run() {
                 if (!isViewAlive()) return;
+                countdown[0]--;
                 if (countdown[0] > 0) {
-                    countdown[0]--;
                     positiveButton.setText("已阅并继续 (" + countdown[0] + "s)");
                     mainHandler.postDelayed(this, 1000);
                 } else {
@@ -687,29 +690,38 @@ public class RechargeFragment extends Fragment {
         mainHandler.postDelayed(countdownRunnable[0], 1000);
     }
 
+    private void lockPayButton(MaterialButton button, Runnable resetAction) {
+        button.setEnabled(false);
+        mainHandler.postDelayed(() -> {
+            if (!isViewAlive()) return;
+            button.setEnabled(true);
+            resetAction.run();
+        }, PAY_BUTTON_LOCK_MS);
+    }
+
     private void executePointOrder() {
         if (!isViewAlive()) return;
-        binding.btnPay.setEnabled(false);
         binding.btnPay.setText("请求中...");
+        lockPayButton(binding.btnPay, RechargeFragment.this::updatePointPayButtonText);
 
         RechargeTier tier = tiers.get(selectedTierIndex);
         RechargeMode mode = modes.get(selectedModeIndex);
+        String paymentMethod = selectedPaymentMethod;
         String token = requireActivity()
                 .getSharedPreferences("token", Context.MODE_PRIVATE)
                 .getString("token", "");
 
-        payApi.createOrder(token, "point", tier.getPoint(), selectedPaymentMethod, mode.getId(), new PayApi.Callback() {
+        payApi.createOrder(token, "point", tier.getPoint(), paymentMethod, mode.getId(), new PayApi.Callback() {
             @Override
             public void onSuccess(JSONObject json) {
                 if (!isViewAlive()) return;
-                handlePayOrderResponse(json, binding.btnPay, RechargeFragment.this::updatePointPayButtonText);
+                handlePayOrderResponse(json, RechargeFragment.this::updatePointPayButtonText, paymentMethod);
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 if (!isViewAlive()) return;
                 showToast("请求失败: " + errorMsg);
-                binding.btnPay.setEnabled(true);
                 updatePointPayButtonText();
             }
         });
@@ -717,37 +729,38 @@ public class RechargeFragment extends Fragment {
 
     private void executeBenefitCardOrder() {
         if (!isViewAlive()) return;
-        binding.btnPayCard.setEnabled(false);
         binding.btnPayCard.setText("请求中...");
+        lockPayButton(binding.btnPayCard, RechargeFragment.this::updateCardPayButtonText);
 
         BenefitCardPlan plan = visibleBenefitCardPlans.get(selectedBenefitCardPlanIndex);
         RechargeMode mode = modes.get(selectedCardModeIndex);
+        String paymentMethod = selectedPaymentMethod;
         String token = requireActivity()
                 .getSharedPreferences("token", Context.MODE_PRIVATE)
                 .getString("token", "");
 
-        payApi.createOrder(token, plan.getItemId(), plan.getDays(), selectedPaymentMethod, mode.getId(), new PayApi.Callback() {
+        payApi.createOrder(token, plan.getItemId(), plan.getDays(), paymentMethod, mode.getId(), new PayApi.Callback() {
             @Override
             public void onSuccess(JSONObject json) {
                 if (!isViewAlive()) return;
-                handlePayOrderResponse(json, binding.btnPayCard, RechargeFragment.this::updateCardPayButtonText);
+                handlePayOrderResponse(json, RechargeFragment.this::updateCardPayButtonText, paymentMethod);
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 if (!isViewAlive()) return;
                 showToast("请求失败: " + errorMsg);
-                binding.btnPayCard.setEnabled(true);
                 updateCardPayButtonText();
             }
         });
     }
 
-    private void handlePayOrderResponse(JSONObject json, MaterialButton button, Runnable resetAction) {
+    private void handlePayOrderResponse(JSONObject json, Runnable resetAction, String paymentMethod) {
         if (!isViewAlive()) return;
         if (json.optInt("code") == 200) {
             String url = json.optString("url");
-            if (PAY_METHOD_ALIPAY.equals(selectedPaymentMethod)) {
+            if (PAY_METHOD_ALIPAY.equals(paymentMethod)) {
+                paySuccessHandled = false;
                 if (hiddenPayWebView != null) hiddenPayWebView.loadUrl(url);
             } else {
                 copyToClipboard(url);
@@ -756,7 +769,6 @@ public class RechargeFragment extends Fragment {
         } else {
             showToast("下单失败: " + json.optString("msg"));
         }
-        button.setEnabled(true);
         resetAction.run();
     }
 
@@ -828,6 +840,7 @@ public class RechargeFragment extends Fragment {
             public void onSuccess(JSONObject data) {
                 if (!isViewAlive()) return;
                 showToast(data.optString("msg", "购买流量成功"));
+                InstanceDetailStore.getInstance().clear(instance.getId());
                 fetchData();
                 binding.btnBuyTraffic.setEnabled(true);
                 updateTrafficBuyButtonText();
@@ -870,28 +883,52 @@ public class RechargeFragment extends Fragment {
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return handlePayUrl(view, url);
             }
+
+            @Override
+            public void onLoadResource(WebView view, String url) {
+                if (isPayOkUrl(url)) {
+                    handlePaySuccess();
+                }
+                super.onLoadResource(view, url);
+            }
         });
     }
 
     private boolean handlePayUrl(WebView view, @Nullable String url) {
         if (url == null) return false;
+        if (isPayOkUrl(url)) {
+            handlePaySuccess();
+            return true;
+        }
         if (url.startsWith("http") || url.startsWith("https")) {
-            if (getActivity() == null) {
+            android.app.Activity activity = getActivity();
+            if (activity == null) {
                 view.loadUrl(url);
                 return true;
             }
-            final PayTask task = new PayTask(getActivity());
-            boolean isIntercepted = task.payInterceptorWithUrl(url, true, result -> {
-                String returnUrl = result.getReturnUrl();
-                if (!TextUtils.isEmpty(returnUrl)) {
+            new Thread(() -> {
+                final PayTask task = new PayTask(activity);
+                boolean isIntercepted = task.payInterceptorWithUrl(url, true, result -> {
+                    String returnUrl = result != null ? result.getReturnUrl() : null;
+                    if (!TextUtils.isEmpty(returnUrl)) {
+                        mainHandler.post(() -> {
+                            if (!isViewAlive() || hiddenPayWebView != view) return;
+                            if (isPayOkUrl(returnUrl)) {
+                                handlePaySuccess();
+                            } else {
+                                view.loadUrl(returnUrl);
+                            }
+                        });
+                    }
+                });
+                if (!isIntercepted) {
                     mainHandler.post(() -> {
-                        if (hiddenPayWebView == view) {
-                            view.loadUrl(returnUrl);
+                        if (isViewAlive() && hiddenPayWebView == view) {
+                            view.loadUrl(url);
                         }
                     });
                 }
-            });
-            if (!isIntercepted) view.loadUrl(url);
+            }, "AliPayInterceptor").start();
             return true;
         }
         try {
@@ -901,6 +938,20 @@ public class RechargeFragment extends Fragment {
         } catch (Exception ignored) {
         }
         return true;
+    }
+
+    private boolean isPayOkUrl(@Nullable String url) {
+        return url != null && (url.equals(PAY_OK_URL) || url.startsWith(PAY_OK_URL + "?"));
+    }
+
+    private void handlePaySuccess() {
+        if (paySuccessHandled) return;
+        paySuccessHandled = true;
+        mainHandler.post(() -> {
+            if (!isViewAlive()) return;
+            fetchData();
+            showToast("支付成功");
+        });
     }
 
     @Override

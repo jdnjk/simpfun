@@ -4,4 +4,15 @@
     <!-- Use MD2 by default for better compatibility on older Android versions. -->
     <style name="ThemeOverlay.Simpfun.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog" />
 
+    <style name="FileActionText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">?android:attr/selectableItemBackground</item>
+        <item name="android:drawablePadding">16dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:padding">16dp</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
 </resources>

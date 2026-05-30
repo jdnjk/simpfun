@@ -128,6 +128,20 @@ public class UserApi {
         sendInstanceRequest(request, callback);
     }
 
+    public void getSupportInstanceList(String token, InstanceCallback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+
+        Request request = new Request.Builder()
+                .url(BASE_URL + "/dev/support/list")
+                .header("Authorization", token)
+                .build();
+
+        sendInstanceRequest(request, callback);
+    }
+
     /**
      * 绑定 QQ 号
      * @param token 用户Token

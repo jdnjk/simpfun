@@ -1,12 +1,9 @@
 package cn.jdnjk.simpfun;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -20,21 +17,14 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
-import androidx.fragment.app.Fragment;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
 
 public class MainActivity extends AppCompatActivity {
-    private JSONArray instanceList;
     private BottomNavigationView navView;
     private boolean bottomNavHidden = false;
 
@@ -86,92 +76,61 @@ public class MainActivity extends AppCompatActivity {
         navView = findViewById(R.id.nav_view);
 
         if (savedInstanceState == null) {
-            loadFragment(new ServerFragment());
+            loadServerFragment();
         }
 
         navView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             if (itemId == R.id.navigation_server) {
-                loadFragment(new ServerFragment());
+                loadServerFragment();
                 return true;
             }
             if (itemId == R.id.navigation_invite) {
-                loadFragment(new InviteFragment());
+                loadInviteFragment();
                 return true;
             }
             if (itemId == R.id.navigation_profile) {
-                loadFragment(new ProfileFragment());
+                loadProfileFragment();
                 return true;
             }
 
-            SharedPreferences sp = getSharedPreferences("server_data", Context.MODE_PRIVATE);
-            String cachedJson = sp.getString("instance_list", null);
-            if (cachedJson != null) {
-                try {
-                    instanceList = new JSONArray(cachedJson);
-                    updateCurrentFragment();
-                } catch (JSONException e) {
-                    Log.e("MainActivity", "Failed to parse cached instance list", e);
-                }
-            }
-
-            SharedPreferences sp1 = getSharedPreferences("token", Context.MODE_PRIVATE);
-            String token = sp1.getString("token", null);
-            fetchInstanceList(token);
             return false;
         });
 
         String token = getTokenFromSharedPreferences();
-        if (token != null && !token.isEmpty()) {
-            fetchInstanceList(token);
-        } else {
+        if (token == null || token.isEmpty()) {
             Toast.makeText(this, "未登录", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void updateCurrentFragment() {
-        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
-        if (currentFragment instanceof ServerFragment) {
-            ((ServerFragment) currentFragment).updateInstanceList(instanceList);
-        }
-    }
-
-    private void fetchInstanceList(String token) {
-        new UserApi(this).getInstanceList(token, new UserApi.InstanceCallback() {
-            @Override
-            public void onSuccess(JSONObject data) {
-                try {
-                    instanceList = data.getJSONArray("list");
-                    Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
-                    if (currentFragment instanceof ServerFragment) {
-                        ((ServerFragment) currentFragment).updateInstanceList(instanceList);
-                    }
-                } catch (Exception e) {
-                    Log.e("MainActivity", "InsFail", e);
-                    Toast.makeText(MainActivity.this, "解析数据失败", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                Toast.makeText(MainActivity.this, "获取失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 
     private String getTokenFromSharedPreferences() {
         return getSharedPreferences("token", MODE_PRIVATE)
                 .getString("token", null);
     }
-    private void loadFragment(Fragment fragment) {
+
+    private void loadServerFragment() {
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.nav_host_fragment, fragment)
+                .replace(R.id.nav_host_fragment, new ServerFragment())
                 .commit();
         showBottomNav(false);
     }
-    public JSONArray getInstanceList() {
-        return instanceList;
+
+    private void loadInviteFragment() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.nav_host_fragment, new InviteFragment())
+                .commit();
+        showBottomNav(false);
+    }
+
+    private void loadProfileFragment() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.nav_host_fragment, new ProfileFragment())
+                .commit();
+        showBottomNav(false);
     }
 
     public void onPrimaryScroll(int dy, boolean atTop) {

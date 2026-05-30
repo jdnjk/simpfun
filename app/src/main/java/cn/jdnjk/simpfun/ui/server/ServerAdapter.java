@@ -51,14 +51,16 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ServerView
     public void onBindViewHolder(@NonNull ServerViewHolder holder, int position) {
         ServerItem server = serverList.get(position);
         ServerStatsSnapshot stats = server.getStats();
-        boolean showModern = useModernStyle && stats != null && !"offline".equalsIgnoreCase(stats.getState());
+        boolean showModern = useModernStyle && !server.isSupportInstance() && stats != null && !"offline".equalsIgnoreCase(stats.getState());
 
         holder.oldLayout.setVisibility(showModern ? View.GONE : View.VISIBLE);
         holder.modernLayout.setVisibility(showModern ? View.VISIBLE : View.GONE);
 
         holder.textName.setText(server.getName());
-        holder.textId.setText("#" + server.getId());
-        holder.textInfo.setText("CPU " + server.getCpu() + "核 内存 " + server.getRam() + "GB 存储 " + server.getDisk() + "GB");
+        holder.textId.setText(server.isSupportInstance() ? "#" + server.getId() + " · 技术支持" : "#" + server.getId());
+        holder.textInfo.setText(server.isSupportInstance()
+                ? server.getSupportInfo()
+                : "CPU " + server.getCpu() + "核 内存 " + server.getRam() + "GB 存储 " + server.getDisk() + "GB");
 
         holder.modernName.setText(server.getName());
         holder.modernId.setText("ID: " + server.getId());
