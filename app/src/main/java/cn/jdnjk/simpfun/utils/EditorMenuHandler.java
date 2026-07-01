@@ -35,21 +35,38 @@ import org.json.JSONObject;
 
 public class EditorMenuHandler {
 
+    public interface WordWrapChangeListener {
+        void onWordWrapChanged(boolean enabled);
+    }
+
     private final Activity activity;
     private final CodeEditor codeEditor;
     private final String localPath;
+    private final WordWrapChangeListener wordWrapChangeListener;
     private Charset currentEncoding = StandardCharsets.UTF_8;
+    private boolean wordWrapEnabled;
     private static final String MS_TRANSLATOR_REGION = "global";
 
     public EditorMenuHandler(Activity activity, CodeEditor codeEditor, String localPath) {
+        this(activity, codeEditor, localPath, true, null);
+    }
+
+    public EditorMenuHandler(Activity activity, CodeEditor codeEditor, String localPath, boolean wordWrapEnabled,
+            WordWrapChangeListener wordWrapChangeListener) {
         this.activity = activity;
         this.codeEditor = codeEditor;
         this.localPath = localPath;
+        this.wordWrapEnabled = wordWrapEnabled;
+        this.wordWrapChangeListener = wordWrapChangeListener;
     }
 
     public void showMenu(View anchor) {
         PopupMenu popup = new PopupMenu(activity, anchor);
         popup.getMenuInflater().inflate(R.menu.editor_menu, popup.getMenu());
+        android.view.MenuItem wordWrapItem = popup.getMenu().findItem(R.id.action_wordwrap);
+        if (wordWrapItem != null) {
+            wordWrapItem.setChecked(wordWrapEnabled);
+        }
 
         // 强制显示图标
         try {
@@ -89,7 +106,11 @@ public class EditorMenuHandler {
             } else if (itemId == R.id.action_wordwrap) {
                 boolean checked = !item.isChecked();
                 item.setChecked(checked);
+                wordWrapEnabled = checked;
                 codeEditor.setWordwrap(checked);
+                if (wordWrapChangeListener != null) {
+                    wordWrapChangeListener.onWordWrapChanged(checked);
+                }
                 return true;
             } else if (itemId == R.id.action_translate) {
                 handleTranslateComments();

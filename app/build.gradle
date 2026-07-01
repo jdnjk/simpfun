@@ -18,13 +18,13 @@ android {
     compileSdkVersion 36
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.1.4\""
-        buildConfigField 'int', 'VERSION_CODE', "1141"
+        buildConfigField "String", "VERSION_NAME", "\"1.1.4.4\""
+        buildConfigField 'int', 'VERSION_CODE', "11442"
         applicationId "cn.jdnjk.simpfun"
         minSdkVersion 23
         targetSdkVersion 35
-        versionCode 1141
-        versionName "1.1.4"
+        versionCode 11442
+        versionName "1.1.4.4"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
@@ -95,20 +95,21 @@ dependencies {
     //noinspection Aligned16KB
     implementation 'com.tencent.bugly:crashreport:latest.release'
 
-    implementation 'com.squareup.okhttp3:okhttp:5.3.2'
+    implementation 'com.squareup.okhttp3:okhttp:5.4.0'
     implementation 'com.github.Fox2Code.AndroidANSI:library:1.2.0'
     implementation 'com.github.bumptech.glide:glide:5.0.7'
     implementation 'com.hierynomus:sshj:0.40.0'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.84'
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 
-    implementation 'io.github.rosemoe:editor:0.24.5'
-    implementation 'io.github.rosemoe:language-textmate:0.24.5'
+    implementation 'io.github.rosemoe:editor:0.24.6'
+    implementation 'io.github.rosemoe:language-textmate:0.24.6'
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     api 'com.alipay.sdk:alipaysdk-android:15.8.42'
 
     implementation 'androidx.appcompat:appcompat:1.7.1'
-    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'com.google.android.material:material:1.14.0'
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.2.0'

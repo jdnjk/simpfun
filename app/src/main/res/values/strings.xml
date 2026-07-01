@@ -92,6 +92,7 @@
     <string name="file_selection_cancel">取消选择</string>
     <string name="file_selection_invert">反选</string>
     <string name="file_selection_cut">剪切</string>
+    <string name="file_selection_copy">复制</string>
     <string name="file_selection_delete">删除</string>
     <string name="file_selection_archive">压缩</string>
     <string name="file_move_pending">准备移动：%1$s</string>
@@ -115,4 +116,31 @@
     
     <string name="dialog_get_points_title">获得更多积分</string>
     <string name="dialog_get_points_content"><b>获取方式1 签到</b><br/>公益模式下，您可以前往简幻欢 微信小程序 在签到页面进行签到，每天可免费获得50积分。<br/><br/><b>获取方式2 推荐</b><br/>您可以使用 推荐(预留按钮) 功能免费获得无上限积分。<br/><br/><b>获取方式3 观看广告</b><br/>公益模式下，您可以前往简幻欢 微信小程序 在签到页面 -&gt; 观看广告处 通过观看广告，每天最多可免费获得30积分。受微信方面限制，您可能无法观看广告。<br/><br/><b>获取方法4 参与活动</b><br/>你可以查阅最近公告，关注群内消息第一时间参与积分活动。<br/><br/><b>获取方式5 积分充值</b><br/>充值有两种模式：公益充值，和非公益（Pro）充值。<br/>在公益充值的金额不足以维持您自己的服务器运行（即服务器成本大于充值金额）。公益充值仅可使用微信小程序，需要手动签到7次以上（充分了解项目）后解锁，并有全平台的每日充值上限，每日北京时间20:00重置。为照顾到多数用户的需求，3,300/12,000/40,000三个档位分别于重置后60秒/120秒/180秒依次解锁，两次充值间隔需要&gt;60s。<br/>在非公益模式下进行充值有助于减少项目亏损，提供更多的公益充值名额(2:1)，并帮助我们，推进项目良性发展。您可以点击 积分充值(预留) 或 变更为Pro后在微信小程序内充值。<br/><br/><b>获取方式6 积分加成卡</b><br/>您可以前往简幻欢 微信小程序 在签到栏目下 选择签到积分加成卡，公益模式下需要手动签到7次以上（充分了解项目）后解锁，暂不受全平台每日充值上限影响。Pro模式下也不会提供更多公益充值名额。</string>
+
+    <!-- Stats related strings -->
+    <string name="nav_stats">统计</string>
+    <string name="stats_range_title">时间范围</string>
+    <string name="stats_range_1h">1小时</string>
+    <string name="stats_range_1d">1天</string>
+    <string name="stats_range_3d">3天</string>
+    <string name="stats_range_custom">自定义</string>
+    <string name="stats_range_custom_select">选择自定义时间范围</string>
+    <string name="stats_range_custom_value">自定义：%1$s - %2$s</string>
+    <string name="stats_range_custom_start">开始时间</string>
+    <string name="stats_range_custom_end">结束时间</string>
+    <string name="stats_range_invalid">结束时间必须晚于开始时间</string>
+    <string name="stats_metric_title">指标</string>
+    <string name="stats_metric_cpu">CPU</string>
+    <string name="stats_metric_memory">内存</string>
+    <string name="stats_metric_traffic">累计流量</string>
+    <string name="stats_metric_remain_traffic">剩余流量</string>
+    <string name="stats_traffic_in">入站</string>
+    <string name="stats_traffic_out">出站</string>
+    <string name="stats_chart_range">时间范围：%1$s - %2$s</string>
+    <string name="stats_chart_hint">按住折线可查看对应时间和数值</string>
+    <string name="stats_loading_desc">正在读取历史统计数据，请稍候。</string>
+    <string name="stats_empty_title">暂无统计数据</string>
+    <string name="stats_empty">暂无统计数据</string>
+    <string name="stats_load_failed">统计加载失败</string>
+    <string name="stats_load_failed_with_msg">获取统计失败: %1$s</string>
 </resources>

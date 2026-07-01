@@ -34,10 +34,13 @@ import org.json.JSONObject;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PowerApi;
 import cn.jdnjk.simpfun.databinding.ActivityMainBinding;
+import cn.jdnjk.simpfun.service.TerminalWebSocketListener;
+import cn.jdnjk.simpfun.service.TerminalWebSocketManager;
 import cn.jdnjk.simpfun.ui.ins.term.TerminalFragment;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
-public class ServerManages extends AppCompatActivity {
+public class ServerManages extends AppCompatActivity implements TerminalWebSocketListener {
 
     public static final String EXTRA_DEVICE_ID = "extra_device_id";
     public static final String EXTRA_OPEN_NAV_ID = "extra_open_nav_id";
@@ -48,9 +51,11 @@ public class ServerManages extends AppCompatActivity {
     private NavController navController;
     private NavigationView navigationView;
     private TextView toolbarFilePathTitle;
+    private final TerminalWebSocketManager wsManager = TerminalWebSocketManager.getInstance();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
 
         binding = ActivityMainBinding.inflate(getLayoutInflater());
@@ -64,7 +69,8 @@ public class ServerManages extends AppCompatActivity {
         navigationView = binding.navView;
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_backup, R.id.nav_plans)
+                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_stats,
+                R.id.nav_backup, R.id.nav_plans)
                 .setOpenableLayout(drawer)
                 .build();
 
@@ -106,6 +112,7 @@ public class ServerManages extends AppCompatActivity {
             if (deviceId != -1) {
                 Log.i("ServerManages", "接收到 deviceId: " + deviceId);
                 fetchServerDetails();
+                wsManager.addListener(this, deviceId);
                 if (previousDeviceId > 0 && previousDeviceId != deviceId) {
                     notifyTerminalDeviceChanged();
                 }
@@ -195,6 +202,30 @@ public class ServerManages extends AppCompatActivity {
         });
     }
 
+    private String getStatusText(String status) {
+        return switch (status) {
+            case "offline" -> "已离线";
+            case "running" -> "运行中";
+            case "installing" -> "安装中";
+            case "stopping" -> "停止中";
+            case "starting" -> "启动中";
+            default -> "未知状态";
+        };
+    }
+
+    private void updateServerStatus(String status) {
+        String statusText = getStatusText(status);
+        InstanceDetailStore.getInstance().updateStatus(deviceId, status);
+        runOnUiThread(() -> {
+            if (binding == null || navigationView == null) return;
+            View headerView = navigationView.getHeaderView(0);
+            TextView textStatus = headerView.findViewById(R.id.textServerStatus);
+            if (textStatus != null) {
+                textStatus.setText(statusText);
+            }
+        });
+    }
+
     private void applyServerDetail(JSONObject data) {
         try {
             String name;
@@ -207,15 +238,7 @@ public class ServerManages extends AppCompatActivity {
                 }
             }
             String status = data.optString("status", "offline");
-
-            String statusText = switch (status) {
-                case "offline" -> "已离线";
-                case "running" -> "运行中";
-                case "installing" -> "安装中";
-                case "stopping" -> "停止中";
-                case "starting" -> "启动中";
-                default -> "未知状态";
-            };
+            String statusText = getStatusText(status);
 
             String ipStr = "IP: N/A";
             String fullIp = "";
@@ -372,6 +395,37 @@ public class ServerManages extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    @Override
+    public void onLogReceived(String line) {
+    }
+
+    @Override
+    public void onConsoleCleared() {
+    }
+
+    @Override
+    public void onStatusChanged(String status) {
+        updateServerStatus(status);
+    }
+
+    @Override
+    public void onConnected() {
+    }
+
+    @Override
+    public void onDisconnected(String reason) {
+    }
+
+    @Override
+    public void onError(String message) {
+    }
+
+    @Override
+    protected void onDestroy() {
+        wsManager.removeListener(this);
+        super.onDestroy();
     }
 
     @Override

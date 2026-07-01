@@ -7,6 +7,8 @@ import org.jetbrains.annotations.NotNull;
 import okio.Buffer;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 public class ApiClient {
     public static final String BASE_URL = "https://api.simpfun.cn/api";
@@ -14,13 +16,15 @@ public class ApiClient {
     private static ApiClient instance;
     private final OkHttpClient client;
 
-    private static final String USER_AGENT = "Simpfun/"+ BuildConfig.VERSION_NAME;
+    private static final String USER_AGENT = "SimpfunAPP/"+ BuildConfig.VERSION_NAME;
 
     private ApiClient() {
-        this.client = new OkHttpClient.Builder()
-                .addInterceptor(new UserAgentInterceptor())
-                .addInterceptor(new LoggingInterceptor())
-                .build();
+        OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                .addInterceptor(new UserAgentInterceptor());
+        if (BuildConfig.DEBUG) {
+            builder.addInterceptor(new LoggingInterceptor());
+        }
+        this.client = builder.build();
     }
     public static synchronized ApiClient getInstance() {
         if (instance == null) {
@@ -44,37 +48,77 @@ public class ApiClient {
     }
 
     private static class LoggingInterceptor implements Interceptor {
+        private static final long MAX_LOG_BYTES = 16 * 1024;
+
         @Override
         public @NotNull Response intercept(Chain chain) throws IOException {
             Request request = chain.request();
 
             // Log Request
-            Log.d("ApiClient", "--> " + request.method() + " " + request.url());
-            if (request.body() != null) {
-                try {
-                    Buffer buffer = new Buffer();
-                    request.body().writeTo(buffer);
-                    Log.d("ApiClient", "Body: " + buffer.readUtf8());
-                } catch (Exception e) {
-                    Log.d("ApiClient", "Could not log body: " + e.getMessage());
+            if (BuildConfig.DEBUG) {
+                Log.d("ApiClient", "--> " + request.method() + " " + request.url());
+
+                RequestBody requestBody = request.body();
+                if (requestBody != null && isPlainText(requestBody.contentType())) {
+                    try {
+                        long contentLength = requestBody.contentLength();
+                        if (contentLength < 0 || contentLength > MAX_LOG_BYTES) {
+                            Log.d("ApiClient", "Body: <omitted, " + contentLength + " bytes>");
+                        } else {
+                            Buffer buffer = new Buffer();
+                            requestBody.writeTo(buffer);
+                            Log.d("ApiClient", "Body: " + buffer.readString(charset(requestBody.contentType())));
+                        }
+                    } catch (Exception e) {
+                        Log.d("ApiClient", "Could not log body: " + e.getMessage());
+                    }
+                } else if (requestBody != null) {
+                    Log.d("ApiClient", "Body: <binary or unsupported content omitted>");
                 }
             }
 
             Response response = chain.proceed(request);
 
-            Log.d("ApiClient", response.code() + " " + response.request().url());
+            if (BuildConfig.DEBUG) {
+                Log.d("ApiClient", response.code() + " " + response.request().url());
+            }
 
             ResponseBody responseBody = response.body();
-            if (responseBody != null) {
-                try {
-                    String content = response.peekBody(1024 * 1024).string();
-                    Log.d("ApiClient", "Response: " + content);
-                } catch (Exception e) {
-                    Log.d("ApiClient", "Could not log response body: " + e.getMessage());
+            if (BuildConfig.DEBUG) {
+                if (responseBody != null && isPlainText(responseBody.contentType())) {
+                    try {
+                        ResponseBody peekBody = response.peekBody(MAX_LOG_BYTES);
+                        String content = peekBody.string();
+                        String suffix = responseBody.contentLength() > MAX_LOG_BYTES
+                                ? "... (truncated, " + responseBody.contentLength() + " bytes)"
+                                : "";
+                        Log.d("ApiClient", "Response: " + content + suffix);
+                    } catch (Exception e) {
+                        Log.d("ApiClient", "Could not log response body: " + e.getMessage());
+                    }
+                } else if (responseBody != null) {
+                    Log.d("ApiClient", "Response: <binary or unsupported content omitted>");
                 }
             }
 
             return response;
+        }
+
+        private static boolean isPlainText(MediaType mediaType) {
+            if (mediaType == null) {
+                return false;
+            }
+            String type = mediaType.type();
+            String subtype = mediaType.subtype();
+            return "text".equalsIgnoreCase(type)
+                    || subtype.toLowerCase().contains("json")
+                    || subtype.toLowerCase().contains("xml")
+                    || subtype.toLowerCase().contains("x-www-form-urlencoded");
+        }
+
+        private static Charset charset(MediaType mediaType) {
+            Charset charset = mediaType != null ? mediaType.charset(StandardCharsets.UTF_8) : StandardCharsets.UTF_8;
+            return charset != null ? charset : StandardCharsets.UTF_8;
         }
     }
 }

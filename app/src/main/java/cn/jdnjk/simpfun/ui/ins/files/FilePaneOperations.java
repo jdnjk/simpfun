@@ -6,6 +6,7 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import cn.jdnjk.simpfun.R;
@@ -124,6 +125,41 @@ class FilePaneOperations {
                 if (!host.isActive()) return;
                 host.toast("副本创建成功", Toast.LENGTH_SHORT);
                 host.reloadFileList();
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                finishFileOperation();
+                if (!host.isActive()) return;
+                host.toast("创建副本失败: " + errorMsg, Toast.LENGTH_SHORT);
+            }
+        });
+    }
+
+    void copyPaths(List<String> paths) {
+        Context context = getReadyContext();
+        if (context == null || paths == null || paths.isEmpty() || !ensureDeviceId(context) || !beginFileOperation("创建副本")) {
+            return;
+        }
+        int deviceId = host.getDeviceId(context);
+        List<String> copied = new ArrayList<>();
+        copyNext(context, deviceId, paths, copied, 0);
+    }
+
+    private void copyNext(Context context, int deviceId, List<String> paths, List<String> copied, int index) {
+        if (index >= paths.size()) {
+            finishFileOperation();
+            if (!host.isActive()) return;
+            host.toast(copied.size() > 1 ? "已创建 " + copied.size() + " 个副本" : "副本创建成功", Toast.LENGTH_SHORT);
+            host.reloadFileList();
+            return;
+        }
+        String path = paths.get(index);
+        new FileApi().copyFileOrFolder(context, deviceId, path, new FileApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                copied.add(path);
+                copyNext(context, deviceId, paths, copied, index + 1);
             }
 
             @Override

@@ -66,8 +66,9 @@ public class DiamondPlanAdapter extends RecyclerView.Adapter<DiamondPlanAdapter.
 
         int originalPoint = plan.optInt("original_point", 0);
         int discountPoint = plan.optInt("point_discount", 0);
+        int subsidizedPoint = originalPoint - discountPoint;
 
-        holder.tvDiscountPoint.setText(discountPoint + " 积分/天");
+        holder.tvDiscountPoint.setText(subsidizedPoint + " 积分/天");
         holder.tvOriginalPoint.setText(originalPoint + "积分/天");
         holder.tvOriginalPoint.setPaintFlags(holder.tvOriginalPoint.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
 

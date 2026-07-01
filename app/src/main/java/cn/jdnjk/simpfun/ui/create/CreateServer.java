@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.CServerApi;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 import com.bumptech.glide.Glide;
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
@@ -77,6 +78,7 @@ public class CreateServer extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_create_server);

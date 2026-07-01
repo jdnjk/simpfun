@@ -17,6 +17,7 @@ import net.schmizz.sshj.SSHClient;
 import net.schmizz.sshj.sftp.RemoteResourceInfo;
 import net.schmizz.sshj.sftp.SFTPClient;
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
+import net.schmizz.sshj.userauth.UserAuthException;
 
 import org.json.JSONObject;
 
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.model.FileItem;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
+import cn.jdnjk.simpfun.utils.SftpCredentialStore;
 
 class FilePropertiesDialog {
     private final Activity activity;
@@ -129,39 +131,52 @@ class FilePropertiesDialog {
     }
 
     private void fetchSftpAndScan(int deviceId, String remotePath) {
+        String instanceId = String.valueOf(deviceId);
+        SftpCredentialStore.Credential cached = SftpCredentialStore.get(activity).getValid(instanceId);
+        if (cached != null) {
+            executor.execute(() -> {
+                if (scanRemoteNeedsFreshCredentials(cached.host, cached.port, cached.username, cached.password, remotePath) && !cancelled.get()) {
+                    handler.post(() -> fetchFreshSftpAndScan(instanceId, remotePath, "缓存密码失效，重新获取 SFTP 信息失败: "));
+                }
+            });
+            return;
+        }
+        fetchFreshSftpAndScan(instanceId, remotePath, "获取 SFTP 信息失败: ");
+    }
+
+    private void fetchFreshSftpAndScan(String instanceId, String remotePath, String errorPrefix) {
         String token = token();
         if (token.isEmpty()) {
             updateError("未登录");
             return;
         }
-        new MainApi(activity).getSftp(token, String.valueOf(deviceId), new MainApi.Callback() {
+        new MainApi(activity).getSftp(token, instanceId, new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
-                JSONObject sftp = data.optJSONObject("data");
-                if (sftp == null) {
-                    sftp = data;
-                }
-                String host = sftp.optString("ip");
-                int port;
-                try {
-                    port = Integer.parseInt(sftp.optString("port", "22"));
-                } catch (NumberFormatException e) {
-                    updateError("SFTP 端口无效");
+                SftpCredentialStore.Credential credential = SftpCredentialStore.Credential.fromApiJson(instanceId, data);
+                if (credential == null) {
+                    updateError("SFTP 信息无效");
                     return;
                 }
-                String user = sftp.optString("user_name");
-                String password = sftp.optString("password");
-                executor.execute(() -> scanRemote(host, port, user, password, remotePath));
+                executor.execute(() -> scanRemote(credential.host, credential.port, credential.username, credential.password, remotePath));
             }
 
             @Override
             public void onFailure(String errorMsg) {
-                updateError("获取 SFTP 信息失败: " + errorMsg);
+                updateError(errorPrefix + errorMsg);
             }
         });
     }
 
-    private void scanRemote(String host, int port, String user, String password, String remotePath) {
+    private boolean scanRemoteNeedsFreshCredentials(String host, int port, String user, String password, String remotePath) {
+        return scanRemote(host, port, user, password, remotePath, true);
+    }
+
+    private boolean scanRemote(String host, int port, String user, String password, String remotePath) {
+        return scanRemote(host, port, user, password, remotePath, false);
+    }
+
+    private boolean scanRemote(String host, int port, String user, String password, String remotePath, boolean returnAuthFailure) {
         SftpTransferCoordinator.ensureBouncyCastleRegistered();
         try (SSHClient ssh = new SSHClient()) {
             ssh.addHostKeyVerifier(new PromiscuousVerifier());
@@ -171,9 +186,26 @@ class FilePropertiesDialog {
                 scanRemoteDirectory(sftp, remotePath);
             }
             ssh.disconnect();
+            return false;
         } catch (Exception e) {
             Log.w("FilePropertiesDialog", "扫描远程文件属性失败或用户取消操作", e);
+            return returnAuthFailure && isAuthFailure(e);
         }
+    }
+
+    private boolean isAuthFailure(Exception e) {
+        Throwable current = e;
+        while (current != null) {
+            if (current instanceof UserAuthException) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null && message.toLowerCase(java.util.Locale.ROOT).contains("auth")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private void scanRemoteDirectory(SFTPClient sftp, String path) throws IOException {

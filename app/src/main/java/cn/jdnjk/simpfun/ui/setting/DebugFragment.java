@@ -104,6 +104,7 @@ public class DebugFragment extends Fragment {
 
         View btnOpenSWebView = view.findViewById(R.id.btn_open_swebview);
         MaterialSwitch swBugly = view.findViewById(R.id.switch_bugly);
+        MaterialSwitch swManageScreenshotProtection = view.findViewById(R.id.switch_manage_screenshot_protection);
         EditText etToken = view.findViewById(R.id.et_token);
         EditText etWebUrl = view.findViewById(R.id.et_web_url);
         View btnSave = view.findViewById(R.id.btn_save_token);
@@ -122,6 +123,7 @@ public class DebugFragment extends Fragment {
 
         boolean buglyEnabled = spDebug.getBoolean(KEY_BUGLY_ENABLED, true);
         swBugly.setChecked(buglyEnabled);
+        swManageScreenshotProtection.setChecked(ManageScreenshotProtection.isEnabled(ctx));
 
         btnOpenSWebView.setOnClickListener(v -> {
             String input = etWebUrl.getText() == null ? null : etWebUrl.getText().toString().trim();
@@ -141,6 +143,10 @@ public class DebugFragment extends Fragment {
             if (!isChecked) {
                 try { CrashReport.closeBugly(); } catch (Throwable ignored) {}
             }
+        });
+
+        swManageScreenshotProtection.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            ManageScreenshotProtection.setEnabled(ctx, isChecked);
         });
 
         String token = spToken.getString(KEY_TOKEN, "");

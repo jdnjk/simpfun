@@ -36,6 +36,20 @@ public final class ServerStatsFormatter {
         return String.format(Locale.US, "%.1f %s", value, unit);
     }
 
+    public static String formatBytes(long bytes) {
+        double value = Math.max(0L, bytes);
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
+        int unitIndex = 0;
+        while (value >= 1024d && unitIndex < units.length - 1) {
+            value /= 1024d;
+            unitIndex++;
+        }
+        if (unitIndex == 0) {
+            return String.format(Locale.US, "%d %s", Math.max(0L, bytes), units[unitIndex]);
+        }
+        return String.format(Locale.US, "%.1f %s", value, units[unitIndex]);
+    }
+
     public static String formatUptime(long uptimeMillis) {
         long totalSeconds = Math.max(0L, uptimeMillis / 1000L);
         long days = totalSeconds / 86400;

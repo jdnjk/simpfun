@@ -49,6 +49,22 @@ public final class InstanceDetailStore {
         }
     }
 
+    public synchronized void updateStatus(int deviceId, String status) {
+        if (deviceId <= 0 || status == null) return;
+        JSONObject response = cache.get(deviceId);
+        if (response == null) return;
+        try {
+            JSONObject detail = response.optJSONObject("data");
+            if (detail != null) {
+                detail.put("status", status);
+            } else {
+                response.put("status", status);
+            }
+            cache.put(deviceId, deepCopy(response));
+        } catch (JSONException ignored) {
+        }
+    }
+
     public synchronized void clear(int deviceId) {
         cache.remove(deviceId);
     }

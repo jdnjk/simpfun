@@ -12,6 +12,8 @@ import android.webkit.WebViewClient;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import cn.jdnjk.simpfun.utils.ThemeUtils;
+
 import com.alipay.sdk.app.PayTask;
 
 import java.net.MalformedURLException;
@@ -25,6 +27,7 @@ public class SWebView extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_webview);
         webView = findViewById(R.id.webview);

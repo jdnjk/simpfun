@@ -13,7 +13,7 @@ import static cn.jdnjk.simpfun.api.ApiClient.BASE_URL;
 
 public class PayApi {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private static final java.util.Set<Integer> SUPPORTED_TRAFFIC_PACKAGES = new java.util.HashSet<>(java.util.Arrays.asList(1, 3, 10, 30));
+    private static final java.util.Set<Integer> SUPPORTED_TRAFFIC_PACKAGES = new java.util.HashSet<>(java.util.Arrays.asList(1, 3, 9, 10, 30, 90));
 
     public interface Callback {
         void onSuccess(JSONObject data);
@@ -86,7 +86,7 @@ public class PayApi {
      * 购买流量包
      * @param token 认证Token
      * @param serverId 服务器ID
-     * @param traffic 流量包大小 (1/3/10/30)
+     * @param traffic 流量包大小 (1/3/10/30，more_traffic 时为 3/9/30/90)
      * @param callback 回调
      */
     public void buyTrafficPackage(String token, int serverId, int traffic, Callback callback) {

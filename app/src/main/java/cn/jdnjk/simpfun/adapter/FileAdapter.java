@@ -1,6 +1,6 @@
 package cn.jdnjk.simpfun.adapter;
 
-import android.content.res.ColorStateList;
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -43,6 +43,8 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     private PathResolver pathResolver;
     private Set<String> selectedPaths = Collections.emptySet();
     private boolean selectionMode;
+    private boolean showSelectionCheckbox = true;
+    private int selectedBackgroundColorRes = R.color.md_theme_secondaryContainer;
 
     public FileAdapter(List<FileItem> data, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
         this(data, clickListener, longClickListener, (item, anchor) -> clickListener.onClick(item));
@@ -63,6 +65,14 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         notifyDataSetChanged();
     }
 
+    public void setSelectionPresentation(boolean showSelectionCheckbox, boolean usePrimarySelectionColor) {
+        this.showSelectionCheckbox = showSelectionCheckbox;
+        this.selectedBackgroundColorRes = usePrimarySelectionColor
+                ? R.color.md_theme_primary
+                : R.color.md_theme_secondaryContainer;
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -76,7 +86,8 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         String path = pathResolver == null ? item.getName() : pathResolver.resolve(item);
         boolean selectable = selectionMode && !item.isParentEntry();
         boolean selected = selectable && selectedPaths.contains(path);
-        holder.bind(item, clickListener, longClickListener, moreClickListener, selectionMode, selectable, selected);
+        holder.bind(item, clickListener, longClickListener, moreClickListener, selectionMode, selectable, selected,
+                showSelectionCheckbox, selectedBackgroundColorRes);
     }
 
     @Override
@@ -90,6 +101,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         private final TextView info;
         private final TextView moreButton;
         private final CheckBox selectedCheckBox;
+        private final Drawable defaultBackground;
 
         ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -98,10 +110,12 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
             info = itemView.findViewById(R.id.text_view_info);
             moreButton = itemView.findViewById(R.id.button_file_more);
             selectedCheckBox = itemView.findViewById(R.id.check_box_selected);
+            defaultBackground = itemView.getBackground();
         }
 
         void bind(FileItem item, OnItemClickListener clickListener, OnItemLongClickListener longClickListener,
-                OnItemMoreClickListener moreClickListener, boolean selectionMode, boolean selectable, boolean selected) {
+                OnItemMoreClickListener moreClickListener, boolean selectionMode, boolean selectable, boolean selected,
+                boolean showSelectionCheckbox, int selectedBackgroundColorRes) {
             name.setText(item.getName());
             if (item.isParentEntry()) {
                 icon.setImageResource(R.drawable.ic_folder_material);
@@ -118,14 +132,14 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
                 info.setText(itemView.getContext().getString(R.string.folder_info_format, item.getModifiedAt()));
             }
 
-            selectedCheckBox.setVisibility(selectable ? View.VISIBLE : View.GONE);
+            selectedCheckBox.setVisibility(showSelectionCheckbox && selectable ? View.VISIBLE : View.GONE);
             selectedCheckBox.setChecked(selected);
             moreButton.setVisibility(selectionMode || item.isParentEntry() ? View.GONE : View.VISIBLE);
             if (selected) {
-                int selectedColor = itemView.getResources().getColor(R.color.md_theme_secondaryContainer, null);
-                itemView.setBackgroundTintList(ColorStateList.valueOf(selectedColor));
+                int selectedColor = itemView.getResources().getColor(selectedBackgroundColorRes, null);
+                itemView.setBackgroundColor(selectedColor);
             } else {
-                itemView.setBackgroundTintList(null);
+                itemView.setBackground(defaultBackground);
             }
 
             itemView.setOnClickListener(v -> clickListener.onClick(item));

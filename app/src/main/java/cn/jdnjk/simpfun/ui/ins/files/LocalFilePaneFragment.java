@@ -171,6 +171,22 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
     }
 
     @Override
+    public void onSelectionCopy() {
+        if (!state.hasSelection()) {
+            return;
+        }
+        if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
+            dualFilePaneFragment.requestCrossCopy(this, state.copySelectedItems());
+            return;
+        }
+        try {
+            copyPaths(state.copySelectedItems());
+        } catch (Exception e) {
+            toast(e.getMessage() == null ? "复制失败" : e.getMessage(), Toast.LENGTH_LONG);
+        }
+    }
+
+    @Override
     public void onSelectionArchive() {
     }
 
@@ -386,18 +402,24 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
 
     private void showDualLocalPopup(FileItem item, View anchor) {
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
-        popupMenu.getMenu().add("复制->").setOnMenuItemClickListener(menuItem -> {
-            if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
-                dualFilePaneFragment.requestCrossCopy(this, item);
-            }
-            return true;
-        });
-        popupMenu.getMenu().add("移动->").setOnMenuItemClickListener(menuItem -> {
-            if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
-                dualFilePaneFragment.requestCrossMove(this, item);
-            }
-            return true;
-        });
+        DualFilePaneFragment dualFilePaneFragment = getParentFragment() instanceof DualFilePaneFragment parent ? parent : null;
+        boolean canCrossTransfer = dualFilePaneFragment != null && dualFilePaneFragment.canTransferToOppositePane(this);
+        popupMenu.getMenu().add(dualFilePaneFragment == null ? "复制到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, false))
+                .setEnabled(canCrossTransfer)
+                .setOnMenuItemClickListener(menuItem -> {
+                    if (dualFilePaneFragment != null) {
+                        dualFilePaneFragment.requestCrossCopy(this, getSelectedItemsOrSingle(item));
+                    }
+                    return true;
+                });
+        popupMenu.getMenu().add(dualFilePaneFragment == null ? "移动到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, true))
+                .setEnabled(canCrossTransfer)
+                .setOnMenuItemClickListener(menuItem -> {
+                    if (dualFilePaneFragment != null) {
+                        dualFilePaneFragment.requestCrossMove(this, getSelectedItemsOrSingle(item));
+                    }
+                    return true;
+                });
         popupMenu.getMenu().add(R.string.file_action_delete).setOnMenuItemClickListener(menuItem -> {
             showDeleteConfirmDialog(state.singlePathList(item), item.getName());
             return true;
@@ -407,12 +429,19 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
             return true;
         });
         popupMenu.getMenu().add("属性").setOnMenuItemClickListener(menuItem -> {
-            if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
+            if (dualFilePaneFragment != null) {
                 dualFilePaneFragment.requestProperties(this, item);
             }
             return true;
         });
         popupMenu.show();
+    }
+
+    private List<FileItem> getSelectedItemsOrSingle(FileItem item) {
+        if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+            return state.copySelectedItems();
+        }
+        return java.util.Collections.singletonList(item);
     }
 
     private void showLocalActionDialog(FileItem item) {
@@ -590,6 +619,19 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
             File target = buildCopyTarget(source);
             copyRecursively(source, target);
         }, true, false);
+    }
+
+    private void copyPaths(List<FileItem> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+        runLocalOperation("复制完成", () -> {
+            for (FileItem item : items) {
+                File source = requireLocalFile(state.getItemPath(item));
+                File target = buildCopyTarget(source);
+                copyRecursively(source, target);
+            }
+        }, true, true);
     }
 
     private void deletePaths(List<String> paths) {

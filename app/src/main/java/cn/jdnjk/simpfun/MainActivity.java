@@ -23,6 +23,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class MainActivity extends AppCompatActivity {
     private BottomNavigationView navView;
@@ -30,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);

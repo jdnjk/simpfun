@@ -43,6 +43,19 @@ class FilePaneState {
         return new ArrayList<>(selectedPaths);
     }
 
+    List<FileItem> copySelectedItems() {
+        List<FileItem> items = new ArrayList<>();
+        for (FileItem item : fileList) {
+            if (item.isParentEntry()) {
+                continue;
+            }
+            if (selectedPaths.contains(getItemPath(item))) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
     List<String> copyPendingMovePaths() {
         return new ArrayList<>(pendingMovePaths);
     }
@@ -70,13 +83,6 @@ class FilePaneState {
         setCurrentPath(target);
     }
 
-    boolean canGoBackInHistory() {
-        return !backHistory.isEmpty();
-    }
-
-    boolean canGoForwardInHistory() {
-        return !forwardHistory.isEmpty();
-    }
 
     String getBackHistoryTarget() {
         return backHistory.isEmpty() ? null : backHistory.get(backHistory.size() - 1);

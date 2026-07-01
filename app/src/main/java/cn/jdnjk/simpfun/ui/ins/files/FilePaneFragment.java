@@ -203,6 +203,20 @@ public class FilePaneFragment extends Fragment implements
     }
 
     @Override
+    public void onSelectionCopy() {
+        if (!state.hasSelection()) {
+            return;
+        }
+        if (isEmbedded() && getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
+            dualFilePaneFragment.requestCrossCopy(this, state.copySelectedItems());
+            return;
+        }
+        if (operations != null) {
+            operations.copyPaths(state.copySelectedPaths());
+        }
+    }
+
+    @Override
     public void onSelectionArchive() {
         showArchiveFormatDialog(state.copySelectedPaths());
     }
@@ -286,6 +300,11 @@ public class FilePaneFragment extends Fragment implements
         }
         SharedPreferences sp = context.getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         return sp.getInt("device_id", -1);
+    }
+
+    @Override
+    public boolean useSftpFileList() {
+        return isEmbedded();
     }
 
     @Override
@@ -503,18 +522,24 @@ public class FilePaneFragment extends Fragment implements
 
     private void showDualServerPopup(FileItem item, View anchor) {
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
-        popupMenu.getMenu().add("<-复制").setOnMenuItemClickListener(menuItem -> {
-            if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
-                dualFilePaneFragment.requestCrossCopy(this, item);
-            }
-            return true;
-        });
-        popupMenu.getMenu().add("<-移动").setOnMenuItemClickListener(menuItem -> {
-            if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
-                dualFilePaneFragment.requestCrossMove(this, item);
-            }
-            return true;
-        });
+        DualFilePaneFragment dualFilePaneFragment = getParentFragment() instanceof DualFilePaneFragment parent ? parent : null;
+        boolean canCrossTransfer = dualFilePaneFragment != null && dualFilePaneFragment.canTransferToOppositePane(this);
+        popupMenu.getMenu().add(dualFilePaneFragment == null ? "复制到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, false))
+                .setEnabled(canCrossTransfer)
+                .setOnMenuItemClickListener(menuItem -> {
+                    if (dualFilePaneFragment != null) {
+                        dualFilePaneFragment.requestCrossCopy(this, getSelectedItemsOrSingle(item));
+                    }
+                    return true;
+                });
+        popupMenu.getMenu().add(dualFilePaneFragment == null ? "移动到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, true))
+                .setEnabled(canCrossTransfer)
+                .setOnMenuItemClickListener(menuItem -> {
+                    if (dualFilePaneFragment != null) {
+                        dualFilePaneFragment.requestCrossMove(this, getSelectedItemsOrSingle(item));
+                    }
+                    return true;
+                });
         popupMenu.getMenu().add(R.string.file_action_delete).setOnMenuItemClickListener(menuItem -> {
             showDeleteConfirmDialog(item);
             return true;
@@ -527,13 +552,28 @@ public class FilePaneFragment extends Fragment implements
             showArchiveFormatDialog(state.singlePathList(item));
             return true;
         });
+        if (item.isFile()) {
+            popupMenu.getMenu().add(R.string.file_action_unarchive).setOnMenuItemClickListener(menuItem -> {
+                if (operations != null) {
+                    operations.unarchiveFile(item);
+                }
+                return true;
+            });
+        }
         popupMenu.getMenu().add("属性").setOnMenuItemClickListener(menuItem -> {
-            if (getParentFragment() instanceof DualFilePaneFragment dualFilePaneFragment) {
+            if (dualFilePaneFragment != null) {
                 dualFilePaneFragment.requestProperties(this, item);
             }
             return true;
         });
         popupMenu.show();
+    }
+
+    private List<FileItem> getSelectedItemsOrSingle(FileItem item) {
+        if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+            return state.copySelectedItems();
+        }
+        return java.util.Collections.singletonList(item);
     }
 
     private void showFileActionDialog(FileItem item) {
@@ -596,7 +636,9 @@ public class FilePaneFragment extends Fragment implements
         if (copyAction != null) {
             copyAction.setOnClickListener(v -> {
                 dialog.dismiss();
-                if (operations != null) {
+                if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+                    onSelectionCopy();
+                } else if (operations != null) {
                     operations.copyFileOrFolder(item);
                 }
             });
@@ -614,7 +656,7 @@ public class FilePaneFragment extends Fragment implements
             });
         }
         if (unarchiveAction != null) {
-            unarchiveAction.setVisibility(item.isFile() && state.isArchiveFile(item) ? View.VISIBLE : View.GONE);
+            unarchiveAction.setVisibility(item.isFile() ? View.VISIBLE : View.GONE);
             unarchiveAction.setOnClickListener(v -> {
                 dialog.dismiss();
                 if (operations != null) {

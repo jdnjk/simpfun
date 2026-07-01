@@ -2,6 +2,9 @@ package cn.jdnjk.simpfun.ui.auth;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
@@ -26,6 +29,7 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.GetToken;
 import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.SplashActivity;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 import java.util.Objects;
 
@@ -50,6 +54,7 @@ public class AuthActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_auth);
 
@@ -320,13 +325,14 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void showWhitelistDialog() {
-        // 标题与内容：更清晰、可读性更好；保留链接和操作
         String title = "需要微信小程序验证";
+        String networkWarningHtml = buildWhitelistNetworkWarningHtml();
         String contentHtml = "<div>" +
                 "<p>当前登录环境需要进行 <b>IP 白名单验证</b> 才能登录。请按以下步骤操作：</p>" +
+                networkWarningHtml +
                 "<ol>" +
-                "<li><b>在本设备或同一网络</b> 打开微信并进入小程序，有效登录后会自动放行登录 IP。</li>" +
-                "<li>保持 <b>仅一种网络连接</b>（不要同时连 Wi‑Fi/移动数据/有线），以免 IP 不一致导致登录失败。</li>" +
+                "<li><b>在本设备或同一网络下</b> 打开微信小程序 简幻欢，有效登录后会自动放行登录 IP。</li>" +
+                "<li>保持 <b>仅一种网络连接</b>（不要同时连 Wi‑Fi/移动数据/有线），避免 IP 不一致导致登录失败，推荐只用 WLAN。</li>" +
                 "<li>返回本应用，点击登录重试。</li>" +
                 "</ol>" +
                 "<p>仍然遇到问题？加入 QQ 群获取帮助：<a href='mqqopensdkapi://bizAgent/qm/qr?url=https%3a%2f%2fqm.qq.com%2fq%2frtfBSuFGUM'>465468467</a></p>" +
@@ -371,5 +377,30 @@ public class AuthActivity extends AppCompatActivity {
 
         AlertDialog dialog = builder.create();
         dialog.show();
+    }
+
+    private String buildWhitelistNetworkWarningHtml() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (cm == null) return "";
+        Network network = cm.getActiveNetwork();
+        if (network == null) return "";
+        NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+        if (capabilities == null) return "";
+
+        boolean hasVpn = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN);
+        boolean hasCellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR);
+        if (!hasVpn && !hasCellular) return "";
+
+        StringBuilder warning = new StringBuilder();
+        warning.append("<p><b>当前网络提醒：</b>");
+        if (hasVpn) {
+            warning.append("检测到 VPN 已开启，白名单验证可能获取到错误的 IP。请关闭 VPN 后再登录。");
+        }
+        if (hasCellular) {
+            if (hasVpn) warning.append("<br>");
+            warning.append("检测到正在使用 移动网络。请确认微信小程序验证和本应用登录使用的是同一个移动网络；如果同时开着 WLAN，请先关闭其中一个网络。");
+        }
+        warning.append("</p>");
+        return warning.toString();
     }
 }

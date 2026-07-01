@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun.ui.ins.files;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -10,6 +11,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.Toast;
+
+import org.json.JSONArray;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -21,6 +28,8 @@ import androidx.lifecycle.Lifecycle;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ServerManages;
+import cn.jdnjk.simpfun.api.ins.FileApi;
+import cn.jdnjk.simpfun.model.FileItem;
 
 public class DualFilePaneFragment extends Fragment {
     private PaneSlot leftSlot;
@@ -146,11 +155,19 @@ public class DualFilePaneFragment extends Fragment {
     }
 
     void requestCrossCopy(Fragment fragment, cn.jdnjk.simpfun.model.FileItem item) {
-        startCrossTransfer(fragment, item, false);
+        startCrossTransfer(fragment, java.util.Collections.singletonList(item), false);
+    }
+
+    void requestCrossCopy(Fragment fragment, java.util.List<cn.jdnjk.simpfun.model.FileItem> items) {
+        startCrossTransfer(fragment, items, false);
     }
 
     void requestCrossMove(Fragment fragment, cn.jdnjk.simpfun.model.FileItem item) {
-        startCrossTransfer(fragment, item, true);
+        startCrossTransfer(fragment, java.util.Collections.singletonList(item), true);
+    }
+
+    void requestCrossMove(Fragment fragment, java.util.List<cn.jdnjk.simpfun.model.FileItem> items) {
+        startCrossTransfer(fragment, items, true);
     }
 
     void requestProperties(Fragment fragment, cn.jdnjk.simpfun.model.FileItem item) {
@@ -166,21 +183,83 @@ public class DualFilePaneFragment extends Fragment {
         }
     }
 
-    private void startCrossTransfer(Fragment sourceFragment, cn.jdnjk.simpfun.model.FileItem item, boolean move) {
+    private void startCrossTransfer(Fragment sourceFragment, java.util.List<cn.jdnjk.simpfun.model.FileItem> items, boolean move) {
         PaneSlot source = findSlot(sourceFragment);
-        PaneSlot target = source == leftSlot ? rightSlot : leftSlot;
-        if (source == null || target == null || transferCoordinator == null) {
+        PaneSlot target = getOppositeSlot(source);
+        if (source == null || target == null || transferCoordinator == null || items == null || items.isEmpty()) {
             return;
         }
         if (source.fragment instanceof LocalFilePaneFragment localSource && target.fragment instanceof FilePaneFragment serverTarget) {
-            transferCoordinator.copyLocalToServer(localSource, serverTarget, item, move);
+            transferCoordinator.copyLocalToServer(localSource, serverTarget, items, move);
             return;
         }
         if (source.fragment instanceof FilePaneFragment serverSource && target.fragment instanceof LocalFilePaneFragment localTarget) {
-            transferCoordinator.copyServerToLocal(serverSource, localTarget, item, move);
+            transferCoordinator.copyServerToLocal(serverSource, localTarget, items, move);
             return;
         }
-        android.widget.Toast.makeText(requireContext(), "另一页不是对应的本地/服务器面板", android.widget.Toast.LENGTH_SHORT).show();
+        if (source.fragment instanceof FilePaneFragment serverSource && target.fragment instanceof FilePaneFragment serverTarget) {
+            transferServerToServer(serverSource, serverTarget, items, move);
+            return;
+        }
+        Toast.makeText(requireContext(), "另一页不是对应的本地/服务器面板", Toast.LENGTH_SHORT).show();
+    }
+
+    private void transferServerToServer(FilePaneFragment source, FilePaneFragment target, List<FileItem> items, boolean move) {
+        Context context = getContext();
+        if (context == null) {
+            return;
+        }
+        int deviceId = source.getDeviceIdForHost(context);
+        if (deviceId <= 0) {
+            Toast.makeText(context, R.string.invalid_device_id, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (move) {
+            List<String> paths = new ArrayList<>();
+            for (FileItem item : items) {
+                paths.add(source.getItemPathForHost(item));
+            }
+            new FileApi().moveFileOrFolder(context, deviceId, new JSONArray(paths).toString(), target.getCurrentPathForHost(), new FileApi.Callback() {
+                @Override
+                public void onSuccess(org.json.JSONObject data) {
+                    if (!isAdded()) return;
+                    Toast.makeText(requireContext(), "移动成功", Toast.LENGTH_SHORT).show();
+                    source.reloadForHost();
+                    target.reloadForHost();
+                }
+
+                @Override
+                public void onFailure(String errorMsg) {
+                    if (isAdded()) Toast.makeText(requireContext(), "移动失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                }
+            });
+            return;
+        }
+        transferCoordinator.copyServerToServer(source, target, items);
+    }
+
+    boolean canTransferToOppositePane(Fragment sourceFragment) {
+        PaneSlot source = findSlot(sourceFragment);
+        PaneSlot target = getOppositeSlot(source);
+        return isCrossTransferPair(source, target);
+    }
+
+    String getCrossTransferMenuLabel(Fragment sourceFragment, boolean move) {
+        PaneSlot source = findSlot(sourceFragment);
+        PaneSlot target = getOppositeSlot(source);
+        if (target == null) {
+            return move ? "移动到另一页" : "复制到另一页";
+        }
+        return (move ? "移动" : "复制") + (target.side == PaneSide.LEFT ? " <-" : " ->");
+    }
+
+    private boolean isCrossTransferPair(PaneSlot source, PaneSlot target) {
+        if (source == null || target == null) {
+            return false;
+        }
+        return source.fragment instanceof LocalFilePaneFragment && target.fragment instanceof FilePaneFragment
+                || source.fragment instanceof FilePaneFragment && target.fragment instanceof LocalFilePaneFragment
+                || source.fragment instanceof FilePaneFragment && target.fragment instanceof FilePaneFragment;
     }
 
     private void setupToolbarPaneMenu() {
@@ -221,10 +300,7 @@ public class DualFilePaneFragment extends Fragment {
         if (slot == null || slot.kind == kind) {
             return;
         }
-        Fragment fragment = kind == PaneKind.LOCAL ? LocalFilePaneFragment.newInstance(null) : FilePaneFragment.newEmbedded();
-        slot.kind = kind;
-        slot.fragment = fragment;
-        getChildFragmentManager().beginTransaction().replace(slot.containerId, fragment).commitNow();
+        replaceSlot(slot, kind, null);
         updateActivePane();
         updateActivityTitle();
     }
@@ -353,6 +429,21 @@ public class DualFilePaneFragment extends Fragment {
 
     private PaneSlot getActiveSlot() {
         return activePane == PaneSide.LEFT ? leftSlot : rightSlot;
+    }
+
+    private PaneSlot getOppositeSlot(PaneSlot slot) {
+        if (slot == null) {
+            return null;
+        }
+        return slot == leftSlot ? rightSlot : leftSlot;
+    }
+
+    private String paneSideLabel(PaneSide side) {
+        return side == PaneSide.LEFT ? "左侧" : "右侧";
+    }
+
+    private String paneKindLabel(PaneKind kind) {
+        return kind == PaneKind.LOCAL ? "本地" : "服务器";
     }
 
     private Fragment getActiveFragment() {

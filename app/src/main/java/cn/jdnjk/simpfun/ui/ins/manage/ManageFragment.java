@@ -7,22 +7,25 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.Filter;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.AutoCompleteTextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -38,6 +41,8 @@ import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.api.ins.DiamondApi;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PortApi;
+import cn.jdnjk.simpfun.ui.setting.ManageScreenshotProtection;
+import cn.jdnjk.simpfun.utils.SftpCredentialStore;
 
 public class ManageFragment extends Fragment {
     private JSONObject cachedDetail;
@@ -87,16 +92,44 @@ public class ManageFragment extends Fragment {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        applyScreenshotProtection();
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
+        applyScreenshotProtection();
         refreshCachedDetail();
         render();
         fetchSftp();
     }
 
+    @Override
+    public void onStop() {
+        clearScreenshotProtection();
+        super.onStop();
+    }
+
     @Nullable
     public JSONObject getCachedDetail() {
         return cachedDetail;
+    }
+
+    private void applyScreenshotProtection() {
+        if (getActivity() == null) return;
+        Window window = requireActivity().getWindow();
+        if (ManageScreenshotProtection.isEnabled(requireContext())) {
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        }
+    }
+
+    private void clearScreenshotProtection() {
+        if (getActivity() == null) return;
+        requireActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
 
     private void bindViews(View root) {
@@ -144,8 +177,15 @@ public class ManageFragment extends Fragment {
         btnApplyDiamondPlan = root.findViewById(R.id.btn_apply_diamond_plan);
 
         String[] filterOptions = {"当前实例类型", "所有实例类型"};
-        ArrayAdapter<String> filterAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, filterOptions);
+        ArrayAdapter<String> filterAdapter = new NoFilterArrayAdapter(requireContext(), filterOptions);
         tvPlanFilter.setAdapter(filterAdapter);
+        tvPlanFilter.setText(filterOptions[0], false);
+        tvPlanFilter.setOnClickListener(v -> tvPlanFilter.showDropDown());
+        tvPlanFilter.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                tvPlanFilter.showDropDown();
+            }
+        });
         tvPlanFilter.setOnItemClickListener((parent, view, position, id) -> filterPlans());
 
         // Adjust span count dynamically based on the available screen width
@@ -165,7 +205,7 @@ public class ManageFragment extends Fragment {
 
         btnApplyDiamondPlan.setOnClickListener(v -> applyDiamondPlan());
 
-        btnBuyPort.setOnClickListener(v -> buyPort());
+        btnBuyPort.setOnClickListener(v -> confirmBuyPort());
         btnSetMainPort.setOnClickListener(v -> setMainPort());
         btnDestroyInstance.setOnClickListener(v -> confirmDeleteInstance());
         tvTroubleshootId.setOnClickListener(v -> copyTroubleshootId());
@@ -257,13 +297,33 @@ public class ManageFragment extends Fragment {
 
         if (diamond != null) {
             tvDiamondLeft.setText("剩余钻石: " + diamond.optInt("left", 0));
-            tvDiamondPlan.setText("计划ID/折扣: " + diamond.optInt("diamond_plan_id", -1)
-                    + " / " + diamond.optInt("diamond_plan_discount", -1));
-            tvDiamondValid.setText("有效期: " + safe(diamond.optString("diamond_plan_valid_time", "-")));
+
+            int planId = diamond.optInt("diamond_plan_id", -1);
+            int planDiscount = diamond.optInt("diamond_plan_discount", -1);
+            if (planId >= 0 && planDiscount >= 0) {
+                tvDiamondPlan.setVisibility(View.VISIBLE);
+                tvDiamondPlan.setText("计划ID/折扣: " + planId + " / " + planDiscount);
+            } else if (planId >= 0) {
+                tvDiamondPlan.setVisibility(View.VISIBLE);
+                tvDiamondPlan.setText("计划ID: " + planId);
+            } else if (planDiscount >= 0) {
+                tvDiamondPlan.setVisibility(View.VISIBLE);
+                tvDiamondPlan.setText("折扣: " + planDiscount);
+            } else {
+                tvDiamondPlan.setVisibility(View.GONE);
+            }
+
+            String validTime = safe(diamond.optString("diamond_plan_valid_time", "-"));
+            if (!validTime.isEmpty() && !"-".equals(validTime) && !"-1".equals(validTime)) {
+                tvDiamondValid.setVisibility(View.VISIBLE);
+                tvDiamondValid.setText("有效期: " + validTime);
+            } else {
+                tvDiamondValid.setVisibility(View.GONE);
+            }
         } else {
             tvDiamondLeft.setText("剩余钻石: 0");
-            tvDiamondPlan.setText("计划ID/折扣: - / -");
-            tvDiamondValid.setText("有效期: -");
+            tvDiamondPlan.setVisibility(View.GONE);
+            tvDiamondValid.setVisibility(View.GONE);
         }
 
         if (allDiamondPlans == null && getActivity() instanceof ServerManages) {
@@ -414,6 +474,17 @@ public class ManageFragment extends Fragment {
         btnSetMainPort.setEnabled(!selected.isDefault);
     }
 
+    private void confirmBuyPort() {
+        if (!(getActivity() instanceof ServerManages)) return;
+        int cost = cachedDetail != null && cachedDetail.optBoolean("is_pro", false) ? 50 : 100;
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("确定创建端口吗")
+                .setMessage(String.format(Locale.getDefault(), "将花费%d积分来创建一个端口", cost))
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确定", (dialog, which) -> buyPort())
+                .show();
+    }
+
     private void buyPort() {
         if (!(getActivity() instanceof ServerManages activity)) return;
         String token = getToken();
@@ -515,7 +586,7 @@ public class ManageFragment extends Fragment {
 
     private void confirmDeleteInstance() {
         if (!(getActivity() instanceof ServerManages)) return;
-        new AlertDialog.Builder(requireContext())
+        new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("确认销毁实例")
                 .setMessage("销毁后不可恢复，是否继续？")
                 .setNegativeButton("取消", null)
@@ -551,10 +622,17 @@ public class ManageFragment extends Fragment {
 
     private void fetchSftp() {
         if (!(getActivity() instanceof ServerManages activity)) return;
+        String instanceId = String.valueOf(activity.getDeviceId());
+        SftpCredentialStore.Credential cached = SftpCredentialStore.get(requireContext()).getValid(instanceId);
+        if (cached != null) {
+            cachedSftp = cached.toJson();
+            render();
+            return;
+        }
         String token = getToken();
         if (token == null) return;
 
-        new MainApi(requireContext()).getSftp(token, String.valueOf(activity.getDeviceId()), new MainApi.Callback() {
+        new MainApi(requireContext()).getSftp(token, instanceId, new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
                 JSONObject sftpData = data.optJSONObject("data");
@@ -634,6 +712,30 @@ public class ManageFragment extends Fragment {
 
     private String safe(String text) {
         return text == null || text.trim().isEmpty() ? "-" : text;
+    }
+
+    private static final class NoFilterArrayAdapter extends ArrayAdapter<String> {
+        private final Filter noFilter = new Filter() {
+            @Override
+            protected FilterResults performFiltering(CharSequence constraint) {
+                return new FilterResults();
+            }
+
+            @Override
+            protected void publishResults(CharSequence constraint, FilterResults results) {
+                notifyDataSetChanged();
+            }
+        };
+
+        NoFilterArrayAdapter(@NonNull Context context, @NonNull String[] items) {
+            super(context, android.R.layout.simple_dropdown_item_1line, items);
+        }
+
+        @NonNull
+        @Override
+        public Filter getFilter() {
+            return noFilter;
+        }
     }
 
     private static final class PortItem {

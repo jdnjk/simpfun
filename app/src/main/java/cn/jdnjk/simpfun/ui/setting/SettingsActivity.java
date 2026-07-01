@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.SWebView;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
 
@@ -27,6 +28,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(Color.TRANSPARENT);

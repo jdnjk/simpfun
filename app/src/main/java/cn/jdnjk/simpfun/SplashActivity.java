@@ -10,7 +10,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
-import cn.jdnjk.simpfun.ui.setting.ThemeManager;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 import com.tencent.bugly.crashreport.CrashReport;
 
 import java.io.File;
@@ -38,7 +38,7 @@ public class SplashActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         migrateLegacySettingPreferences();
-        ThemeManager.getInstance(this).initializeTheme();
+        ThemeUtils.applySavedTheme(this);
         setContentView(R.layout.activity_splash);
         final SharedPreferences spDebug = getSharedPreferences(SP_DEBUG, Context.MODE_PRIVATE);
 

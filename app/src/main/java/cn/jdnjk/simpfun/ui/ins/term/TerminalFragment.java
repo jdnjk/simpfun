@@ -4,6 +4,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -298,9 +299,10 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             public void onCreateMenu(@NonNull Menu menu, @NonNull MenuInflater menuInflater) {
                 SubMenu aiMenu = menu.addSubMenu(Menu.NONE, R.id.action_terminal_ai, 0, "AI助手");
                 aiMenu.setIcon(R.drawable.ic_ai_assistant);
-                aiMenu.add(Menu.NONE, R.id.action_ai_history, 0, "AI历史记录");
-                aiMenu.add(Menu.NONE, R.id.action_ai_troubleshoot, 1, "AI疑难解答");
-                aiMenu.add(Menu.NONE, R.id.action_ai_analyze, 2, "AI故障分析");
+                aiMenu.add(Menu.NONE, R.id.action_terminal_copy_output, 0, "复制终端内容");
+                aiMenu.add(Menu.NONE, R.id.action_ai_history, 1, "AI历史记录");
+                aiMenu.add(Menu.NONE, R.id.action_ai_troubleshoot, 2, "AI疑难解答");
+                aiMenu.add(Menu.NONE, R.id.action_ai_analyze, 3, "AI故障分析");
                 aiMenu.getItem().setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             }
 
@@ -313,6 +315,10 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
 
     private boolean handleTerminalMenuItem(@NonNull MenuItem item) {
         int itemId = item.getItemId();
+        if (itemId == R.id.action_terminal_copy_output) {
+            showTerminalOutputDialog();
+            return true;
+        }
         if (itemId != R.id.action_ai_history
                 && itemId != R.id.action_ai_troubleshoot
                 && itemId != R.id.action_ai_analyze) {
@@ -337,6 +343,38 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             handleAiAnalyze(deviceId);
         }
         return true;
+    }
+
+    private void showTerminalOutputDialog() {
+        if (!isViewAvailable() || terminalAdapter == null) return;
+        String snapshot = terminalAdapter.getTerminalOutputSnapshot(pendingLines);
+        if (snapshot.trim().isEmpty()) {
+            showToast("终端暂无内容");
+            return;
+        }
+
+        Context context = requireContext();
+        TextView outputView = new TextView(context);
+        int padding = (int) (12 * context.getResources().getDisplayMetrics().density);
+        outputView.setPadding(padding, padding, padding, padding);
+        outputView.setText(snapshot);
+        outputView.setTextIsSelectable(true);
+        outputView.setGravity(android.view.Gravity.START | android.view.Gravity.TOP);
+        outputView.setTypeface(Typeface.MONOSPACE);
+        outputView.setTextSize(12);
+
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(context);
+        scrollView.addView(outputView, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle("终端内容")
+                .setView(scrollView)
+                .setPositiveButton("复制全部", (d, which) -> copyToClipboard("Terminal Output", snapshot, "已复制终端内容"))
+                .setNegativeButton("关闭", null)
+                .create();
+        showManagedDialog(dialog);
     }
 
     private void handleAiHistory(int deviceId) {
@@ -634,6 +672,20 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         wsManager.connect(requireContext(), deviceId, true);
     }
 
+    private void refreshTerminalLogs() {
+        if (!isViewAvailable()) return;
+        int deviceId = getCurrentDeviceId();
+        if (deviceId <= 0) return;
+        registerWebSocketListener();
+        if (wsManager.isConnectedTo(deviceId)) {
+            if (terminalAdapter != null && terminalAdapter.getItemCount() == 0 && pendingLines.isEmpty()) {
+                wsManager.requestLogs(false);
+            }
+        } else {
+            connectToTerminal();
+        }
+    }
+
     private int getCurrentDeviceId() {
         if (getActivity() instanceof ServerManages activity && activity.getDeviceId() > 0) {
             return activity.getDeviceId();
@@ -769,11 +821,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         super.onResume();
         isAppInForeground = true;
         applyTerminalColors();
-        registerWebSocketListener();
-        int deviceId = getCurrentDeviceId();
-        if (!wsManager.isConnectedTo(deviceId)) {
-            connectToTerminal();
-        }
+        refreshTerminalLogs();
     }
 
     @Override
@@ -843,6 +891,25 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
                 sb.append(cleanLine).append("\n");
             }
             return sb.toString();
+        }
+
+        String getTerminalOutputSnapshot(List<String> pendingLines) {
+            StringBuilder sb = new StringBuilder();
+            for (String line : lines) {
+                appendSnapshotLine(sb, line);
+            }
+            if (pendingLines != null) {
+                for (String line : pendingLines) {
+                    appendSnapshotLine(sb, line);
+                }
+            }
+            return sb.toString();
+        }
+
+        private void appendSnapshotLine(StringBuilder sb, String line) {
+            String cleanLine = stripAnsiForLogs(line);
+            if (cleanLine.isEmpty()) return;
+            sb.append(cleanLine).append("\n");
         }
 
         void addLines(List<String> newLines) {

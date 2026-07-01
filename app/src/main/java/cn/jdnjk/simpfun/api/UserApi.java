@@ -69,39 +69,38 @@ public class UserApi {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                if (response.isSuccessful()) {
-                    try {
-                        String jsonResponse = response.body().string();
-                        JSONObject jsonObject = new JSONObject(jsonResponse);
-                        int code = jsonObject.getInt("code");
+                String jsonResponse = response.body() != null ? response.body().string() : "";
+                try {
+                    JSONObject jsonObject = jsonResponse.isEmpty() ? new JSONObject() : new JSONObject(jsonResponse);
+                    int code = jsonObject.optInt("code", response.code());
 
-                        mainHandler.post(() -> {
-                            if (code == 200) {
-                                try {
-                                    saveUserInfo(jsonObject.getJSONObject("info"));
-                                    if (callback != null) callback.onSuccess();
-                                } catch (JSONException e) {
-                                    Toast.makeText(context, "用户信息解析失败", Toast.LENGTH_SHORT).show();
-                                    if (callback != null) callback.onFailure();
-                                }
-                            } else if (code == 403) {
-                                Toast.makeText(context, "账号验证失败，请重新登录", Toast.LENGTH_SHORT).show();
-                                if (callback != null) callback.onFailure();
-                            } else {
-                                String msg = jsonObject.optString("msg", "未知错误");
-                                Toast.makeText(context, "错误: " + msg, Toast.LENGTH_SHORT).show();
+                    mainHandler.post(() -> {
+                        if (code == 200) {
+                            try {
+                                saveUserInfo(jsonObject.getJSONObject("info"));
+                                if (callback != null) callback.onSuccess();
+                            } catch (JSONException e) {
+                                Toast.makeText(context, "用户信息解析失败", Toast.LENGTH_SHORT).show();
                                 if (callback != null) callback.onFailure();
                             }
-                        });
-                    } catch (JSONException e) {
-                        mainHandler.post(() -> {
-                            Toast.makeText(context, "数据解析错误", Toast.LENGTH_SHORT).show();
+                        } else if (code == 403 || response.code() == 403) {
+                            Toast.makeText(context, "账号验证失败，请重新登录", Toast.LENGTH_SHORT).show();
                             if (callback != null) callback.onFailure();
-                        });
-                    }
-                } else {
+                        } else {
+                            String msg = jsonObject.optString("msg", response.isSuccessful() ? "未知错误" : "服务器返回错误: " + response.code());
+                            Toast.makeText(context, "错误: " + msg, Toast.LENGTH_SHORT).show();
+                            if (callback != null) callback.onFailure();
+                        }
+                    });
+                } catch (JSONException e) {
                     mainHandler.post(() -> {
-                        Toast.makeText(context, "网络错误，请稍后再试", Toast.LENGTH_SHORT).show();
+                        if (response.code() == 403) {
+                            Toast.makeText(context, "账号验证失败，请重新登录", Toast.LENGTH_SHORT).show();
+                        } else if (response.isSuccessful()) {
+                            Toast.makeText(context, "数据解析错误", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(context, "服务器返回错误: " + response.code(), Toast.LENGTH_SHORT).show();
+                        }
                         if (callback != null) callback.onFailure();
                     });
                 }

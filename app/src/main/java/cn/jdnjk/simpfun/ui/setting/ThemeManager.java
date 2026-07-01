@@ -1,22 +1,19 @@
 package cn.jdnjk.simpfun.ui.setting;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import androidx.appcompat.app.AppCompatDelegate;
+
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class ThemeManager {
-    private static final String SETTINGS_PREFS = "setting_sp";
-    private static final String THEME_MODE_KEY = "theme_mode";
-
-    public static final int THEME_SYSTEM = 0;
-    public static final int THEME_LIGHT = 1;
-    public static final int THEME_DARK = 2;
+    public static final int THEME_SYSTEM = ThemeUtils.THEME_SYSTEM;
+    public static final int THEME_LIGHT = ThemeUtils.THEME_LIGHT;
+    public static final int THEME_DARK = ThemeUtils.THEME_DARK;
 
     private static ThemeManager instance;
-    private final SharedPreferences preferences;
+    private final Context appContext;
 
     private ThemeManager(Context context) {
-        preferences = context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE);
+        appContext = context.getApplicationContext();
     }
 
     public static ThemeManager getInstance(Context context) {
@@ -27,38 +24,22 @@ public class ThemeManager {
     }
 
     public void setThemeMode(int themeMode) {
-        preferences.edit().putInt(THEME_MODE_KEY, themeMode).apply();
-        applyTheme(themeMode);
+        ThemeUtils.setThemeMode(appContext, themeMode);
     }
 
     public int getThemeMode() {
-        return preferences.getInt(THEME_MODE_KEY, THEME_SYSTEM);
+        return ThemeUtils.getThemeMode(appContext);
     }
 
     public void applyTheme(int themeMode) {
-        switch (themeMode) {
-            case THEME_LIGHT:
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-                break;
-            case THEME_DARK:
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-                break;
-            case THEME_SYSTEM:
-            default:
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-                break;
-        }
+        ThemeUtils.applyTheme(themeMode);
     }
 
     public String getThemeName(int themeMode) {
-        return switch (themeMode) {
-            case THEME_LIGHT -> "浅色模式";
-            case THEME_DARK -> "深色模式";
-            default -> "跟随系统";
-        };
+        return ThemeUtils.getThemeName(themeMode);
     }
 
     public void initializeTheme() {
-        applyTheme(getThemeMode());
+        ThemeUtils.applySavedTheme(appContext);
     }
 }

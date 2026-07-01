@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import cn.jdnjk.simpfun.utils.EditorMenuHandler;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.widget.CodeEditor;
 import android.graphics.Typeface;
@@ -47,6 +48,7 @@ public class FileEditorActivity extends AppCompatActivity {
     private ImageView btnRedo;
     private ImageView btnSave;
     private boolean isModified = false;
+    private boolean wordWrapEnabled = true;
     private String localPath;
     private String fileName;
     private static boolean textMateInited = false;
@@ -69,6 +71,7 @@ public class FileEditorActivity extends AppCompatActivity {
         EXTENSION_TO_SCOPE.put(".bash", "source.shell");
         EXTENSION_TO_SCOPE.put(".bashrc", "source.shell");
         EXTENSION_TO_SCOPE.put(".profile", "source.shell");
+        EXTENSION_TO_SCOPE.put(".ini", "source.ini");
     }
 
     private void ensureTextMateInited() {
@@ -255,6 +258,7 @@ public class FileEditorActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         // getWindow().setStatusBarColor(Color.TRANSPARENT); // Deprecated
@@ -282,6 +286,7 @@ public class FileEditorActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btn_save);
 
         codeEditor = findViewById(R.id.code_editor);
+        codeEditor.setWordwrap(wordWrapEnabled);
         try {
             codeEditor.setTypefaceText(Typeface.createFromAsset(getAssets(), "editor/JetBrainsMonoNL-Regular.ttf"));
         } catch (Exception e) {
@@ -298,8 +303,8 @@ public class FileEditorActivity extends AppCompatActivity {
         btnSave.setOnClickListener(v -> saveFile());
 
         ImageView btnMore = findViewById(R.id.btn_more);
-        btnMore.setOnClickListener(v -> new EditorMenuHandler(this, codeEditor, localPath)
-                .showMenu(v));
+        btnMore.setOnClickListener(v -> new EditorMenuHandler(this, codeEditor, localPath, wordWrapEnabled,
+                enabled -> wordWrapEnabled = enabled).showMenu(v));
 
         codeEditor.subscribeEvent(ContentChangeEvent.class, (event, unsubscribe) -> {
             isModified = true;

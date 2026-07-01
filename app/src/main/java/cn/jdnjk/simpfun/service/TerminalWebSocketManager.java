@@ -85,12 +85,19 @@ public class TerminalWebSocketManager {
     }
 
     public void connect(Context context, int deviceId, boolean requestLogs) {
+        connect(context, deviceId, requestLogs, false);
+    }
+
+    public void connect(Context context, int deviceId, boolean requestLogs, boolean forceRequestLogs) {
         appContext = context.getApplicationContext();
         if (currentDeviceId == deviceId && webSocket != null) {
-            boolean shouldRequestLogs = requestLogs && !isLogsRequested;
+            boolean shouldRequestLogs = requestLogs && (forceRequestLogs || !isLogsRequested);
             isLogsRequested = isLogsRequested || requestLogs;
             if (isSocketOpen) {
                 if (shouldRequestLogs) {
+                    if (forceRequestLogs) {
+                        clearBuffer();
+                    }
                     sendLogMessage();
                 }
                 notifyConnected();
@@ -100,6 +107,9 @@ public class TerminalWebSocketManager {
 
         if (currentDeviceId == deviceId && isConnecting) {
             isLogsRequested = isLogsRequested || requestLogs;
+            if (forceRequestLogs) {
+                clearBuffer();
+            }
             return;
         }
 
@@ -210,7 +220,7 @@ public class TerminalWebSocketManager {
         try {
             JSONObject msg = new JSONObject(text);
             String event = msg.optString("event");
-            Log.d(TAG, "WS Event: " + event + " | payload=" + text);
+            //Log.d(TAG, "WS Event: " + event + " | payload=" + text);
 
             switch (event) {
                 case "auth success" -> {
@@ -356,7 +366,14 @@ public class TerminalWebSocketManager {
     }
 
     public void requestLogs() {
+        requestLogs(false);
+    }
+
+    public void requestLogs(boolean clearExisting) {
         isLogsRequested = true;
+        if (clearExisting) {
+            clearBuffer();
+        }
         if (isSocketOpen) {
             sendLogMessage();
         }

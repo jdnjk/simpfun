@@ -63,6 +63,13 @@ public class RechargeFragment extends Fragment {
     private static final String PAY_METHOD_WECHAT = "wx_pay_2";
     private static final String PAY_OK_URL = "https://api.simpcloud.cn/pics/pay_ok.png";
     private static final long PAY_BUTTON_LOCK_MS = 10_000L;
+    private static final int MORE_TRAFFIC_MULTIPLIER = 3;
+    private static final int[][] TRAFFIC_PACKAGE_SPECS = new int[][]{
+            {1, 10},
+            {3, 30},
+            {10, 100},
+            {30, 300}
+    };
 
     private FragmentRechargeLayoutBinding binding;
     private WebView hiddenPayWebView;
@@ -81,6 +88,7 @@ public class RechargeFragment extends Fragment {
     private final Map<String, List<BenefitCardPlan>> benefitCardPlanMap = new HashMap<>();
     private final Map<Integer, Long> instanceRemainBytes = new HashMap<>();
     private final Map<Integer, Boolean> instanceDetailLoading = new HashMap<>();
+    private final Map<Integer, Boolean> instanceMoreTraffic = new HashMap<>();
 
     private RechargeOptionAdapter tierAdapter;
     private RechargeOptionAdapter modeAdapter;
@@ -97,6 +105,7 @@ public class RechargeFragment extends Fragment {
     private int selectedBenefitCardTypeIndex = 0;
     private int selectedBenefitCardPlanIndex = 0;
     private int selectedCardModeIndex = 0;
+    private boolean moreTraffic;
     private String selectedPaymentMethod = PAY_METHOD_ALIPAY;
 
     @Nullable
@@ -121,12 +130,17 @@ public class RechargeFragment extends Fragment {
     }
 
     private void initTrafficPackages() {
-        trafficPackages.clear();
-        trafficPackages.add(new TrafficPackageOption(1, 10));
-        trafficPackages.add(new TrafficPackageOption(3, 30));
-        trafficPackages.add(new TrafficPackageOption(10, 100));
-        trafficPackages.add(new TrafficPackageOption(30, 300));
+        rebuildTrafficPackages();
         selectedTrafficPackageIndex = 0;
+    }
+
+    private void rebuildTrafficPackages() {
+        trafficPackages.clear();
+        int multiplier = moreTraffic ? MORE_TRAFFIC_MULTIPLIER : 1;
+        for (int[] spec : TRAFFIC_PACKAGE_SPECS) {
+            trafficPackages.add(new TrafficPackageOption(spec[0] * multiplier, spec[1]));
+        }
+        if (selectedTrafficPackageIndex >= trafficPackages.size()) selectedTrafficPackageIndex = 0;
     }
 
     private void initBenefitCardTypes() {
@@ -218,6 +232,7 @@ public class RechargeFragment extends Fragment {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedInstanceIndex = position;
+                updateTrafficPackageMultiplierForSelectedInstance();
                 updateTrafficInstanceSummary();
                 updateTrafficBuyButtonText();
                 requestSelectedInstanceDetail();
@@ -460,6 +475,8 @@ public class RechargeFragment extends Fragment {
         instanceOptions.clear();
         instanceRemainBytes.clear();
         instanceDetailLoading.clear();
+        instanceMoreTraffic.clear();
+        updateMoreTraffic(false);
         if (list != null) {
             for (int i = 0; i < list.length(); i++) {
                 JSONObject obj = list.optJSONObject(i);
@@ -490,6 +507,16 @@ public class RechargeFragment extends Fragment {
         if (!instanceOptions.isEmpty() && selectedInstanceIndex >= 0 && selectedInstanceIndex < instanceOptions.size()) {
             binding.spinnerTrafficInstance.setSelection(selectedInstanceIndex, false);
         }
+    }
+
+    private void updateTrafficPackageMultiplierForSelectedInstance() {
+        boolean enabled = false;
+        if (selectedInstanceIndex >= 0 && selectedInstanceIndex < instanceOptions.size()) {
+            InstanceOption option = instanceOptions.get(selectedInstanceIndex);
+            Boolean cachedMoreTraffic = instanceMoreTraffic.get(option.getId());
+            enabled = Boolean.TRUE.equals(cachedMoreTraffic);
+        }
+        updateMoreTraffic(enabled);
     }
 
     private void updateTrafficInstanceSummary() {
@@ -558,8 +585,18 @@ public class RechargeFragment extends Fragment {
         JSONObject traffic = detail != null ? detail.optJSONObject("traffic") : null;
         if (traffic != null) {
             instanceRemainBytes.put(deviceId, traffic.optLong("remain_bytes", -1));
+            instanceMoreTraffic.put(deviceId, traffic.optBoolean("more_traffic", false));
+            updateTrafficPackageMultiplierForSelectedInstance();
         }
         updateTrafficInstanceSummary();
+    }
+
+    private void updateMoreTraffic(boolean enabled) {
+        if (moreTraffic == enabled) return;
+        moreTraffic = enabled;
+        rebuildTrafficPackages();
+        refreshTrafficPackageRows();
+        updateTrafficBuyButtonText();
     }
 
     private String formatTrafficBytes(long bytes) {

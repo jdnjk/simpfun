@@ -21,6 +21,7 @@ import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 
 import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class PointManageActivity extends AppCompatActivity {
 
@@ -46,6 +47,7 @@ public class PointManageActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(Color.TRANSPARENT);

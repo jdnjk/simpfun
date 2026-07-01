@@ -107,25 +107,32 @@ public class TasksFragment extends Fragment {
 
     private void loadTasks(boolean showSpinner) {
         if (isLoading) return; // 防止并发请求
+
+        Context context = getContext();
+        if (context == null) return;
+
         isLoading = true;
 
         if (showSpinner && swipeRefreshLayout != null) {
             swipeRefreshLayout.setRefreshing(true);
         }
 
-        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        Context appContext = context.getApplicationContext();
+        SharedPreferences sp = appContext.getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         int deviceId = sp.getInt("device_id", -1);
         if (deviceId <= 0) {
-            if (showSpinner && swipeRefreshLayout.isRefreshing()) swipeRefreshLayout.setRefreshing(false);
+            if (showSpinner && swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) swipeRefreshLayout.setRefreshing(false);
             isLoading = false;
-            Toast.makeText(requireContext(), "设备ID无效", Toast.LENGTH_SHORT).show();
+            Toast.makeText(appContext, "设备ID无效", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        new TasksApi().getTasks(requireContext(), deviceId, new TasksApi.Callback() {
+        new TasksApi().getTasks(appContext, deviceId, new TasksApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
                 try {
+                    if (!isViewActive()) return;
+
                     int running = data.optInt("running", 0);
                     int waiting = data.optInt("waiting", 0);
                     int firstWaiting = data.optInt("num_first_waiting", -1);
@@ -164,19 +171,25 @@ public class TasksFragment extends Fragment {
                         emptyStateLayout.setVisibility(View.GONE);
                     }
                 } catch (Exception e) {
-                    Toast.makeText(requireContext(), "解析任务数据失败", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(appContext, "解析任务数据失败", Toast.LENGTH_SHORT).show();
                 } finally {
-                    if (showSpinner && swipeRefreshLayout.isRefreshing()) swipeRefreshLayout.setRefreshing(false);
+                    if (showSpinner && swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) swipeRefreshLayout.setRefreshing(false);
                     isLoading = false;
                 }
             }
 
             @Override
             public void onFailure(String errorMsg) {
-                Toast.makeText(requireContext(), "获取任务失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                if (showSpinner && swipeRefreshLayout.isRefreshing()) swipeRefreshLayout.setRefreshing(false);
+                if (isViewActive()) {
+                    Toast.makeText(appContext, "获取任务失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                    if (showSpinner && swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing()) swipeRefreshLayout.setRefreshing(false);
+                }
                 isLoading = false;
             }
         });
+    }
+
+    private boolean isViewActive() {
+        return isAdded() && getView() != null;
     }
 }

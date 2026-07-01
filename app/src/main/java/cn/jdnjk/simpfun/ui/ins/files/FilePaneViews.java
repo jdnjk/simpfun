@@ -34,6 +34,7 @@ class FilePaneViews {
         void onSelectionCancel();
         void onSelectionInvert();
         void onSelectionCut();
+        void onSelectionCopy();
         void onSelectionArchive();
         void onSelectionDelete();
         void onMoveHere();
@@ -65,6 +66,7 @@ class FilePaneViews {
     private TextView selectionCountText;
     private View selectionInvertButton;
     private View selectionCutButton;
+    private View selectionCopyButton;
     private View selectionArchiveButton;
     private View selectionDeleteButton;
     private View selectionCancelButton;
@@ -80,6 +82,7 @@ class FilePaneViews {
     private boolean showFab = true;
     private boolean showArchiveAction = true;
     private boolean selectionUiEnabled = true;
+    private boolean selectionBarEnabled = true;
     private boolean destroyed;
 
     FilePaneViews(@NonNull View root, @NonNull FilePaneState state, @NonNull Callbacks callbacks) {
@@ -100,6 +103,7 @@ class FilePaneViews {
         selectionCountText = root.findViewById(R.id.text_selection_count);
         selectionInvertButton = root.findViewById(R.id.button_selection_invert);
         selectionCutButton = root.findViewById(R.id.button_selection_cut);
+        selectionCopyButton = root.findViewById(R.id.button_selection_copy);
         selectionArchiveButton = root.findViewById(R.id.button_selection_archive);
         selectionDeleteButton = root.findViewById(R.id.button_selection_delete);
         selectionCancelButton = root.findViewById(R.id.button_selection_cancel);
@@ -133,6 +137,9 @@ class FilePaneViews {
         }
         if (selectionCutButton != null) {
             selectionCutButton.setOnClickListener(v -> callbacks.onSelectionCut());
+        }
+        if (selectionCopyButton != null) {
+            selectionCopyButton.setOnClickListener(v -> callbacks.onSelectionCopy());
         }
         if (selectionArchiveButton != null) {
             selectionArchiveButton.setOnClickListener(v -> callbacks.onSelectionArchive());
@@ -203,7 +210,8 @@ class FilePaneViews {
 
     void configureForDualPane() {
         showFab = false;
-        selectionUiEnabled = false;
+        selectionBarEnabled = false;
+        adapter.setSelectionPresentation(false, true);
         if (selectionBar != null) {
             selectionBar.setVisibility(View.GONE);
         }
@@ -213,7 +221,6 @@ class FilePaneViews {
         if (bottomToolbarScrollView != null) {
             bottomToolbarScrollView.setVisibility(View.GONE);
         }
-        adapter.setSelectionState(false, java.util.Collections.emptySet(), state::getItemPath);
     }
 
     void showLoading(boolean show) {
@@ -327,7 +334,7 @@ class FilePaneViews {
             return;
         }
         boolean selectionMode = selectionUiEnabled && state.isSelectionMode();
-        if (selectionBar != null) {
+        if (selectionBar != null && selectionBarEnabled) {
             selectionBar.setVisibility(selectionMode ? View.VISIBLE : View.GONE);
         }
         if (selectionCountText != null) {

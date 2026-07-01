@@ -23,12 +23,15 @@ import java.util.Objects;
 
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
+import cn.jdnjk.simpfun.utils.SftpCredentialStore;
 
 public class MainApi {
     private static final String TAG = "MainApi";
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Context appContext;
 
     public MainApi(Context context) {
+        appContext = context == null ? null : context.getApplicationContext();
     }
 
     public interface Callback {
@@ -120,6 +123,9 @@ public class MainApi {
                 if (deviceId != null) {
                     InstanceDetailStore.getInstance().clear(deviceId);
                 }
+                if (appContext != null) {
+                    SftpCredentialStore.get(appContext).delete(serverId);
+                }
                 if (callback != null) {
                     callback.onSuccess(data);
                 }
@@ -155,7 +161,24 @@ public class MainApi {
                 .header("Authorization", token)
                 .build();
 
-        sendRequest(request, callback);
+        sendRequest(request, new Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (appContext != null) {
+                    SftpCredentialStore.get(appContext).upsertFreshResult(serverId, data);
+                }
+                if (callback != null) {
+                    callback.onSuccess(data);
+                }
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (callback != null) {
+                    callback.onFailure(errorMsg);
+                }
+            }
+        });
     }
 
     private void sendRequest(Request request, Callback callback) {

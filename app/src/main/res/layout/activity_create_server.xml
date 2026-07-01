@@ -66,22 +66,41 @@
             <!-- 搜索栏，仅在第三方 镜像服务端 步骤显示 -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/layout_search"
+                style="@style/Widget.Material3.TextInputLayout.FilledBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:hint="搜索镜像服务端"
-                app:endIconMode="custom"
-                app:endIconDrawable="@android:drawable/ic_menu_search"
-                app:endIconContentDescription="搜索"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                android:visibility="gone">
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone"
+                app:boxBackgroundColor="?attr/colorSurfaceContainerHigh"
+                app:boxCornerRadiusBottomEnd="28dp"
+                app:boxCornerRadiusBottomStart="28dp"
+                app:boxCornerRadiusTopEnd="28dp"
+                app:boxCornerRadiusTopStart="28dp"
+                app:boxStrokeColor="?attr/colorPrimary"
+                app:boxStrokeWidth="0dp"
+                app:boxStrokeWidthFocused="1dp"
+                app:endIconMode="clear_text"
+                app:hintEnabled="false"
+                app:startIconDrawable="@drawable/ic_search"
+                app:startIconTint="?attr/colorOnSurfaceVariant">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_search"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="56dp"
+                    android:gravity="center_vertical"
+                    android:hint="搜索镜像名称或描述"
+                    android:imeOptions="actionSearch"
+                    android:includeFontPadding="false"
+                    android:inputType="text"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp"
                     android:singleLine="true"
-                    android:imeOptions="actionSearch" />
+                    android:textColor="?attr/colorOnSurface"
+                    android:textColorHint="?attr/colorOnSurfaceVariant" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- 分页容器：超出10条时显示 -->

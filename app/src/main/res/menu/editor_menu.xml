@@ -31,7 +31,7 @@
                 android:id="@+id/action_wordwrap"
                 android:title="自动换行"
                 android:checkable="true"
-                android:checked="false" />
+                android:checked="true" />
         </menu>
     </item>
 

@@ -43,7 +43,8 @@
                     android:layout_height="wrap_content"
                     android:text="当前实例信息"
                     android:textAppearance="?attr/textAppearanceTitleLarge"
-                    android:textColor="?attr/colorOnSurface" />
+                    android:textColor="?attr/colorOnSurface"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_instance_id"
@@ -51,7 +52,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_troubleshoot_id"
@@ -59,7 +61,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_instance_status"
@@ -67,7 +70,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_disk_usage"
@@ -75,7 +79,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_traffic_remain"
@@ -83,7 +88,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_game_type"
@@ -91,7 +97,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
 
                 <TextView
                     android:id="@+id/tv_disk_check_time"
@@ -99,7 +106,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textIsSelectable="true" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
