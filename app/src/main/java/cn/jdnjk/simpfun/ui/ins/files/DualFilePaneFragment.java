@@ -134,7 +134,7 @@ public class DualFilePaneFragment extends Fragment {
 
     void onChildTouched(Fragment fragment) {
         PaneSlot slot = findSlot(fragment);
-        if (slot != null) {
+        if (slot != null && slot.side != activePane) {
             activatePane(slot.side);
         }
     }

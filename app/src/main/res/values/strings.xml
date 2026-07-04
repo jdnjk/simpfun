@@ -28,6 +28,7 @@
     <string name="tasks_empty_cd">任务空态</string>
 
     <string name="task_id_format">#%1$d</string>
+    <string name="task_meta_format">#%1$d · %2$s</string>
     <string name="task_status_format">状态: %1$d</string>
     <string name="task_status_text_format">状态: %1$s</string>
     <string name="task_status_running">运行中</string>
@@ -36,6 +37,8 @@
     <string name="task_status_error">运行错误</string>
     <string name="task_comment_placeholder">任务描述</string>
     <string name="task_time_placeholder">2025-01-01T00:00:00Z</string>
+    <string name="task_cancel">取消任务</string>
+    <string name="task_move_to_pro_queue">变更至Pro队列</string>
 
     <!-- Download and icon related strings -->
     <string name="download_in_progress">下载中...</string>
@@ -143,4 +146,15 @@
     <string name="stats_empty">暂无统计数据</string>
     <string name="stats_load_failed">统计加载失败</string>
     <string name="stats_load_failed_with_msg">获取统计失败: %1$s</string>
+
+    <!-- Create server related strings -->
+    <string name="create_server_action_create">创建</string>
+    <string name="create_server_action_reinstall">重装</string>
+    <string name="create_server_action_change_config">确认变配</string>
+    <string name="create_server_recommended_prefix">推荐配置: %1$s</string>
+    <string name="create_server_size_prefix">大小: %1$s</string>
+    <string name="create_server_spec_summary">%1$d核 / %2$dG内存 / %3$dG硬盘</string>
+    <string name="create_server_cpu_cores">%1$d核</string>
+    <string name="create_server_storage_gb">%1$dG</string>
+    <string name="create_server_points">%1$d积分</string>
 </resources>

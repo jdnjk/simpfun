@@ -146,6 +146,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
 
     @Override
     public void onItemSwipe(FileItem item, int position) {
+        notifyHostTouched();
         state.selectBySwipe(position);
         renderSelection();
     }
@@ -249,6 +250,11 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
     @Override
     public void onPathLongClick() {
         showEditPathDialog();
+    }
+
+    @Override
+    public void onPaneTouched() {
+        notifyHostTouched();
     }
 
     @Override

@@ -70,7 +70,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
                 R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_stats,
-                R.id.nav_backup, R.id.nav_plans)
+                R.id.nav_backup, R.id.nav_rollback, R.id.nav_plans)
                 .setOpenableLayout(drawer)
                 .build();
 
@@ -81,6 +81,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
             if (destination.getId() != R.id.nav_gallery) {
                 clearFilePathTitle();
             }
+            invalidateOptionsMenu();
         });
 
         handleIntent(getIntent());
@@ -303,7 +304,18 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.toolbar_menu, menu);
+        updatePowerMenuVisibility(menu);
         return true;
+    }
+
+    private void updatePowerMenuVisibility(Menu menu) {
+        boolean visible = navController == null || navController.getCurrentDestination() == null
+                || navController.getCurrentDestination().getId() != R.id.nav_slideshow;
+        int[] powerItems = {R.id.action_start, R.id.action_restart, R.id.action_stop, R.id.action_kill};
+        for (int itemId : powerItems) {
+            MenuItem item = menu.findItem(itemId);
+            if (item != null) item.setVisible(visible);
+        }
     }
 
     @Override

@@ -47,11 +47,11 @@ public class MainApi {
      */
     public void getInstanceDetail(String token, String serverId, Callback callback) {
         if (token == null || token.trim().isEmpty()) {
-            invokeCallback(callback, false, "Token 不能为空");
+            invokeCallback(callback, "Token 不能为空");
             return;
         }
         if (serverId == null || serverId.trim().isEmpty()) {
-            invokeCallback(callback, false, "Server ID 不能为空");
+            invokeCallback(callback, "Server ID 不能为空");
             return;
         }
 
@@ -72,11 +72,11 @@ public class MainApi {
      */
     public void renameInstance(String token, String serverId, String newName, Callback callback) {
         if (token == null || token.trim().isEmpty()) {
-            invokeCallback(callback, false, "Token 不能为空");
+            invokeCallback(callback, "Token 不能为空");
             return;
         }
         if (serverId == null || serverId.trim().isEmpty()) {
-            invokeCallback(callback, false, "Server ID 不能为空");
+            invokeCallback(callback, "Server ID 不能为空");
             return;
         }
 
@@ -101,11 +101,11 @@ public class MainApi {
      */
     public void deleteInstance(String token, String serverId, Callback callback) {
         if (token == null || token.trim().isEmpty()) {
-            invokeCallback(callback, false, "Token 不能为空");
+            invokeCallback(callback, "Token 不能为空");
             return;
         }
         if (serverId == null || serverId.trim().isEmpty()) {
-            invokeCallback(callback, false, "Server ID 不能为空");
+            invokeCallback(callback, "Server ID 不能为空");
             return;
         }
 
@@ -148,11 +148,11 @@ public class MainApi {
      */
     public void getSftp(String token, String serverId, Callback callback) {
         if (token == null || token.trim().isEmpty()) {
-            invokeCallback(callback, false, "Token 不能为空");
+            invokeCallback(callback, "Token 不能为空");
             return;
         }
         if (serverId == null || serverId.trim().isEmpty()) {
-            invokeCallback(callback, false, "Server ID 不能为空");
+            invokeCallback(callback, "Server ID 不能为空");
             return;
         }
 
@@ -192,14 +192,14 @@ public class MainApi {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 Log.e(TAG, "Request failed", e);
-                mainHandler.post(() -> invokeCallback(callback, false, "网络请求失败: " + e.getMessage()));
+                mainHandler.post(() -> invokeCallback(callback, "网络请求失败: " + e.getMessage()));
             }
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 mainHandler.post(() -> {
                     if (!response.isSuccessful()) {
-                        invokeCallback(callback, false, "HTTP 错误: " + response.code());
+                        invokeCallback(callback, "HTTP 错误: " + response.code());
                         return;
                     }
 
@@ -227,17 +227,17 @@ public class MainApi {
                                 }
                             }
 
-                            invokeCallback(callback, true, null, data);
+                            invokeCallback(callback, data);
                         } else {
                             String msg = json.optString("msg", "操作失败");
-                            invokeCallback(callback, false, msg);
+                            invokeCallback(callback, msg);
                         }
                     } catch (JSONException e) {
                         Log.e(TAG, "JSON parse error: " + responseBody, e);
-                        invokeCallback(callback, false, "数据解析错误");
+                        invokeCallback(callback, "数据解析错误");
                     } catch (Exception e) {
                         Log.e(TAG, "Unexpected error", e);
-                        invokeCallback(callback, false, "未知错误");
+                        invokeCallback(callback, "未知错误");
                     }
                 });
             }
@@ -252,23 +252,15 @@ public class MainApi {
         }
     }
 
-    private void invokeCallback(Callback callback, boolean success, String errorMsg) {
+    private void invokeCallback(Callback callback, String errorMsg) {
         if (callback != null) {
-            if (success) {
-                callback.onSuccess(new JSONObject());
-            } else {
-                callback.onFailure(errorMsg);
-            }
+            callback.onFailure(errorMsg);
         }
     }
 
-    private void invokeCallback(Callback callback, boolean success, String errorMsg, JSONObject data) {
+    private void invokeCallback(Callback callback, JSONObject data) {
         if (callback != null) {
-            if (success) {
-                callback.onSuccess(data);
-            } else {
-                callback.onFailure(errorMsg);
-            }
+            callback.onSuccess(data);
         }
     }
 }

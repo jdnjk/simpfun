@@ -167,6 +167,9 @@ class FilePaneState {
             selectedPaths.add(path);
         }
         selectionMode = !selectedPaths.isEmpty();
+        if (!selectionMode) {
+            resetSwipeSelectionAnchor();
+        }
     }
 
     void clearSelection() {

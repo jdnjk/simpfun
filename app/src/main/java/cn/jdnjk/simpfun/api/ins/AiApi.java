@@ -151,8 +151,8 @@ public class AiApi {
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) {
-                try {
-                    String body = response.body() != null ? response.body().string() : "";
+                try (response) {
+                    String body = response.body().string();
                     JSONObject json = body.isEmpty() ? new JSONObject() : new JSONObject(body);
                     int code = json.optInt("code", response.code());
                     if (response.isSuccessful() && code == 200) {
@@ -163,8 +163,6 @@ public class AiApi {
                     }
                 } catch (Exception e) {
                     deliverFailure(callback, "解析失败: " + e.getMessage());
-                } finally {
-                    response.close();
                 }
             }
         });

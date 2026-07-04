@@ -1,5 +1,7 @@
 package cn.jdnjk.simpfun.ui.create;
 
+import android.content.Context;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -21,27 +23,54 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
-import android.view.ViewGroup;
+import java.util.Locale;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textfield.TextInputLayout;
 import android.view.MenuItem;
 import android.content.Intent;
 import android.net.Uri;
+import org.jspecify.annotations.NonNull;
 
 /**
  * 创建服务器向导
  */
 public class CreateServer extends AppCompatActivity {
 
+    public static final String EXTRA_MODE = "extra_mode";
+    public static final String MODE_REINSTALL = "reinstall";
+    public static final String MODE_CHANGE_CONFIG = "change_config";
+    public static final String EXTRA_SERVER_ID = "extra_server_id";
+    public static final String EXTRA_RESULT_NEW_ID = "extra_result_new_id";
+    public static final String EXTRA_RESULT_CHANGE_CONFIG = "extra_result_change_config";
+    public static final String EXTRA_CURRENT_GAME_NAME = "extra_current_game_name";
+    public static final String EXTRA_CURRENT_KIND_NAME = "extra_current_kind_name";
+    public static final String EXTRA_CURRENT_IMAGE_NAME = "extra_current_image_name";
+    public static final String EXTRA_CURRENT_VERSION_NAME = "extra_current_version_name";
+    public static final String EXTRA_CURRENT_GAME_ID = "extra_current_game_id";
+    public static final String EXTRA_CURRENT_KIND_ID = "extra_current_kind_id";
+    public static final String EXTRA_CURRENT_VERSION_ID = "extra_current_version_id";
+    public static final String EXTRA_CURRENT_CUSTOM_ID = "extra_current_custom_id";
+    public static final String EXTRA_CURRENT_CUSTOM = "extra_current_custom";
+
     private enum Step {
-        TYPE, GAME, IMAGE_KIND, VERSION, SPEC, CONFIRM
+        TYPE, GAME, IMAGE_KIND, VERSION, SPEC, CONFIRM, REINSTALL_OPTIONS
     }
+
+    private enum WizardMode {
+        CREATE, REINSTALL, CHANGE_CONFIG
+    }
+
+    private static final Step[] CREATE_STEPS = {Step.TYPE, Step.GAME, Step.IMAGE_KIND, Step.VERSION, Step.SPEC, Step.CONFIRM};
+    private static final Step[] REINSTALL_STEPS = {Step.TYPE, Step.GAME, Step.IMAGE_KIND, Step.VERSION, Step.REINSTALL_OPTIONS};
+    private static final Step[] CHANGE_CONFIG_STEPS = {Step.SPEC, Step.CONFIRM};
 
     private Step currentStep = Step.TYPE;
     private boolean isCustom = false;
-    private RecyclerView recyclerView;
     private ProgressBar progressBar;
     private MaterialToolbar toolbar;
     private CollapsingToolbarLayout collapsingToolbar;
@@ -52,9 +81,11 @@ public class CreateServer extends AppCompatActivity {
     private LinearLayout paginationContainer;
     private LinearLayout layoutGradeFilter;
     private android.widget.Spinner spGrade;
-    private TextView tvCpuModelLink;
     private HorizontalScrollView hsSteps;
     private LinearLayout layoutSteps;
+    private LinearLayout layoutReinstallOptions;
+    private com.google.android.material.checkbox.MaterialCheckBox cbSaveBeforeReinstall;
+    private com.google.android.material.checkbox.MaterialCheckBox cbDiffUpdate;
     private com.google.android.material.floatingactionbutton.FloatingActionButton fabHelp;
 
     // 分页/搜索相关（仅第三方镜像 服务端 选择步骤使用）
@@ -67,6 +98,21 @@ public class CreateServer extends AppCompatActivity {
     private Integer imageKindId; // 镜像服务端/Kind id 或 customlist 的 id
     private Integer versionId; // 镜像版本 id
     private Integer specId; // 实例规格 item id
+
+    private WizardMode wizardMode = WizardMode.CREATE;
+    private int serverId = -1;
+    private boolean isSubmitting = false;
+    private String selectedGameName = "";
+    private String selectedImageKindName = "";
+    private String selectedVersionName = "";
+    private String currentGameName = "";
+    private String currentKindName = "";
+    private String currentImageName = "";
+    private String currentVersionName = "";
+    private int currentGameId = -1;
+    private int currentKindId = -1;
+    private boolean hasCurrentCustom = false;
+    private boolean currentCustom = false;
 
     private String token;
 
@@ -82,7 +128,7 @@ public class CreateServer extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_create_server);
-        recyclerView = findViewById(R.id.recycler_view);
+        RecyclerView recyclerView = findViewById(R.id.recycler_view);
         progressBar = findViewById(R.id.progress);
         toolbar = findViewById(R.id.toolbar);
         collapsingToolbar = findViewById(R.id.collapsing_toolbar);
@@ -93,7 +139,7 @@ public class CreateServer extends AppCompatActivity {
         paginationContainer = findViewById(R.id.pagination_container);
         layoutGradeFilter = findViewById(R.id.layout_grade_filter);
         spGrade = findViewById(R.id.sp_grade);
-        tvCpuModelLink = findViewById(R.id.tv_cpu_model_link);
+        TextView tvCpuModelLink = findViewById(R.id.tv_cpu_model_link);
         if (tvCpuModelLink != null) {
             tvCpuModelLink.setOnClickListener(v -> {
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://yuque.com/simpfun/sfe/areas"));
@@ -102,7 +148,14 @@ public class CreateServer extends AppCompatActivity {
         }
         hsSteps = findViewById(R.id.hs_steps);
         layoutSteps = findViewById(R.id.layout_steps);
+        layoutReinstallOptions = findViewById(R.id.layout_reinstall_options);
+        cbSaveBeforeReinstall = findViewById(R.id.cb_save_before_reinstall);
+        cbDiffUpdate = findViewById(R.id.cb_diff_update);
         fabHelp = findViewById(R.id.fab_help);
+
+        if (!readIntentExtras()) {
+            return;
+        }
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new GenericAdapter(data, this::onItemSelected);
@@ -112,9 +165,6 @@ public class CreateServer extends AppCompatActivity {
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_refresh) {
                 refreshCurrentStep();
-                return true;
-            } else if (item.getItemId() == R.id.action_close) {
-                finish();
                 return true;
             }
             return false;
@@ -143,27 +193,72 @@ public class CreateServer extends AppCompatActivity {
         renderCurrentStep();
     }
 
-    private void onBackStep() {
-        switch (currentStep) {
-            case TYPE -> finish();
-            case GAME -> currentStep = Step.TYPE;
-            case IMAGE_KIND -> currentStep = Step.GAME;
-            case VERSION -> currentStep = Step.IMAGE_KIND;
-            case SPEC -> currentStep = Step.VERSION;
-            case CONFIRM -> currentStep = Step.SPEC;
+    private boolean readIntentExtras() {
+        Intent intent = getIntent();
+        String mode = intent.getStringExtra(EXTRA_MODE);
+        if (MODE_REINSTALL.equals(mode)) {
+            wizardMode = WizardMode.REINSTALL;
+        } else if (MODE_CHANGE_CONFIG.equals(mode)) {
+            wizardMode = WizardMode.CHANGE_CONFIG;
+        } else {
+            return true;
         }
+
+        serverId = intent.getIntExtra(EXTRA_SERVER_ID, -1);
+        currentGameName = emptyIfNull(intent.getStringExtra(EXTRA_CURRENT_GAME_NAME));
+        currentKindName = emptyIfNull(intent.getStringExtra(EXTRA_CURRENT_KIND_NAME));
+        currentImageName = emptyIfNull(intent.getStringExtra(EXTRA_CURRENT_IMAGE_NAME));
+        currentVersionName = emptyIfNull(intent.getStringExtra(EXTRA_CURRENT_VERSION_NAME));
+        currentGameId = intent.getIntExtra(EXTRA_CURRENT_GAME_ID, -1);
+        currentKindId = intent.getIntExtra(EXTRA_CURRENT_KIND_ID, -1);
+        int currentVersionId = intent.getIntExtra(EXTRA_CURRENT_VERSION_ID, -1);
+        int currentCustomId = intent.getIntExtra(EXTRA_CURRENT_CUSTOM_ID, -1);
+        hasCurrentCustom = intent.hasExtra(EXTRA_CURRENT_CUSTOM);
+        currentCustom = intent.getBooleanExtra(EXTRA_CURRENT_CUSTOM, false);
+
+        if (serverId <= 0) {
+            Toast.makeText(this, "实例ID无效", Toast.LENGTH_SHORT).show();
+            finish();
+            return false;
+        }
+        if (isChangeConfigMode()) {
+            imageKindId = currentCustom ? (currentCustomId > 0 ? currentCustomId : null) : (currentKindId > 0 ? currentKindId : null);
+            versionId = currentVersionId > 0 ? currentVersionId : null;
+            isCustom = currentCustom;
+            selectedGameName = currentGameName;
+            selectedImageKindName = firstNonEmpty(currentKindName, currentImageName);
+            selectedVersionName = currentVersionName;
+            currentStep = Step.SPEC;
+        }
+        return true;
+    }
+
+    private void onBackStep() {
+        int currentIndex = getCurrentStepIndex();
+        if (currentIndex <= 0) {
+            finish();
+            return;
+        }
+        currentStep = getActiveSteps()[currentIndex - 1];
         renderCurrentStep();
     }
 
     private void onActionButton() {
         if (currentStep == Step.CONFIRM) {
-            createInstance();
+            if (isChangeConfigMode()) {
+                changeInstance();
+            } else {
+                createInstance();
+            }
+        } else if (currentStep == Step.REINSTALL_OPTIONS) {
+            showReinstallConfirmDialog();
         }
     }
 
     private void renderCurrentStep() {
         layoutSearch.setVisibility(View.GONE);
         hsPagination.setVisibility(View.GONE);
+        layoutReinstallOptions.setVisibility(View.GONE);
 
         MenuItem refreshItem = toolbar.getMenu().findItem(R.id.action_refresh);
         if (refreshItem != null) refreshItem.setVisible(false);
@@ -172,8 +267,14 @@ public class CreateServer extends AppCompatActivity {
 
         renderSteps(); // 更新步骤导航
 
-        btnAction.setVisibility(currentStep == Step.CONFIRM ? View.VISIBLE : View.GONE);
-        btnAction.setText("创建");
+        btnAction.setVisibility((currentStep == Step.CONFIRM || currentStep == Step.REINSTALL_OPTIONS) ? View.VISIBLE : View.GONE);
+        if (currentStep == Step.REINSTALL_OPTIONS) {
+            btnAction.setText(R.string.create_server_action_reinstall);
+        } else if (isChangeConfigMode() && currentStep == Step.CONFIRM) {
+            btnAction.setText(R.string.create_server_action_change_config);
+        } else {
+            btnAction.setText(R.string.create_server_action_create);
+        }
 
         // Help FAB visibility and action
         if ((currentStep == Step.IMAGE_KIND && isCustom) || currentStep == Step.SPEC) {
@@ -186,34 +287,37 @@ public class CreateServer extends AppCompatActivity {
         switch (currentStep) {
             case TYPE -> {
                 collapsingToolbar.setTitle("选择镜像类型");
-                data.clear();
-                data.add(ListItem.simple("基础镜像", "官方标准镜像", true));
-                data.add(ListItem.simple("第三方镜像", "社区提供的镜像", true));
-                adapter.notifyDataSetChanged();
+                replaceData(
+                        ListItem.simple("基础镜像", "官方标准镜像"),
+                        ListItem.simple("第三方镜像", "社区提供的镜像"));
             }
             case GAME -> {
-                collapsingToolbar.setTitle("选择镜像类别");
+                collapsingToolbar.setTitle(isReinstallMode() ? "选择实例类别" : "选择镜像类别");
                 if (refreshItem != null) refreshItem.setVisible(true);
                 loadGameList();
             }
             case IMAGE_KIND -> {
-                collapsingToolbar.setTitle("选择镜像服务端");
+                collapsingToolbar.setTitle(isReinstallMode() ? "选择实例服务端" : "选择镜像服务端");
                 if (refreshItem != null) refreshItem.setVisible(true);
                 loadImageKindList();
             }
             case VERSION -> {
-                collapsingToolbar.setTitle("选择镜像版本");
+                collapsingToolbar.setTitle(isReinstallMode() ? "选择实例版本" : "选择镜像版本");
                 if (refreshItem != null) refreshItem.setVisible(true);
                 loadVersionList();
             }
             case SPEC -> {
-                collapsingToolbar.setTitle("选择实例规格");
+                collapsingToolbar.setTitle(isChangeConfigMode() ? "选择目标规格" : "选择实例规格");
                 if (refreshItem != null) refreshItem.setVisible(true);
                 loadSpecList();
             }
             case CONFIRM -> {
-                collapsingToolbar.setTitle("确认信息");
+                collapsingToolbar.setTitle(isChangeConfigMode() ? "确认变配" : "确认信息");
                 loadConfirmation();
+            }
+            case REINSTALL_OPTIONS -> {
+                collapsingToolbar.setTitle("确认重装");
+                renderReinstallOptions();
             }
         }
     }
@@ -228,16 +332,18 @@ public class CreateServer extends AppCompatActivity {
         } else if (currentStep == Step.SPEC) {
             new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("实例命名与计费规则")
-                .setMessage("实例命名方式为[CPU级别.CPU厂商.具体配置.操作系统]\n" +
-                        "CPU级别以字母[C,B,A,S]等分级，代表具体CPU性能，其中性能S>A>B>C，可参考具体CPU型号\n" +
-                        "CPU厂商以字母[A,I]分类，代表AMD,Intel\n" +
-                        "具体配置以字母[M,L,XL]等分类，代表各个配置套餐\n" +
-                        "操作系统以字母[L,W]分类，代表实例操作系统(Linux,Windows)\n" +
-                        "推荐在预算或内存足够的情况下，选择更高级别的CPU，以获得更流畅的体验，您也可以更换CPU厂商观察是否获得性能提升。\n\n" +
-                        "实例计费方式为按天付费，当日不开服不扣积分\n" +
-                        "当日开服指：服务器实例在当日24小时内启动过，无论是否是否进入服务器，服务器运行状态是否正常，只要启动即视为当日已开服\n" +
-                        "超套餐额磁盘将被计费1积分/G/天\n" +
-                        "若当日开服所需积分不足，则会关闭实例，若连续7天未启动实例，则会销毁实例，实例销毁前将会默认创建完整镜像，此镜像保留60天，可随时通过新建实例->备份->还原功能恢复实例文件")
+                .setMessage("""
+                        实例命名方式为[CPU级别.CPU厂商.具体配置.操作系统]
+                        CPU级别以字母[C,B,A,S]等分级，代表具体CPU性能，其中性能S>A>B>C，可参考具体CPU型号
+                        CPU厂商以字母[A,I]分类，代表AMD,Intel
+                        具体配置以字母[M,L,XL]等分类，代表各个配置套餐
+                        操作系统以字母[L,W]分类，代表实例操作系统(Linux,Windows)
+                        推荐在预算或内存足够的情况下，选择更高级别的CPU，以获得更流畅的体验，您也可以更换CPU厂商观察是否获得性能提升。
+
+                        实例计费方式为按天付费，当日不开服不扣积分
+                        当日开服指：服务器实例在当日24小时内启动过，无论是否是否进入服务器，服务器运行状态是否正常，只要启动即视为当日已开服
+                        超套餐额磁盘将被计费1积分/G/天
+                        若当日开服所需积分不足，则会关闭实例，若连续7天未启动实例，则会销毁实例，实例销毁前将会默认创建完整镜像，此镜像保留60天，可随时通过新建实例->备份->还原功能恢复实例文件""")
                 .setPositiveButton("了解", null)
                 .show();
         }
@@ -245,8 +351,9 @@ public class CreateServer extends AppCompatActivity {
 
     private void renderSteps() {
         layoutSteps.removeAllViews();
-        Step[] steps = Step.values();
-        for (int i = 0; i <= currentStep.ordinal(); i++) {
+        Step[] steps = getActiveSteps();
+        int currentIndex = getCurrentStepIndex();
+        for (int i = 0; i <= currentIndex; i++) {
             Step s = steps[i];
             String name = getStepName(s);
 
@@ -256,10 +363,12 @@ public class CreateServer extends AppCompatActivity {
             tv.setPadding(dp(8), dp(4), dp(8), dp(4));
 
             if (s == currentStep) {
-                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_primary)); // 高亮当前
+                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
+                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorPrimaryContainer, 18));
                 tv.setTypeface(null, android.graphics.Typeface.BOLD);
             } else {
-                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, android.R.color.darker_gray));
+                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
+                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorSurfaceContainer, 18));
                 // 可点击返回
                 tv.setOnClickListener(v -> {
                     currentStep = s;
@@ -269,10 +378,10 @@ public class CreateServer extends AppCompatActivity {
             layoutSteps.addView(tv);
 
             // 添加分隔符
-            if (i < currentStep.ordinal()) {
+            if (i < currentIndex) {
                 TextView divider = new TextView(this);
                 divider.setText(">");
-                divider.setTextColor(androidx.core.content.ContextCompat.getColor(this, android.R.color.darker_gray));
+                divider.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOutline));
                 layoutSteps.addView(divider);
             }
         }
@@ -280,21 +389,52 @@ public class CreateServer extends AppCompatActivity {
         hsSteps.post(() -> hsSteps.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
     }
 
-    private String getStepName(Step s) {
-        switch (s) {
-            case TYPE: return "类型";
-            case GAME: return "类别";
-            case IMAGE_KIND: return "服务端";
-            case VERSION: return "版本";
-            case SPEC: return "规格";
-            case CONFIRM: return "确认";
-            default: return "";
+    private boolean isReinstallMode() {
+        return wizardMode == WizardMode.REINSTALL;
+    }
+
+    private boolean isChangeConfigMode() {
+        return wizardMode == WizardMode.CHANGE_CONFIG;
+    }
+
+    private Step[] getActiveSteps() {
+        return switch (wizardMode) {
+            case CREATE -> CREATE_STEPS;
+            case REINSTALL -> REINSTALL_STEPS;
+            case CHANGE_CONFIG -> CHANGE_CONFIG_STEPS;
+        };
+    }
+
+    private int getCurrentStepIndex() {
+        Step[] steps = getActiveSteps();
+        for (int i = 0; i < steps.length; i++) {
+            if (steps[i] == currentStep) return i;
         }
+        return 0;
+    }
+
+    private String getStepName(Step s) {
+        return switch (s) {
+            case TYPE -> "类型";
+            case GAME -> "类别";
+            case IMAGE_KIND -> "服务端";
+            case VERSION -> "版本";
+            case SPEC -> "规格";
+            case CONFIRM -> "确认";
+            case REINSTALL_OPTIONS -> "重装确认";
+        };
     }
 
     private void onItemSelected(ListItem item) {
         if (currentStep == Step.TYPE) {
             isCustom = item.title.contains("第三方");
+            gameId = null;
+            imageKindId = null;
+            versionId = null;
+            specId = null;
+            selectedGameName = "";
+            selectedImageKindName = "";
+            selectedVersionName = "";
 //            if (isCustom) {
 //                Toast.makeText(this, "第三方镜像为社区提供，请注意安全与可信度", Toast.LENGTH_LONG).show();
 //            }
@@ -303,21 +443,33 @@ public class CreateServer extends AppCompatActivity {
             return;
         }
         if (!item.selectable) {
-            Toast.makeText(this, "该项不可创建", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "该项不可选择", Toast.LENGTH_SHORT).show();
             return;
         }
         switch (currentStep) {
             case GAME -> {
                 gameId = item.id;
+                selectedGameName = item.title;
+                imageKindId = null;
+                versionId = null;
+                specId = null;
+                selectedImageKindName = "";
+                selectedVersionName = "";
                 currentStep = Step.IMAGE_KIND;
             }
             case IMAGE_KIND -> {
                 imageKindId = item.id;
+                selectedImageKindName = item.title;
+                versionId = null;
+                specId = null;
+                selectedVersionName = "";
                 currentStep = Step.VERSION;
             }
             case VERSION -> {
                 versionId = item.id;
-                currentStep = Step.SPEC;
+                selectedVersionName = item.title;
+                specId = null;
+                currentStep = isReinstallMode() ? Step.REINSTALL_OPTIONS : Step.SPEC;
             }
             case SPEC -> {
                 specId = item.id;
@@ -329,21 +481,21 @@ public class CreateServer extends AppCompatActivity {
 
     private void loadGameList() {
         executeCall(CServerApi.getGameList(isCustom, token), json -> {
-            data.clear();
+            List<ListItem> items = new ArrayList<>();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
-                data.add(ListItem.image(o.optInt("id"), o.optString("name"), null, o.optString("pic_path"), true));
+                items.add(ListItem.image(o.optInt("id"), o.optString("name"), null, o.optString("pic_path")));
             }
-            adapter.notifyDataSetChanged();
+            replaceData(items);
         });
     }
 
     private void loadImageKindList() {
         if (gameId == null) return;
         executeCall(CServerApi.getImageKindList(isCustom, gameId, token), json -> {
-            data.clear();
+            List<ListItem> items = new ArrayList<>();
             fullImageKindList.clear();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
@@ -352,15 +504,15 @@ public class CreateServer extends AppCompatActivity {
                 if (isCustom) {
                     fullImageKindList.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), o.optString("description")));
                 } else {
-                    data.add(ListItem.image(o.optInt("id"), o.optString("name"), o.optString("description"), o.optString("pic_path"), true));
+                    items.add(ListItem.image(o.optInt("id"), o.optString("name"), o.optString("description"), o.optString("pic_path")));
                 }
             }
             if (isCustom) {
-                layoutSearch.setVisibility(fullImageKindList.size() > 0 ? View.VISIBLE : View.GONE);
+                layoutSearch.setVisibility(!fullImageKindList.isEmpty() ? View.VISIBLE : View.GONE);
                 imageKindCurrentPage = 1;
                 applyImageKindFiltersAndPagination();
             } else {
-                adapter.notifyDataSetChanged();
+                replaceData(items);
             }
         });
     }
@@ -368,7 +520,7 @@ public class CreateServer extends AppCompatActivity {
     private void loadVersionList() {
         if (imageKindId == null) return;
         executeCall(CServerApi.getVersionList(isCustom, imageKindId, token), json -> {
-            data.clear();
+            List<ListItem> items = new ArrayList<>();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.optJSONObject(i);
@@ -377,47 +529,143 @@ public class CreateServer extends AppCompatActivity {
                     // 展示更多信息：描述 + 推荐配置 + 大小
                     String desc = o.optString("description");
                     String rec = o.optString("recommend_setting");
-                    String sizeRaw = o.optString("size");
-                    String sizeFmt = formatSize(sizeRaw); // 转换大小
+                    String sizeFmt = formatSize(o.optString("size")); // 转换大小
                     StringBuilder sb = new StringBuilder();
-                    if (!TextUtils.isEmpty(desc)) sb.append(desc);
-                    if (!TextUtils.isEmpty(rec)) {
-                        if (sb.length() > 0) sb.append(" | ");
-                        sb.append("推荐:").append(rec);
-                    }
-                    if (!TextUtils.isEmpty(sizeFmt)) {
-                        if (sb.length() > 0) sb.append(" | ");
-                        sb.append("大小:").append(sizeFmt);
-                    }
-                    data.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), sb.toString()));
+                    appendVersionInfoPart(sb, desc);
+                    appendVersionInfoPart(sb, !TextUtils.isEmpty(rec) ? getString(R.string.create_server_recommended_prefix, rec) : "");
+                    appendVersionInfoPart(sb, !TextUtils.isEmpty(sizeFmt) ? getString(R.string.create_server_size_prefix, sizeFmt) : "");
+                    items.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), sb.toString()));
                 } else {
-                    data.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), o.optString("description")));
+                    items.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), o.optString("description")));
                 }
             }
-            adapter.notifyDataSetChanged();
+            replaceData(items);
         });
     }
 
     private void loadSpecList() {
+        if (isChangeConfigMode()) {
+            loadChangeConfigSpecList();
+            return;
+        }
         if (versionId == null || imageKindId == null) return;
-        executeCall(CServerApi.getSpecList(isCustom, versionId, imageKindId, token), json -> {
-            masterSpecList.clear();
-            data.clear();
-            JSONArray arr = json.optJSONArray("list");
-            if (arr != null) {
-                for (int i = 0; i < arr.length(); i++) {
-                    JSONObject o = arr.optJSONObject(i);
-                    if (o == null) continue;
-                    masterSpecList.add(o);
+        executeCall(CServerApi.getSpecList(isCustom, versionId, imageKindId, token), this::handleSpecList);
+    }
+
+    private void loadChangeConfigSpecList() {
+        if (versionId != null) {
+            executeCall(CServerApi.getChangeSpecList(versionId, serverId, token), this::handleSpecList);
+            return;
+        }
+        showChangeConfigResolvingMessage();
+        if (imageKindId != null && imageKindId > 0) {
+            resolveChangeConfigVersion(isCustom);
+            return;
+        }
+        resolveChangeConfigSpecContext(hasCurrentCustom && currentCustom);
+    }
+
+    private void showChangeConfigResolvingMessage() {
+        replaceData(ListItem.info("提示", "正在根据当前镜像匹配可变配规格..."));
+    }
+
+    private void resolveChangeConfigSpecContext(boolean custom) {
+        executeCall(CServerApi.getGameList(custom, token), json -> {
+            JSONObject game = findByName(json.optJSONArray("list"), currentGameName, "name", "game_name");
+            if (game == null) {
+                handleChangeConfigGameResolveFailure(custom, "未找到当前镜像类别，请从创建页重新选择");
+                return;
+            }
+            isCustom = custom;
+            gameId = game.optInt("id");
+            selectedGameName = game.optString("name", currentGameName);
+            resolveChangeConfigKind(custom);
+        }, message -> handleChangeConfigGameResolveFailure(custom, message));
+    }
+
+    private void handleChangeConfigGameResolveFailure(boolean custom, String message) {
+        if (!hasCurrentCustom && !custom) {
+            resolveChangeConfigSpecContext(true);
+        } else {
+            showChangeConfigSpecResolveError(message);
+        }
+    }
+
+    private void resolveChangeConfigKind(boolean custom) {
+        if (gameId == null || gameId <= 0) {
+            showChangeConfigSpecResolveError("实例镜像信息不完整，无法变配");
+            return;
+        }
+        executeCall(CServerApi.getImageKindList(custom, gameId, token), json -> {
+            String targetKindName = firstNonEmpty(currentKindName, currentImageName);
+            JSONObject kind = findByName(json.optJSONArray("list"), targetKindName, "name", "kind_name", "image_name");
+            if (kind == null) {
+                showChangeConfigSpecResolveError("未找到当前镜像服务端，请从创建页重新选择");
+                return;
+            }
+            imageKindId = kind.optInt("id");
+            selectedImageKindName = kind.optString("name", targetKindName);
+            resolveChangeConfigVersion(custom);
+        }, this::showChangeConfigSpecResolveError);
+    }
+
+    private void resolveChangeConfigVersion(boolean custom) {
+        if (imageKindId == null || imageKindId <= 0) {
+            showChangeConfigSpecResolveError("实例镜像信息不完整，无法变配");
+            return;
+        }
+        executeCall(CServerApi.getVersionList(custom, imageKindId, token), json -> {
+            JSONObject version = findByName(json.optJSONArray("list"), currentVersionName, "name", "version_name");
+            if (version == null) {
+                showChangeConfigSpecResolveError("未找到当前镜像版本，请从创建页重新选择");
+                return;
+            }
+            versionId = version.optInt("id");
+            selectedVersionName = version.optString("name", currentVersionName);
+            loadSpecList();
+        }, this::showChangeConfigSpecResolveError);
+    }
+
+    private JSONObject findByName(JSONArray arr, String targetName, String... nameKeys) {
+        if (arr == null || TextUtils.isEmpty(targetName)) return null;
+        String target = normalizeName(targetName);
+        JSONObject fallbackContains = null;
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject o = arr.optJSONObject(i);
+            if (o == null) continue;
+            for (String key : nameKeys) {
+                String name = normalizeName(o.optString(key));
+                if (TextUtils.isEmpty(name)) continue;
+                if (target.equals(name)) return o;
+                if (fallbackContains == null && (target.contains(name) || name.contains(target))) {
+                    fallbackContains = o;
                 }
             }
-            // Sort by point (price) ascending
-            java.util.Collections.sort(masterSpecList, (o1, o2) -> Integer.compare(o1.optInt("point"), o2.optInt("point")));
+        }
+        return fallbackContains;
+    }
 
-            setupGradeSpinner();
-            selectedGrade = ""; // 默认全部
-            updateSpecDisplay();
-        });
+    private void showChangeConfigSpecResolveError(String message) {
+        replaceData(ListItem.info("提示", message));
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
+    private void handleSpecList(JSONObject json) {
+        masterSpecList.clear();
+        JSONArray arr = json.optJSONArray("list");
+        if (arr != null) {
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.optJSONObject(i);
+                if (o == null) continue;
+                masterSpecList.add(o);
+            }
+        }
+        // Sort by point (price) ascending
+        masterSpecList.sort(Comparator.comparingInt(o -> o.optInt("point")));
+
+        setupGradeSpinner();
+        selectedGrade = ""; // 默认全部
+        updateSpecDisplay();
     }
 
     private void setupGradeSpinner() {
@@ -433,11 +681,7 @@ public class CreateServer extends AppCompatActivity {
 
         List<String> sortedGrades = new ArrayList<>(gradesPresent);
         // Sort grades: S > A > B > C, and modifiers ++ > + > (none) > -
-        java.util.Collections.sort(sortedGrades, (g1, g2) -> {
-            int s1 = getGradeScore(g1);
-            int s2 = getGradeScore(g2);
-            return Integer.compare(s2, s1); // Descending score (S is highest)
-        });
+        sortedGrades.sort(Comparator.comparingInt(this::getGradeScore).reversed());
 
         List<String> spinnerItems = new ArrayList<>();
         spinnerItems.add("全部");
@@ -474,9 +718,9 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private void updateSpecDisplay() {
-        data.clear();
+        List<ListItem> items = new ArrayList<>();
         if (masterSpecList.isEmpty()) {
-            data.add(ListItem.info("提示", "暂无可用规格"));
+            items.add(ListItem.info("提示", "暂无可用规格"));
         } else {
             for (JSONObject o : masterSpecList) {
                 String grade = o.optString("area_grade");
@@ -490,10 +734,10 @@ public class CreateServer extends AppCompatActivity {
                 int traffic = o.optInt("traffic");
                 int point = o.optInt("point");
 
-                data.add(ListItem.spec(id, grade, specName, cpu, ram, disk, traffic, point, creatable));
+                items.add(ListItem.spec(id, grade, specName, cpu, ram, disk, traffic, point, creatable));
             }
         }
-        adapter.notifyDataSetChanged();
+        replaceData(items);
     }
 
     private void loadConfirmation() {
@@ -502,10 +746,10 @@ public class CreateServer extends AppCompatActivity {
         layoutSearch.setVisibility(View.GONE);
         hsPagination.setVisibility(View.GONE);
         executeCall(CServerApi.getConfirmation(isCustom, versionId, specId, token), json -> {
-            data.clear();
+            List<ListItem> items = new ArrayList<>();
             JSONObject d = json.optJSONObject("data");
             if (d != null) {
-                data.add(ListItem.info("游戏名称", d.optString("game_name")));
+                items.add(ListItem.info("游戏名称", d.optString("game_name")));
                 // 基础镜像使用 kind_name，自定义(第三方)使用 image_name；若对应字段为空则回退另一个
                 String displayImageName;
                 if (!isCustom) {
@@ -517,15 +761,197 @@ public class CreateServer extends AppCompatActivity {
                     if (TextUtils.isEmpty(imageName)) imageName = d.optString("kind_name");
                     displayImageName = imageName;
                 }
-                data.add(ListItem.info("镜像名称", displayImageName));
-                data.add(ListItem.info("镜像版本", d.optString("version_name")));
-                data.add(ListItem.info("配置", d.optInt("cpu") + "核/" + d.optInt("ram") + "G/" + d.optInt("disk") + "G"));
-                data.add(ListItem.info("型号", d.optString("grade")));
-                data.add(ListItem.info("可用流量", d.optInt("traffic") + "G"));
-                data.add(ListItem.info("费用(积分)", String.valueOf(d.optInt("point"))));
+                items.add(ListItem.info("镜像名称", displayImageName));
+                items.add(ListItem.info("镜像版本", d.optString("version_name")));
+                items.add(ListItem.info("配置", getString(R.string.create_server_spec_summary, d.optInt("cpu"), d.optInt("ram"), d.optInt("disk"))));
+                items.add(ListItem.info("型号", d.optString("grade")));
+                items.add(ListItem.info("可用流量", getString(R.string.create_server_storage_gb, d.optInt("traffic"))));
+                items.add(ListItem.info("费用(积分)", String.valueOf(d.optInt("point"))));
             }
-            adapter.notifyDataSetChanged();
+            replaceData(items);
         });
+    }
+
+    private void renderReinstallOptions() {
+        replaceData(
+                ListItem.info("当前镜像", buildCurrentImageText()),
+                ListItem.info("目标镜像", buildTargetImageText()),
+                ListItem.info("提示", "重装将替换实例镜像，请确认已备份重要文件"));
+
+        layoutReinstallOptions.setVisibility(View.VISIBLE);
+        cbSaveBeforeReinstall.setChecked(true);
+        boolean showDiff = isSameImageKindForDiff();
+        cbDiffUpdate.setVisibility(showDiff ? View.VISIBLE : View.GONE);
+        cbDiffUpdate.setChecked(false);
+    }
+
+    private boolean isSameImageKindForDiff() {
+        if (imageKindId == null) return false;
+        if (hasCurrentCustom && currentCustom != isCustom) return false;
+
+        if (hasCurrentCustom && currentKindId > 0 && currentKindId == imageKindId) {
+            return currentGameId <= 0 || gameId == null || currentGameId == gameId;
+        }
+
+        String currentGame = normalizeName(currentGameName);
+        String selectedGame = normalizeName(selectedGameName);
+        if (TextUtils.isEmpty(currentGame) || TextUtils.isEmpty(selectedGame) || !currentGame.equals(selectedGame)) {
+            return false;
+        }
+
+        String selectedKind = normalizeName(selectedImageKindName);
+        if (TextUtils.isEmpty(selectedKind)) return false;
+        String currentKind = normalizeName(currentKindName);
+        String currentImage = normalizeName(currentImageName);
+        return selectedKind.equals(currentKind) || selectedKind.equals(currentImage);
+    }
+
+    private void showReinstallConfirmDialog() {
+        if (versionId == null) {
+            Toast.makeText(this, "请选择实例版本", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        boolean save = cbSaveBeforeReinstall.isChecked();
+        boolean diff = cbDiffUpdate.getVisibility() == View.VISIBLE && cbDiffUpdate.isChecked();
+        StringBuilder message = new StringBuilder();
+        message.append("目标镜像: ").append(buildTargetImageText()).append("\n");
+        message.append("重装前备份: ").append(save ? "是" : "否").append("\n");
+        if (save) {
+            message.append("将扣费30积分用于备份\n");
+        }
+        if (cbDiffUpdate.getVisibility() == View.VISIBLE) {
+            message.append("差异更新: ").append(diff ? "启用" : "不启用").append("\n");
+        }
+        message.append("\n重装可能覆盖当前实例文件，请确认继续。");
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("确认重装实例")
+                .setMessage(message.toString())
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确认重装", (dialog, which) -> reinstallInstance(save, diff))
+                .show();
+    }
+
+    private void reinstallInstance(boolean save, boolean diff) {
+        if (isSubmitting) return;
+        if (serverId <= 0 || versionId == null || versionId <= 0) {
+            Toast.makeText(this, "重装参数无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (TextUtils.isEmpty(token)) {
+            Toast.makeText(this, "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        submitInstanceAction(
+                CServerApi.reinstallInstance(serverId, versionId, diff, save, isCustom, token),
+                "重装失败",
+                "重装请求已提交",
+                json -> {
+                    setResult(RESULT_OK);
+                    finish();
+                });
+    }
+
+    private void changeInstance() {
+        if (isSubmitting) return;
+        if (serverId <= 0 || specId == null || specId <= 0) {
+            Toast.makeText(this, "变配参数无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (TextUtils.isEmpty(token)) {
+            Toast.makeText(this, "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        submitInstanceAction(
+                CServerApi.changeInstance(serverId, specId, token),
+                "变配失败",
+                "变配请求已提交",
+                json -> {
+                    Intent result = new Intent();
+                    result.putExtra(EXTRA_RESULT_CHANGE_CONFIG, true);
+                    int newId = json.optInt("new_id", -1);
+                    if (newId > 0) {
+                        result.putExtra(EXTRA_RESULT_NEW_ID, newId);
+                    }
+                    setResult(RESULT_OK, result);
+                    finish();
+                });
+    }
+
+    private void submitInstanceAction(Call call, String defaultFailureMessage, String defaultSuccessMessage, JsonHandler onSuccess) {
+        isSubmitting = true;
+        btnAction.setEnabled(false);
+        showLoading(true);
+        call.enqueue(new okhttp3.Callback() {
+            @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                runOnUiThread(() -> {
+                    resetSubmitState();
+                    showLoading(false);
+                    Toast.makeText(CreateServer.this, defaultFailureMessage + ":" + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    try {
+                        JSONObject json = new JSONObject(body);
+                        if (json.optInt("code") == 200) {
+                            Toast.makeText(CreateServer.this, json.optString("msg", defaultSuccessMessage), Toast.LENGTH_SHORT).show();
+                            onSuccess.handle(json);
+                        } else {
+                            resetSubmitState();
+                            Toast.makeText(CreateServer.this, json.optString("msg", defaultFailureMessage), Toast.LENGTH_LONG).show();
+                        }
+                    } catch (Exception e) {
+                        resetSubmitState();
+                        Toast.makeText(CreateServer.this, "解析失败", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void resetSubmitState() {
+        isSubmitting = false;
+        btnAction.setEnabled(true);
+    }
+
+    private String buildCurrentImageText() {
+        return joinImageText(currentGameName, firstNonEmpty(currentKindName, currentImageName), currentVersionName);
+    }
+
+    private String buildTargetImageText() {
+        return joinImageText(selectedGameName, selectedImageKindName, selectedVersionName);
+    }
+
+    private String joinImageText(String game, String kind, String version) {
+        List<String> parts = new ArrayList<>();
+        if (!TextUtils.isEmpty(game)) parts.add(game);
+        if (!TextUtils.isEmpty(kind)) parts.add(kind);
+        if (!TextUtils.isEmpty(version)) parts.add(version);
+        return parts.isEmpty() ? "-" : String.join(" - ", parts);
+    }
+
+    private void appendVersionInfoPart(StringBuilder sb, String part) {
+        if (TextUtils.isEmpty(part)) return;
+        if (sb.length() > 0) sb.append(" | ");
+        sb.append(part);
+    }
+
+    private String firstNonEmpty(String first, String second) {
+        return !TextUtils.isEmpty(first) ? first : second;
+    }
+
+    private String normalizeName(String value) {
+        return emptyIfNull(value).trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String emptyIfNull(String value) {
+        return value == null ? "" : value;
     }
 
     private void createInstance() {
@@ -533,22 +959,28 @@ public class CreateServer extends AppCompatActivity {
         showLoading(true);
         CServerApi.createInstance(isCustom, versionId, specId, token).enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) { runOnUiThread(() -> { showLoading(false); Toast.makeText(CreateServer.this, "创建失败:" + e.getMessage(), Toast.LENGTH_LONG).show();}); }
-            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException { String body = response.body()!=null?response.body().string():""; runOnUiThread(() -> { showLoading(false); try { JSONObject o = new JSONObject(body); if (o.optInt("code") == 200) { Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show(); finish(); } else { Toast.makeText(CreateServer.this, o.optString("msg","创建失败"), Toast.LENGTH_LONG).show(); } } catch (Exception e){ Toast.makeText(CreateServer.this, "解析失败", Toast.LENGTH_LONG).show(); }}); }
+            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException { String body = response.body().string(); runOnUiThread(() -> { showLoading(false); try { JSONObject o = new JSONObject(body); if (o.optInt("code") == 200) { Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show(); finish(); } else { Toast.makeText(CreateServer.this, o.optString("msg","创建失败"), Toast.LENGTH_LONG).show(); } } catch (Exception e){ Toast.makeText(CreateServer.this, "解析失败", Toast.LENGTH_LONG).show(); }}); }
         });
     }
 
     private interface JsonHandler { void handle(JSONObject json); }
+    private interface ErrorHandler { void handle(String message); }
 
     private void executeCall(Call call, JsonHandler handler) {
+        executeCall(call, handler, message -> Toast.makeText(CreateServer.this, message, Toast.LENGTH_LONG).show());
+    }
+
+    private void executeCall(Call call, JsonHandler handler, ErrorHandler errorHandler) {
         showLoading(true);
         call.enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 runOnUiThread(() -> {
-                    showLoading(false); Toast.makeText(CreateServer.this, "网络失败:"+e.getMessage(), Toast.LENGTH_LONG).show();
+                    showLoading(false);
+                    errorHandler.handle("网络失败:" + e.getMessage());
                 });
             }
             @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                String body = response.body()!=null?response.body().string():"";
+                String body = response.body().string();
                 runOnUiThread(() -> {
                     showLoading(false);
                     try {
@@ -556,23 +988,44 @@ public class CreateServer extends AppCompatActivity {
                         if (obj.optInt("code") == 200) {
                             handler.handle(obj);
                         } else {
-                            Toast.makeText(CreateServer.this, obj.optString("msg","请求失败"), Toast.LENGTH_LONG).show();
+                            errorHandler.handle(obj.optString("msg","请求失败"));
                         }
                     } catch (Exception e){
-                        // 调试输出原始响应，方便定位解析错误
-                        if (body.length() > 500) {
-                            String preview = body.substring(0, 500) + "...(" + body.length() + ")";
-                            Toast.makeText(CreateServer.this, "数据解析错误, 响应预览:"+preview, Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(CreateServer.this, "数据解析错误, 响应:"+body, Toast.LENGTH_LONG).show();
-                        }
+                        errorHandler.handle(buildParseErrorMessage(body));
                     }
                 });
             }
         });
     }
 
+    private String buildParseErrorMessage(String body) {
+        if (body.length() > 500) {
+            return "数据解析错误, 响应预览:" + body.substring(0, 500) + "...(" + body.length() + ")";
+        }
+        return "数据解析错误, 响应:" + body;
+    }
+
     private void showLoading(boolean show) { progressBar.setVisibility(show?View.VISIBLE:View.GONE); }
+
+    private void replaceData(ListItem... items) {
+        replaceData(Arrays.asList(items));
+    }
+
+    private void replaceData(List<ListItem> items) {
+        int oldSize = data.size();
+        int newSize = items.size();
+        data.clear();
+        data.addAll(items);
+        int changed = Math.min(oldSize, newSize);
+        if (oldSize > newSize) {
+            adapter.notifyItemRangeRemoved(newSize, oldSize - newSize);
+        } else if (newSize > oldSize) {
+            adapter.notifyItemRangeInserted(oldSize, newSize - oldSize);
+        }
+        if (changed > 0) {
+            adapter.notifyItemRangeChanged(0, changed);
+        }
+    }
 
     // --- 数据与适配器 ---
     private static class ListItem {
@@ -580,9 +1033,9 @@ public class CreateServer extends AppCompatActivity {
         // Spec specific fields
         String grade; String specName; int cpu; int ram; int disk; int traffic;
 
-        static ListItem simple(String t, String sub, boolean selectable){ ListItem li = new ListItem(); li.id = -1; li.title=t; li.subtitle=sub; li.selectable=selectable; return li; }
-        static ListItem simpleWithId(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.selectable=true; return li; }
-        static ListItem image(int id, String t, String sub, String url, boolean selectable){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.imageUrl=url; li.showImage=true; li.selectable=selectable; return li; }
+        static ListItem simple(String t, String sub){ ListItem li = new ListItem(); li.id = -1; li.title=t; li.subtitle=sub; return li; }
+        static ListItem simpleWithId(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; return li; }
+        static ListItem image(int id, String t, String sub, String url){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.imageUrl=url; li.showImage=true; return li; }
         static ListItem info(String t, String v){ ListItem li = new ListItem(); li.id=-1; li.title=t; li.subtitle=v; li.selectable=false; li.full=false; return li; }
         static ListItem spec(int id, String grade, String specName, int cpu, int ram, int disk, int traffic, int point, boolean creatable) {
             ListItem li = new ListItem();
@@ -614,7 +1067,7 @@ public class CreateServer extends AppCompatActivity {
             return item.grade != null ? TYPE_SPEC : TYPE_GENERIC;
         }
 
-        @Override public @NotNull RecyclerView.ViewHolder onCreateViewHolder(android.view.ViewGroup parent, int viewType){
+        @Override public @NotNull RecyclerView.ViewHolder onCreateViewHolder(android.view.@NonNull ViewGroup parent, int viewType){
             if (viewType == TYPE_SPEC) {
                 View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_spec, parent, false);
                 return new SpecViewHolder(v);
@@ -623,7 +1076,7 @@ public class CreateServer extends AppCompatActivity {
             return new GenericViewHolder(v);
         }
 
-        @Override public void onBindViewHolder(RecyclerView.ViewHolder h, int p){
+        @Override public void onBindViewHolder(RecyclerView.@NonNull ViewHolder h, int p){
             ListItem it = data.get(p);
             if (h instanceof SpecViewHolder) {
                 ((SpecViewHolder) h).bind(it, onSelect);
@@ -650,22 +1103,28 @@ public class CreateServer extends AppCompatActivity {
             traffic = itemView.findViewById(R.id.item_traffic);
             point = itemView.findViewById(R.id.item_point);
             status = itemView.findViewById(R.id.item_status);
+            if (container instanceof MaterialCardView card) {
+                card.setCardBackgroundColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorSurfaceContainerLow));
+            }
+            status.setText("已满");
+            status.setTextColor(getThemeColor(status.getContext(), com.google.android.material.R.attr.colorOnErrorContainer));
+            status.setBackground(roundedBackground(status.getContext(), com.google.android.material.R.attr.colorErrorContainer, 8));
         }
 
         void bind(ListItem item, GenericAdapter.OnSelect cb) {
             grade.setText(item.grade);
 
             // Set color based on grade
-            int colorRes;
+            int colorAttr;
             if (item.grade != null) {
-                if (item.grade.startsWith("S")) colorRes = R.color.md_theme_error;
-                else if (item.grade.startsWith("A")) colorRes = R.color.md_theme_primary;
-                else if (item.grade.startsWith("B")) colorRes = R.color.md_theme_tertiary;
-                else colorRes = R.color.md_theme_secondary;
+                if (item.grade.startsWith("S")) colorAttr = androidx.appcompat.R.attr.colorError;
+                else if (item.grade.startsWith("A")) colorAttr = androidx.appcompat.R.attr.colorPrimary;
+                else if (item.grade.startsWith("B")) colorAttr = com.google.android.material.R.attr.colorTertiary;
+                else colorAttr = com.google.android.material.R.attr.colorSecondary;
             } else {
-                colorRes = R.color.md_theme_secondary;
+                colorAttr = com.google.android.material.R.attr.colorSecondary;
             }
-            int color = androidx.core.content.ContextCompat.getColor(grade.getContext(), colorRes);
+            int color = getThemeColor(grade.getContext(), colorAttr);
 
             grade.setTextColor(color);
             gradeStrip.setBackgroundColor(color);
@@ -679,7 +1138,6 @@ public class CreateServer extends AppCompatActivity {
 
             if (item.full) {
                 status.setVisibility(View.VISIBLE);
-                status.setText("已满");
                 container.setAlpha(0.6f);
             } else {
                 status.setVisibility(View.GONE);
@@ -695,7 +1153,27 @@ public class CreateServer extends AppCompatActivity {
     private static class GenericViewHolder extends RecyclerView.ViewHolder {
         private final TextView title; private final TextView subtitle; private final View img; private final View container;
         private final TextView flagFull; private final TextView flagPoint; // 新增标签
-        GenericViewHolder(View itemView){ super(itemView); title=itemView.findViewById(R.id.item_title); subtitle=itemView.findViewById(R.id.item_subtitle); img=itemView.findViewById(R.id.item_image); container=itemView; flagFull=itemView.findViewById(R.id.item_flag_full); flagPoint=itemView.findViewById(R.id.item_flag_point); }
+        GenericViewHolder(View itemView){
+            super(itemView);
+            title=itemView.findViewById(R.id.item_title);
+            subtitle=itemView.findViewById(R.id.item_subtitle);
+            img=itemView.findViewById(R.id.item_image);
+            container=itemView;
+            flagFull=itemView.findViewById(R.id.item_flag_full);
+            flagPoint=itemView.findViewById(R.id.item_flag_point);
+            if (container instanceof MaterialCardView card) {
+                card.setCardBackgroundColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorSurfaceContainerLow));
+                card.setStrokeColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorOutlineVariant));
+            }
+            if (flagFull != null) {
+                flagFull.setTextColor(getThemeColor(flagFull.getContext(), com.google.android.material.R.attr.colorOnErrorContainer));
+                flagFull.setBackground(roundedBackground(flagFull.getContext(), com.google.android.material.R.attr.colorErrorContainer, 6));
+            }
+            if (flagPoint != null) {
+                flagPoint.setTextColor(getThemeColor(flagPoint.getContext(), com.google.android.material.R.attr.colorOnPrimaryContainer));
+                flagPoint.setBackground(roundedBackground(flagPoint.getContext(), com.google.android.material.R.attr.colorPrimaryContainer, 6));
+            }
+        }
         void bind(ListItem item, GenericAdapter.OnSelect cb){
             title.setText(item.title);
             if (item.subtitle==null||item.subtitle.isEmpty()){ subtitle.setVisibility(item.isGroup?View.GONE:View.GONE);} else { subtitle.setVisibility(View.VISIBLE); subtitle.setText(item.subtitle);}
@@ -723,10 +1201,24 @@ public class CreateServer extends AppCompatActivity {
 
     private int dp(int v){ return (int)(v * getResources().getDisplayMetrics().density + 0.5f); }
 
+    private int getThemeColor(int attr) {
+        return getThemeColor(this, attr);
+    }
+
+    private static int getThemeColor(Context context, int attr) {
+        return com.google.android.material.color.MaterialColors.getColor(context, attr, 0);
+    }
+
+    private static GradientDrawable roundedBackground(Context context, int colorAttr, int radiusDp) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(getThemeColor(context, colorAttr));
+        drawable.setCornerRadius(radiusDp * context.getResources().getDisplayMetrics().density);
+        return drawable;
+    }
+
     // 第三方镜像 服务端列表本地搜索+分页
     private void applyImageKindFiltersAndPagination() {
         if (!isCustom) return; // 仅第三方
-        data.clear();
         List<ListItem> filtered = new ArrayList<>();
         String q = imageKindSearchQuery == null ? "" : imageKindSearchQuery.toLowerCase();
         for (ListItem li : fullImageKindList) {
@@ -735,18 +1227,19 @@ public class CreateServer extends AppCompatActivity {
             }
         }
         int total = filtered.size();
+        List<ListItem> visibleItems = new ArrayList<>();
         if (total <= IMAGE_KIND_PAGE_SIZE) {
             hsPagination.setVisibility(View.GONE);
-            data.addAll(filtered);
+            visibleItems.addAll(filtered);
         } else {
             int pages = (int) Math.ceil(total * 1.0 / IMAGE_KIND_PAGE_SIZE);
             if (imageKindCurrentPage > pages) imageKindCurrentPage = pages;
             int start = (imageKindCurrentPage - 1) * IMAGE_KIND_PAGE_SIZE;
             int end = Math.min(start + IMAGE_KIND_PAGE_SIZE, total);
-            data.addAll(filtered.subList(start, end));
+            visibleItems.addAll(filtered.subList(start, end));
             buildPaginationControls(pages);
         }
-        adapter.notifyDataSetChanged();
+        replaceData(visibleItems);
     }
 
     private void buildPaginationControls(int pages) {
@@ -763,11 +1256,12 @@ public class CreateServer extends AppCompatActivity {
             tv.setGravity(android.view.Gravity.CENTER);
 
             if (p == imageKindCurrentPage) {
-                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onPrimary));
+                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
                 tv.setTypeface(null, android.graphics.Typeface.BOLD);
-                tv.setBackgroundResource(R.drawable.bg_pagination_selected);
+                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorPrimaryContainer, 8));
             } else {
-                tv.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.md_theme_onSurface));
+                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
+                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorSurfaceContainer, 8));
                 tv.setOnClickListener(v -> {
                     imageKindCurrentPage = p;
                     applyImageKindFiltersAndPagination();

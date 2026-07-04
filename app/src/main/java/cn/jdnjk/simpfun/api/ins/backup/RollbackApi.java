@@ -86,7 +86,7 @@ public class RollbackApi {
 
         Request request = new Request.Builder()
                 .url(url)
-                .patch(formBody)
+                .post(formBody)
                 .header("Authorization", token)
                 .build();
 

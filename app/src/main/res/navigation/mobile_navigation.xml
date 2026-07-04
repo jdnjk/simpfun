@@ -37,9 +37,15 @@
 
     <fragment
             android:id="@+id/nav_backup"
-            android:name="cn.jdnjk.simpfun.ui.ins.backups.BackupFragment"
+            android:name="cn.jdnjk.simpfun.ui.ins.mirror.backups.BackupFragment"
             android:label="备份"
             tools:layout="@layout/fragment_backup"/>
+
+    <fragment
+            android:id="@+id/nav_rollback"
+            android:name="cn.jdnjk.simpfun.ui.ins.mirror.rollback.RollbackFragment"
+            android:label="回档"
+            tools:layout="@layout/fragment_rollback"/>
 
     <fragment
             android:id="@+id/nav_plans"

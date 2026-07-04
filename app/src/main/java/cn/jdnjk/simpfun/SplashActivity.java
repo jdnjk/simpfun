@@ -191,6 +191,7 @@ public class SplashActivity extends AppCompatActivity {
                 android.os.Build.VERSION.RELEASE;
         CrashReport.UserStrategy strategy = new CrashReport.UserStrategy(this);
         strategy.setDeviceModel(deviceInfo);
+        strategy.setAppVersion(VERSION_NAME + "." + VERSION_CODE);
         CrashReport.initCrashReport(getApplicationContext(), BUGLY_ID, DEBUG, strategy);
         SharedPreferences sp = getSharedPreferences("user_info", MODE_PRIVATE);
         String username = sp.getString("username", null);

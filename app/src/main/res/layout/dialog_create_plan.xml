@@ -193,7 +193,8 @@
                 android:id="@+id/til_multi_date_range"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="选择日期范围"
+                android:hint="选择日期段（可多选）"
+                app:helperText="再次点击可继续添加日期段，长按可清空重选"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_multi_date_range"

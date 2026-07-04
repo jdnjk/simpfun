@@ -42,6 +42,11 @@ public final class PageDataStore {
         serverCache.put(token, new ServerData(instanceList, supportList));
     }
 
+    public synchronized void clearServerData(String token) {
+        if (isInvalidToken(token)) return;
+        serverCache.remove(token);
+    }
+
     public synchronized void clearAll() {
         inviteCache.clear();
         serverCache.clear();

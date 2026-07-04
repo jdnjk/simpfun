@@ -26,6 +26,8 @@ import cn.jdnjk.simpfun.ui.server.ServerFragment;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class MainActivity extends AppCompatActivity {
+    public static final String EXTRA_REFRESH_SERVER_LIST = "extra_refresh_server_list";
+
     private BottomNavigationView navView;
     private boolean bottomNavHidden = false;
 
@@ -99,9 +101,28 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
+        handleIntent(getIntent());
+
         String token = getTokenFromSharedPreferences();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "未登录", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        if (intent != null && intent.getBooleanExtra(EXTRA_REFRESH_SERVER_LIST, false)) {
+            intent.removeExtra(EXTRA_REFRESH_SERVER_LIST);
+            if (navView != null) {
+                navView.setSelectedItemId(R.id.navigation_server);
+            }
+            loadServerFragment(true);
         }
     }
 
@@ -112,9 +133,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadServerFragment() {
+        loadServerFragment(false);
+    }
+
+    private void loadServerFragment(boolean forceRefresh) {
         getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.nav_host_fragment, new ServerFragment())
+                .replace(R.id.nav_host_fragment, ServerFragment.newInstance(forceRefresh))
                 .commit();
         showBottomNav(false);
     }

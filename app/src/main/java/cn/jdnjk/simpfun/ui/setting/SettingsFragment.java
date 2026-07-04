@@ -130,7 +130,7 @@ public class SettingsFragment extends Fragment {
         switchFileDualPane = root.findViewById(R.id.switch_file_dual_pane);
 
         TextView tvVersion = root.findViewById(R.id.tv_version);
-        String currentVersion = BuildConfig.VERSION_NAME;
+        String currentVersion = BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ")";
         tvVersion.setText(String.format("当前版本：%s", currentVersion));
     }
 

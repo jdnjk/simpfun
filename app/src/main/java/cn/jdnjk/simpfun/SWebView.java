@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun;
 
+import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
@@ -9,6 +10,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -26,6 +28,7 @@ public class SWebView extends AppCompatActivity {
     private volatile boolean payOkDialogShown = false;
 
     @Override
+    @SuppressLint("SetJavaScriptEnabled")
     protected void onCreate(Bundle savedInstanceState) {
         ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
@@ -34,8 +37,9 @@ public class SWebView extends AppCompatActivity {
         WebSettings webSettings = webView.getSettings();
         webSettings.setDomStorageEnabled(true);
         webSettings.setJavaScriptEnabled(true);
-        webSettings.setUserAgentString("Mozilla/5.0 (Linux; U; Android; zh-cn;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 SimpfunAPP/1.0");
+        webSettings.setUserAgentString("Mozilla/5.0 (Linux; U; Android; zh-cn;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 SimpfunAPP/" + BuildConfig.VERSION_NAME);
         webView.setWebViewClient(new AliPayCompatWebViewClient());
+        setupBackNavigation();
         loadUrlFromIntent();
     }
 
@@ -60,13 +64,18 @@ public class SWebView extends AppCompatActivity {
         }
     }
 
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+    private void setupBackNavigation() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (webView != null && webView.canGoBack()) {
+                    webView.goBack();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
     }
 
     private void showPayOkDialogOnce() {
@@ -88,11 +97,6 @@ public class SWebView extends AppCompatActivity {
 
     private class AliPayCompatWebViewClient extends WebViewClient {
         @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            return handleUrl(view, url);
-        }
-
-        @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             return handleUrl(view, request.getUrl().toString());
         }
@@ -107,7 +111,10 @@ public class SWebView extends AppCompatActivity {
 
         private boolean handleUrl(final WebView view, final String url) {
             if (TextUtils.isEmpty(url)) return false;
-            if (url.startsWith("http") || url.startsWith("https")) {
+
+            Uri uri = Uri.parse(url);
+            String scheme = uri.getScheme();
+            if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
                 final PayTask task = new PayTask(SWebView.this);
                 boolean isIntercepted = task.payInterceptorWithUrl(url, true, result -> {
                     final String returnUrl = result != null ? result.getReturnUrl() : null;
@@ -119,15 +126,14 @@ public class SWebView extends AppCompatActivity {
                 if (!isIntercepted) {
                     view.loadUrl(url);
                 }
-                return true;
             } else {
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
                     startActivity(intent);
                 } catch (ActivityNotFoundException ignored) {
                 }
-                return true;
             }
+            return true;
         }
     }
 }

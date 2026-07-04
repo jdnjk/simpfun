@@ -46,6 +46,7 @@ class FilePaneViews {
         void onParentDirectory();
         void onPathClick(String path);
         void onPathLongClick();
+        void onPaneTouched();
     }
 
     private final FilePaneState state;
@@ -83,6 +84,7 @@ class FilePaneViews {
     private boolean showArchiveAction = true;
     private boolean selectionUiEnabled = true;
     private boolean selectionBarEnabled = true;
+    private boolean quickSwipeSelection;
     private boolean destroyed;
 
     FilePaneViews(@NonNull View root, @NonNull FilePaneState state, @NonNull Callbacks callbacks) {
@@ -121,6 +123,7 @@ class FilePaneViews {
         recyclerView.setLayoutManager(new LinearLayoutManager(root.getContext()));
         recyclerView.setAdapter(adapter);
         attachSwipeSelection();
+        attachPaneTouchListeners(root);
 
         swipeRefreshLayout.setOnRefreshListener(callbacks::onRefresh);
         if (emptyRetryButton != null) {
@@ -172,6 +175,8 @@ class FilePaneViews {
 
     private void attachSwipeSelection() {
         new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            private int selectedPosition = RecyclerView.NO_POSITION;
+
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
                 return false;
@@ -187,14 +192,72 @@ class FilePaneViews {
             }
 
             @Override
+            public void onChildDraw(@NonNull android.graphics.Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder,
+                    float dX, float dY, int actionState, boolean isCurrentlyActive) {
+                if (quickSwipeSelection && actionState == ItemTouchHelper.ACTION_STATE_SWIPE && isCurrentlyActive) {
+                    int position = viewHolder.getBindingAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION && position < state.getFileList().size()
+                            && !state.getFileList().get(position).isParentEntry()
+                            && selectedPosition != position
+                            && Math.abs(dX) >= getQuickSwipeThreshold(viewHolder.itemView)) {
+                        selectedPosition = position;
+                        callbacks.onItemSwipe(state.getFileList().get(position), position);
+                        adapter.notifyItemChanged(position);
+                    }
+                    super.onChildDraw(c, recyclerView, viewHolder, dX * 0.35f, dY, actionState, isCurrentlyActive);
+                    return;
+                }
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
+            }
+
+            @Override
+            public float getSwipeThreshold(@NonNull RecyclerView.ViewHolder viewHolder) {
+                return quickSwipeSelection ? 1f : super.getSwipeThreshold(viewHolder);
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
+                int position = viewHolder.getBindingAdapterPosition();
+                super.clearView(recyclerView, viewHolder);
+                if (quickSwipeSelection && selectedPosition == position) {
+                    adapter.notifyItemChanged(position);
+                }
+                selectedPosition = RecyclerView.NO_POSITION;
+            }
+
+            @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getBindingAdapterPosition();
                 if (position != RecyclerView.NO_POSITION && position < state.getFileList().size()) {
-                    callbacks.onItemSwipe(state.getFileList().get(position), position);
+                    if (!quickSwipeSelection) {
+                        callbacks.onItemSwipe(state.getFileList().get(position), position);
+                    }
                     adapter.notifyItemChanged(position);
                 }
             }
         }).attachToRecyclerView(recyclerView);
+    }
+
+    private float getQuickSwipeThreshold(View itemView) {
+        return Math.min(itemView.getWidth() * 0.28f, dp(itemView.getContext(), 96));
+    }
+
+    private int dp(Context context, int value) {
+        return (int) (value * context.getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private void attachPaneTouchListeners(View root) {
+        View.OnTouchListener touchListener = (v, event) -> {
+            callbacks.onPaneTouched();
+            return false;
+        };
+        root.setOnTouchListener(touchListener);
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnTouchListener(touchListener);
+        }
+        if (recyclerView != null) {
+            recyclerView.setOnTouchListener(touchListener);
+        }
     }
 
     void configureForLocalPane() {
@@ -211,6 +274,7 @@ class FilePaneViews {
     void configureForDualPane() {
         showFab = false;
         selectionBarEnabled = false;
+        quickSwipeSelection = true;
         adapter.setSelectionPresentation(false, true);
         if (selectionBar != null) {
             selectionBar.setVisibility(View.GONE);
@@ -405,7 +469,6 @@ class FilePaneViews {
     void requestPaneFocus() {
         if (!destroyed && recyclerView != null) {
             recyclerView.requestFocus();
-            recyclerView.post(() -> recyclerView.smoothScrollToPosition(0));
         }
     }
 

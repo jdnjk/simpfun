@@ -41,6 +41,15 @@ import cn.jdnjk.simpfun.utils.PageDataStore;
 import cn.jdnjk.simpfun.ui.setting.ServerCardStyleManager;
 
 public class ServerFragment extends Fragment implements ServerStatsListener {
+    private static final String ARG_FORCE_REFRESH = "arg_force_refresh";
+
+    public static ServerFragment newInstance(boolean forceRefresh) {
+        ServerFragment fragment = new ServerFragment();
+        Bundle args = new Bundle();
+        args.putBoolean(ARG_FORCE_REFRESH, forceRefresh);
+        fragment.setArguments(args);
+        return fragment;
+    }
 
     private RecyclerView recyclerView;
     private ServerAdapter adapter;
@@ -110,7 +119,8 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        loadInstanceList(false);
+        boolean forceRefresh = getArguments() != null && getArguments().getBoolean(ARG_FORCE_REFRESH, false);
+        loadInstanceList(forceRefresh);
     }
 
     private boolean handleToolbarMenuItem(@NonNull MenuItem item) {

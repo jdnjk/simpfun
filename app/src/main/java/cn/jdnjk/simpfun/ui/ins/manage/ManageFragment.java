@@ -1,9 +1,12 @@
 package cn.jdnjk.simpfun.ui.ins.manage;
 
+import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,14 +15,20 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
+import android.widget.EditText;
 import android.widget.Filter;
+import android.widget.RadioGroup;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.RadioButton;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -37,18 +46,27 @@ import java.util.List;
 import java.util.Locale;
 
 import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.api.ins.DiamondApi;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PortApi;
+import cn.jdnjk.simpfun.api.ins.SupportAPI;
+import cn.jdnjk.simpfun.ui.create.CreateServer;
 import cn.jdnjk.simpfun.ui.setting.ManageScreenshotProtection;
+import cn.jdnjk.simpfun.utils.InstanceDetailStore;
+import cn.jdnjk.simpfun.utils.PageDataStore;
 import cn.jdnjk.simpfun.utils.SftpCredentialStore;
 
 public class ManageFragment extends Fragment {
     private JSONObject cachedDetail;
     private JSONObject cachedSftp;
+    private JSONObject cachedSupport;
+    private boolean supportLoaded;
+    private boolean supportActionRunning;
 
     private LinearLayout contentLayout;
+    private View cardSupport;
     private TextView noData;
     private TextView tvInstanceId;
     private TextView tvTroubleshootId;
@@ -57,10 +75,16 @@ public class ManageFragment extends Fragment {
     private TextView tvTrafficRemain;
     private TextView tvGameType;
     private TextView tvDiskCheckTime;
+    private MaterialButton btnRateImage;
     private TextView tvSftpHost;
     private TextView tvSftpPort;
     private TextView tvSftpUser;
     private TextView tvSftpPassword;
+    private TextView tvSupportDevQq;
+    private TextView tvSupportGroup;
+    private TextView tvSupportComment;
+    private TextView tvSupportCreateTime;
+    private MaterialButton btnSupportAction;
     private TextView tvPorts;
     private TextView tvDiamondLeft;
     private TextView tvDiamondPlan;
@@ -68,7 +92,22 @@ public class ManageFragment extends Fragment {
     private Spinner spinnerPorts;
     private MaterialButton btnSetMainPort;
     private MaterialButton btnBuyPort;
+    private MaterialButton btnReinstallInstance;
+    private MaterialButton btnChangeConfig;
     private MaterialButton btnDestroyInstance;
+
+    private final ActivityResultLauncher<Intent> reinstallLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() != Activity.RESULT_OK) return;
+                Intent data = result.getData();
+                boolean changeConfig = data != null && data.getBooleanExtra(CreateServer.EXTRA_RESULT_CHANGE_CONFIG, false);
+                if (changeConfig) {
+                    returnToServerListAndRefresh();
+                    return;
+                }
+                refreshDetailFromApi(null);
+            });
 
     private AutoCompleteTextView tvPlanFilter;
     private RecyclerView rvDiamondPlans;
@@ -104,6 +143,7 @@ public class ManageFragment extends Fragment {
         refreshCachedDetail();
         render();
         fetchSftp();
+        fetchSupport();
     }
 
     @Override
@@ -134,6 +174,7 @@ public class ManageFragment extends Fragment {
 
     private void bindViews(View root) {
         contentLayout = root.findViewById(R.id.layout_manage_content);
+        cardSupport = root.findViewById(R.id.card_support);
         noData = root.findViewById(R.id.tv_manage_no_data);
         tvInstanceId = root.findViewById(R.id.tv_instance_id);
         tvTroubleshootId = root.findViewById(R.id.tv_troubleshoot_id);
@@ -142,10 +183,16 @@ public class ManageFragment extends Fragment {
         tvTrafficRemain = root.findViewById(R.id.tv_traffic_remain);
         tvGameType = root.findViewById(R.id.tv_game_type);
         tvDiskCheckTime = root.findViewById(R.id.tv_disk_check_time);
+        btnRateImage = root.findViewById(R.id.btn_rate_image);
         tvSftpHost = root.findViewById(R.id.tv_sftp_host);
         tvSftpPort = root.findViewById(R.id.tv_sftp_port);
         tvSftpUser = root.findViewById(R.id.tv_sftp_user);
         tvSftpPassword = root.findViewById(R.id.tv_sftp_password);
+        tvSupportDevQq = root.findViewById(R.id.tv_support_dev_qq);
+        tvSupportGroup = root.findViewById(R.id.tv_support_group);
+        tvSupportComment = root.findViewById(R.id.tv_support_comment);
+        tvSupportCreateTime = root.findViewById(R.id.tv_support_create_time);
+        btnSupportAction = root.findViewById(R.id.btn_support_action);
         tvPorts = root.findViewById(R.id.tv_ports);
         tvDiamondLeft = root.findViewById(R.id.tv_diamond_left);
         tvDiamondPlan = root.findViewById(R.id.tv_diamond_plan);
@@ -153,6 +200,8 @@ public class ManageFragment extends Fragment {
         spinnerPorts = root.findViewById(R.id.spinner_ports);
         btnSetMainPort = root.findViewById(R.id.btn_set_main_port);
         btnBuyPort = root.findViewById(R.id.btn_buy_port);
+        btnReinstallInstance = root.findViewById(R.id.btn_reinstall_instance);
+        btnChangeConfig = root.findViewById(R.id.btn_change_config);
         btnDestroyInstance = root.findViewById(R.id.btn_destroy_instance);
 
         portAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, new ArrayList<>());
@@ -204,9 +253,13 @@ public class ManageFragment extends Fragment {
         rvDiamondPlans.setAdapter(diamondPlanAdapter);
 
         btnApplyDiamondPlan.setOnClickListener(v -> applyDiamondPlan());
+        btnRateImage.setOnClickListener(v -> showRatingDialog());
+        btnSupportAction.setOnClickListener(v -> showSupportCommentDialog(isSupportValid()));
 
         btnBuyPort.setOnClickListener(v -> confirmBuyPort());
         btnSetMainPort.setOnClickListener(v -> setMainPort());
+        btnReinstallInstance.setOnClickListener(v -> openReinstallWizard());
+        btnChangeConfig.setOnClickListener(v -> openChangeConfigWizard());
         btnDestroyInstance.setOnClickListener(v -> confirmDeleteInstance());
         tvTroubleshootId.setOnClickListener(v -> copyTroubleshootId());
 
@@ -233,18 +286,29 @@ public class ManageFragment extends Fragment {
             noData.setVisibility(View.VISIBLE);
             contentLayout.setVisibility(View.GONE);
             bindPorts(null);
+            btnReinstallInstance.setEnabled(false);
+            btnChangeConfig.setEnabled(false);
             btnDestroyInstance.setEnabled(false);
+            renderRatingButton();
             tvTroubleshootId.setText("故障排错ID: -");
             tvSftpHost.setText("服务器IP: -");
             tvSftpPort.setText("服务器端口: -");
             tvSftpUser.setText("用户名: -");
             tvSftpPassword.setText("密码: -");
+            tvSftpHost.setTag("-");
+            tvSftpPort.setTag("-");
+            tvSftpUser.setTag("-");
+            tvSftpPassword.setTag("-");
+            renderSupportCard();
             return;
         }
 
         noData.setVisibility(View.GONE);
         contentLayout.setVisibility(View.VISIBLE);
+        btnReinstallInstance.setEnabled(true);
+        btnChangeConfig.setEnabled(true);
         btnDestroyInstance.setEnabled(true);
+        renderRatingButton();
 
         JSONObject utilization = cachedDetail.optJSONObject("utilization");
         JSONObject traffic = cachedDetail.optJSONObject("traffic");
@@ -292,6 +356,10 @@ public class ManageFragment extends Fragment {
         tvSftpPort.setText("服务器端口: " + sftpPort);
         tvSftpUser.setText("用户名: " + sftpUser);
         tvSftpPassword.setText("密码: " + sftpPassword);
+        tvSftpHost.setTag(sftpHost);
+        tvSftpPort.setTag(sftpPort);
+        tvSftpUser.setTag(sftpUser);
+        tvSftpPassword.setTag(sftpPassword);
 
         bindPorts(cachedDetail.optJSONArray("allocations"));
 
@@ -326,9 +394,263 @@ public class ManageFragment extends Fragment {
             tvDiamondValid.setVisibility(View.GONE);
         }
 
+        renderSupportCard();
+
         if (allDiamondPlans == null && getActivity() instanceof ServerManages) {
             fetchDiamondPlans();
         }
+    }
+
+    private void fetchSupport() {
+        fetchSupport(null);
+    }
+
+    private void fetchSupport(@Nullable Runnable done) {
+        if (!(getActivity() instanceof ServerManages activity) || !shouldShowSupportCard()) {
+            cachedSupport = null;
+            supportLoaded = false;
+            renderSupportCard();
+            if (done != null) done.run();
+            return;
+        }
+        String token = getToken();
+        if (token == null) {
+            supportLoaded = false;
+            renderSupportCard();
+            if (done != null) done.run();
+            return;
+        }
+
+        new SupportAPI().GetSupport(token, activity.getDeviceId(), new SupportAPI.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                if (!isAdded()) return;
+                JSONObject data = response.optJSONObject("data");
+                cachedSupport = data != null ? data : response;
+                supportLoaded = true;
+                if (done != null) done.run();
+                renderSupportCard();
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                supportLoaded = false;
+                if (done != null) done.run();
+                renderSupportCard();
+            }
+        });
+    }
+
+    private void renderRatingButton() {
+        if (btnRateImage == null) return;
+        boolean showButton = shouldShowSupportCard();
+        btnRateImage.setVisibility(showButton ? View.VISIBLE : View.GONE);
+        btnRateImage.setEnabled(showButton && cachedDetail != null);
+    }
+
+    private void renderSupportCard() {
+        if (tvSupportDevQq == null || tvSupportGroup == null || btnSupportAction == null) return;
+
+        boolean showCard = shouldShowSupportCard();
+        if (cardSupport != null) {
+            cardSupport.setVisibility(showCard ? View.VISIBLE : View.GONE);
+        }
+        if (!showCard) {
+            btnSupportAction.setEnabled(false);
+            return;
+        }
+
+        boolean valid = isSupportValid();
+        tvSupportDevQq.setText("开发者QQ：" + supportValue("dev_qq"));
+        tvSupportGroup.setText("技术交流群：" + supportValue("support_group"));
+        tvSupportComment.setVisibility(valid ? View.VISIBLE : View.GONE);
+        tvSupportCreateTime.setVisibility(valid ? View.VISIBLE : View.GONE);
+        if (valid) {
+            tvSupportComment.setText("请求原因：" + supportValue("comment"));
+            tvSupportCreateTime.setText("创建时间：" + formatTime(cachedSupport.optString("create_time")));
+        }
+        btnSupportAction.setText(valid ? "结束" : "创建");
+        btnSupportAction.setEnabled(cachedDetail != null && supportLoaded && !supportActionRunning);
+    }
+
+    private boolean shouldShowSupportCard() {
+        if (cachedDetail == null) return false;
+        JSONObject gameInfo = cachedDetail.optJSONObject("game_info");
+        return gameInfo != null && gameInfo.optBoolean("custom", false);
+    }
+
+    private boolean isSupportValid() {
+        return cachedSupport != null && cachedSupport.optBoolean("valid", false);
+    }
+
+    private String supportValue(String key) {
+        return cachedSupport == null ? "-" : safe(cachedSupport.optString(key));
+    }
+
+    private void showRatingDialog() {
+        if (!(getActivity() instanceof ServerManages) || !shouldShowSupportCard()) return;
+
+        LinearLayout content = new LinearLayout(requireContext());
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density + 0.5f);
+        content.setPadding(padding, 0, padding, 0);
+
+        RadioGroup ratingGroup = new RadioGroup(requireContext());
+        ratingGroup.setOrientation(RadioGroup.HORIZONTAL);
+        RadioButton likeButton = new RadioButton(requireContext());
+        likeButton.setId(View.generateViewId());
+        likeButton.setText("点赞");
+        RadioButton dislikeButton = new RadioButton(requireContext());
+        dislikeButton.setId(View.generateViewId());
+        dislikeButton.setText("差评");
+        ratingGroup.addView(likeButton);
+        ratingGroup.addView(dislikeButton);
+        ratingGroup.check(likeButton.getId());
+        content.addView(ratingGroup);
+
+        EditText feedbackInput = new EditText(requireContext());
+        feedbackInput.setSingleLine(false);
+        feedbackInput.setMinLines(3);
+        feedbackInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        feedbackInput.setHint("体验反馈");
+        content.addView(feedbackInput);
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("评价第三方镜像")
+                .setMessage("您可以对该第三方镜像进行评价\n这有助于帮助开发者改进，也有助于其它用户进行镜像选择\n每个镜像版本只能够评价一次\n您的QQ将会共享给开发者以帮助开发者判断解决问题。")
+                .setView(content)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("提交", null)
+                .create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String feedback = feedbackInput.getText() == null ? "" : feedbackInput.getText().toString().trim();
+            if (feedback.isEmpty()) {
+                Toast.makeText(requireContext(), "请填写体验反馈", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            boolean like = ratingGroup.getCheckedRadioButtonId() == likeButton.getId();
+            dialog.dismiss();
+            submitImageRating(like, feedback);
+        }));
+        dialog.show();
+    }
+
+    private void submitImageRating(boolean like, String feedback) {
+        if (!(getActivity() instanceof ServerManages activity) || !shouldShowSupportCard()) return;
+        String token = getToken();
+        if (token == null) {
+            Toast.makeText(requireContext(), "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        btnRateImage.setEnabled(false);
+        new SupportAPI().Rating(token, activity.getDeviceId(), like, feedback, new SupportAPI.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), response.optString("msg", "评价成功"), Toast.LENGTH_SHORT).show();
+                renderRatingButton();
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                renderRatingButton();
+                Toast.makeText(requireContext(), "评价失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showSupportCommentDialog(boolean ending) {
+        if (!(getActivity() instanceof ServerManages) || !shouldShowSupportCard()) return;
+        EditText input = new EditText(requireContext());
+        input.setSingleLine(false);
+        input.setMinLines(2);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        input.setHint("请填写原因");
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(ending ? "结束技术支持" : "创建技术支持")
+                .setMessage(ending
+                        ? "结束技术支持后，开发者将不再有权限访问您的实例\n同时为确保安全，SFTP密码将会重置。"
+                        : "点击创建将允许开发者访问您的实例\n为确保您能够及时有效获得技术支持，请在发起前联系开发者\n您随时可以收回开发者的访问权限。")
+                .setView(input)
+                .setNegativeButton("取消", null)
+                .setPositiveButton(ending ? "结束" : "创建", null)
+                .create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String comment = input.getText() == null ? "" : input.getText().toString().trim();
+            if (comment.isEmpty()) {
+                Toast.makeText(requireContext(), "请填写原因", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            dialog.dismiss();
+            if (ending) {
+                stopSupport(comment);
+            } else {
+                createSupport(comment);
+            }
+        }));
+        dialog.show();
+    }
+
+    private void createSupport(String comment) {
+        if (!(getActivity() instanceof ServerManages activity) || !shouldShowSupportCard()) return;
+        String token = getToken();
+        if (token == null) {
+            Toast.makeText(requireContext(), "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        supportActionRunning = true;
+        renderSupportCard();
+        new SupportAPI().CreateSupport(token, activity.getDeviceId(), comment, new SupportAPI.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), response.optString("msg", "创建成功"), Toast.LENGTH_SHORT).show();
+                fetchSupport(() -> supportActionRunning = false);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                supportActionRunning = false;
+                renderSupportCard();
+                Toast.makeText(requireContext(), "创建技术支持失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void stopSupport(String comment) {
+        if (!(getActivity() instanceof ServerManages activity) || !shouldShowSupportCard()) return;
+        String token = getToken();
+        if (token == null) {
+            Toast.makeText(requireContext(), "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        supportActionRunning = true;
+        renderSupportCard();
+        new SupportAPI().StopSupport(token, activity.getDeviceId(), comment, new SupportAPI.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), response.optString("msg", "结束支持成功"), Toast.LENGTH_SHORT).show();
+                cachedSupport = null;
+                fetchSupport(() -> supportActionRunning = false);
+                fetchSftp(true);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                supportActionRunning = false;
+                renderSupportCard();
+                Toast.makeText(requireContext(), "结束技术支持失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void fetchDiamondPlans() {
@@ -474,6 +796,95 @@ public class ManageFragment extends Fragment {
         btnSetMainPort.setEnabled(!selected.isDefault);
     }
 
+    private void openReinstallWizard() {
+        if (!(getActivity() instanceof ServerManages activity)) return;
+        int serverId = activity.getDeviceId();
+        if (serverId <= 0) {
+            Toast.makeText(requireContext(), "实例ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent(requireContext(), CreateServer.class);
+        intent.putExtra(CreateServer.EXTRA_MODE, CreateServer.MODE_REINSTALL);
+        intent.putExtra(CreateServer.EXTRA_SERVER_ID, serverId);
+
+        JSONObject gameInfo = cachedDetail != null ? cachedDetail.optJSONObject("game_info") : null;
+        if (gameInfo != null) {
+            putCurrentGameInfoExtras(intent, gameInfo);
+        }
+
+        reinstallLauncher.launch(intent);
+    }
+
+    private void openChangeConfigWizard() {
+        if (!(getActivity() instanceof ServerManages activity)) return;
+        int serverId = activity.getDeviceId();
+        if (serverId <= 0) {
+            Toast.makeText(requireContext(), "实例ID无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        JSONObject gameInfo = cachedDetail != null ? cachedDetail.optJSONObject("game_info") : null;
+        if (gameInfo == null) {
+            Toast.makeText(requireContext(), "实例镜像信息未加载，无法变配", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent(requireContext(), CreateServer.class);
+        intent.putExtra(CreateServer.EXTRA_MODE, CreateServer.MODE_CHANGE_CONFIG);
+        intent.putExtra(CreateServer.EXTRA_SERVER_ID, serverId);
+        putCurrentGameInfoExtras(intent, gameInfo);
+
+        reinstallLauncher.launch(intent);
+    }
+
+    private void putCurrentGameInfoExtras(Intent intent, JSONObject gameInfo) {
+        intent.putExtra(CreateServer.EXTRA_CURRENT_GAME_NAME, gameInfo.optString("game_name", ""));
+        intent.putExtra(CreateServer.EXTRA_CURRENT_KIND_NAME, gameInfo.optString("kind_name", ""));
+        intent.putExtra(CreateServer.EXTRA_CURRENT_IMAGE_NAME, gameInfo.optString("image_name", ""));
+        intent.putExtra(CreateServer.EXTRA_CURRENT_VERSION_NAME, gameInfo.optString("version_name", ""));
+        putFirstPositiveExtra(intent, CreateServer.EXTRA_CURRENT_GAME_ID, gameInfo, "game_id", "game");
+        putFirstPositiveExtra(intent, CreateServer.EXTRA_CURRENT_KIND_ID, gameInfo, "kind_id", "image_id", "custom_id", "kind");
+        putFirstPositiveExtra(intent, CreateServer.EXTRA_CURRENT_VERSION_ID, gameInfo, "version_id", "version");
+        putFirstPositiveExtra(intent, CreateServer.EXTRA_CURRENT_CUSTOM_ID, gameInfo, "custom_id");
+        if (gameInfo.has("custom")) {
+            intent.putExtra(CreateServer.EXTRA_CURRENT_CUSTOM, gameInfo.optBoolean("custom"));
+        } else if (gameInfo.has("is_custom")) {
+            intent.putExtra(CreateServer.EXTRA_CURRENT_CUSTOM, gameInfo.optBoolean("is_custom"));
+        } else {
+            intent.putExtra(CreateServer.EXTRA_CURRENT_CUSTOM, false);
+        }
+    }
+
+    private void putFirstPositiveExtra(Intent intent, String extra, JSONObject data, String... keys) {
+        for (String key : keys) {
+            int value = data.optInt(key, -1);
+            if (value > 0) {
+                intent.putExtra(extra, value);
+                return;
+            }
+        }
+    }
+
+    private void returnToServerListAndRefresh() {
+        String token = getToken();
+        if (token != null && !token.trim().isEmpty()) {
+            PageDataStore.getInstance().clearServerData(token);
+        }
+        if (getActivity() instanceof ServerManages activity) {
+            int oldId = activity.getDeviceId();
+            if (oldId > 0) {
+                InstanceDetailStore.getInstance().clear(oldId);
+                SftpCredentialStore.get(requireContext()).delete(String.valueOf(oldId));
+            }
+            Intent intent = new Intent(requireContext(), MainActivity.class);
+            intent.putExtra(MainActivity.EXTRA_REFRESH_SERVER_LIST, true);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            activity.finish();
+        }
+    }
+
     private void confirmBuyPort() {
         if (!(getActivity() instanceof ServerManages)) return;
         int cost = cachedDetail != null && cachedDetail.optBoolean("is_pro", false) ? 50 : 100;
@@ -558,8 +969,8 @@ public class ManageFragment extends Fragment {
 
     private void copyFieldValue(TextView view, String label) {
         if (view == null || getContext() == null) return;
-        String raw = String.valueOf(view.getText());
-        String value = extractValuePart(raw);
+        Object tagValue = view.getTag();
+        String value = tagValue instanceof String ? ((String) tagValue).trim() : extractValuePart(String.valueOf(view.getText()));
         if (value.isEmpty() || "-".equals(value)) {
             Toast.makeText(requireContext(), label + "暂无可复制内容", Toast.LENGTH_SHORT).show();
             return;
@@ -621,13 +1032,23 @@ public class ManageFragment extends Fragment {
     }
 
     private void fetchSftp() {
+        fetchSftp(false);
+    }
+
+    private void fetchSftp(boolean forceRefresh) {
         if (!(getActivity() instanceof ServerManages activity)) return;
         String instanceId = String.valueOf(activity.getDeviceId());
-        SftpCredentialStore.Credential cached = SftpCredentialStore.get(requireContext()).getValid(instanceId);
-        if (cached != null) {
-            cachedSftp = cached.toJson();
+        if (forceRefresh) {
+            SftpCredentialStore.get(requireContext()).delete(instanceId);
+            cachedSftp = null;
             render();
-            return;
+        } else {
+            SftpCredentialStore.Credential cached = SftpCredentialStore.get(requireContext()).getValid(instanceId);
+            if (cached != null) {
+                cachedSftp = cached.toJson();
+                render();
+                return;
+            }
         }
         String token = getToken();
         if (token == null) return;
@@ -635,6 +1056,7 @@ public class ManageFragment extends Fragment {
         new MainApi(requireContext()).getSftp(token, instanceId, new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
+                if (!isAdded()) return;
                 JSONObject sftpData = data.optJSONObject("data");
                 cachedSftp = sftpData != null ? sftpData : data;
                 render();

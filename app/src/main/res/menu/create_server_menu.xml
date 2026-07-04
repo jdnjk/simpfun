@@ -7,10 +7,5 @@
         android:title="刷新"
         app:showAsAction="ifRoom"
         android:visible="false" />
-    <item
-        android:id="@+id/action_close"
-        android:icon="@drawable/ic_close_cancel"
-        android:title="关闭"
-        app:showAsAction="always" />
 </menu>
 

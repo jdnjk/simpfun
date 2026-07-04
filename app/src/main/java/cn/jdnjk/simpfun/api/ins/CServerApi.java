@@ -47,6 +47,13 @@ public class CServerApi {
         return ApiClient.getInstance().getClient().newCall(builder.build());
     }
 
+    public static Call getChangeSpecList(int versionId, int insId, String token) {
+        String url = BASE_URL + "/shop/list?version_id=" + versionId + "&ins_id=" + insId;
+        Request.Builder builder = new Request.Builder().url(url);
+        if (token != null) builder.header("Authorization", token);
+        return ApiClient.getInstance().getClient().newCall(builder.build());
+    }
+
     public static Call getConfirmation(boolean isCustom, int versionId, int specId, String token) {
         String url = BASE_URL + "/shop/confirmation?version_id=" + versionId + "&item_id=" + specId + (isCustom ? "&custom=true" : "");
         Request.Builder builder = new Request.Builder().url(url);
@@ -62,6 +69,35 @@ public class CServerApi {
 
         Request request = new Request.Builder()
                 .url(BASE_INS_URL + "create")
+                .post(fb.build())
+                .header("Authorization", token == null ? "" : token)
+                .build();
+        return ApiClient.getInstance().getClient().newCall(request);
+    }
+
+    public static Call reinstallInstance(int serverId, int versionId, boolean diff, boolean save, boolean custom, String token) {
+        FormBody.Builder fb = new FormBody.Builder()
+                .add("version_id", String.valueOf(versionId))
+                .add("diff", String.valueOf(diff))
+                .add("save", String.valueOf(save));
+        if (custom) {
+            fb.add("custom", String.valueOf(true));
+        }
+
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + serverId + "/reinstall")
+                .post(fb.build())
+                .header("Authorization", token == null ? "" : token)
+                .build();
+        return ApiClient.getInstance().getClient().newCall(request);
+    }
+
+    public static Call changeInstance(int serverId, int itemId, String token) {
+        FormBody.Builder fb = new FormBody.Builder()
+                .add("item_id", String.valueOf(itemId));
+
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + serverId + "/change")
                 .post(fb.build())
                 .header("Authorization", token == null ? "" : token)
                 .build();

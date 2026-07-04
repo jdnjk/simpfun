@@ -3,66 +3,69 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="12dp"
-    android:layout_marginEnd="12dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginBottom="8dp"
-    app:cardUseCompatPadding="true"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:layout_marginTop="6dp"
+    android:layout_marginBottom="6dp"
     app:cardBackgroundColor="@color/md_theme_surfaceContainerLow"
-    app:strokeColor="@color/md_theme_outlineVariant"
-    app:strokeWidth="1dp"
-    app:cardCornerRadius="12dp">
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp">
+        android:gravity="center_vertical"
+        android:minHeight="78dp"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="12dp">
+
+        <FrameLayout
+            android:id="@+id/layout_task_status_icon"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginEnd="12dp">
+
+            <ImageView
+                android:id="@+id/image_task_status"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/task_status_done"
+                android:src="@drawable/ic_check_circle_outline_24" />
+        </FrameLayout>
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/text_task_id"
-                android:layout_width="0dp"
+                android:id="@+id/text_task_comment"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/task_id_format"
-                android:textStyle="bold"
-                android:textSize="16sp"/>
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/task_comment_placeholder"
+                android:textColor="@color/md_theme_onSurface"
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
-            <com.google.android.material.chip.Chip
-                android:id="@+id/chip_task_status"
-                style="@style/Widget.MaterialComponents.Chip.Action"
-                android:layout_width="wrap_content"
+            <TextView
+                android:id="@+id/text_task_time"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clickable="false"
-                android:checkable="false"
-                app:chipMinHeight="28dp"
-                app:chipStrokeWidth="0dp"
-                app:chipStartPadding="8dp"
-                app:chipEndPadding="8dp"/>
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/task_time_placeholder"
+                android:textColor="@color/md_theme_onSurfaceVariant"
+                android:textSize="13sp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/text_task_comment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/task_comment_placeholder"
-            android:textSize="14sp"
-            android:layout_marginTop="8dp"/>
-
-        <TextView
-            android:id="@+id/text_task_time"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/task_time_placeholder"
-            android:textSize="12sp"
-            android:textColor="@color/md_theme_onSurfaceVariant"
-            android:alpha="0.9"
-            android:layout_marginTop="6dp"/>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

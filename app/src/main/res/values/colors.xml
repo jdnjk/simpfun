@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splash_background">#FFFFFF</color>
+    <color name="task_status_done">#2F7D3A</color>
+    <color name="task_status_done_container">#E4F4E5</color>
+    <color name="task_status_error">#BA2B25</color>
+    <color name="task_status_error_container">#FDE7E4</color>
+    <color name="task_status_running">#2C6DAF</color>
+    <color name="task_status_running_container">#E4EFFB</color>
+    <color name="task_status_waiting">#8A650F</color>
+    <color name="task_status_waiting_container">#FBF1D7</color>
     <color name="md_theme_primary">#AAC7FF</color>
     <color name="md_theme_onPrimary">#FFFFFF</color>
     <color name="md_theme_primaryContainer">#D6E3FF</color>

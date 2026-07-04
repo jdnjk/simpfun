@@ -1,15 +1,18 @@
 package cn.jdnjk.simpfun.ui.ins.tasks;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.model.TaskItem;
-import com.google.android.material.chip.Chip;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,56 +41,66 @@ public class TasksAdapter extends RecyclerView.Adapter<TasksAdapter.TaskVH> {
     public void onBindViewHolder(@NonNull TaskVH holder, int position) {
         TaskItem item = tasks.get(position);
         Context ctx = holder.itemView.getContext();
-        holder.textId.setText(ctx.getString(R.string.task_id_format, item.getId()));
-
         String statusText = mapStatus(ctx, item.getStatus());
-        holder.chipStatus.setText(statusText);
-        applyStatusColors(holder.chipStatus, item.getStatus());
+        holder.imageStatus.setContentDescription(statusText);
+        applyStatusIcon(holder, item.getStatus());
 
         holder.textComment.setText(item.getComment() == null ? "" : item.getComment());
-        holder.textTime.setText(formatUtcToBeijing(item.getCreateTime()));
+        holder.textTime.setText(ctx.getString(R.string.task_meta_format, item.getId(), formatUtcToBeijing(item.getCreateTime())));
     }
 
     @Override
     public int getItemCount() { return tasks.size(); }
 
     public static class TaskVH extends RecyclerView.ViewHolder {
-        final TextView textId, textComment, textTime;
-        final Chip chipStatus;
+        final FrameLayout layoutStatusIcon;
+        final ImageView imageStatus;
+        final TextView textComment, textTime;
         public TaskVH(@NonNull View itemView) {
             super(itemView);
-            textId = itemView.findViewById(R.id.text_task_id);
-            chipStatus = itemView.findViewById(R.id.chip_task_status);
+            layoutStatusIcon = itemView.findViewById(R.id.layout_task_status_icon);
+            imageStatus = itemView.findViewById(R.id.image_task_status);
             textComment = itemView.findViewById(R.id.text_task_comment);
             textTime = itemView.findViewById(R.id.text_task_time);
         }
     }
 
     private String mapStatus(Context ctx, int status) {
-        if (status == -2) return ctx.getString(R.string.task_status_running);
-        if (status == -1) return ctx.getString(R.string.task_status_waiting);
-        if (status == 0) return ctx.getString(R.string.task_status_done);
+        if (status == -2)
+            return ctx.getString(R.string.task_status_running);
+        if (status == -1)
+            return ctx.getString(R.string.task_status_waiting);
+        if (status == 0)
+            return ctx.getString(R.string.task_status_done);
         return ctx.getString(R.string.task_status_error);
     }
 
-    private void applyStatusColors(Chip chip, int status) {
-        int bg;
-        int fg;
-        if (status == -2) { // running
-            bg = chip.getResources().getColor(R.color.md_theme_primaryContainer, null);
-            fg = chip.getResources().getColor(R.color.md_theme_onPrimaryContainer, null);
-        } else if (status == -1) { // waiting
-            bg = chip.getResources().getColor(R.color.md_theme_secondaryContainer, null);
-            fg = chip.getResources().getColor(R.color.md_theme_onSecondaryContainer, null);
-        } else if (status == 0) { // done
-            bg = chip.getResources().getColor(R.color.md_theme_surfaceVariant, null);
-            fg = chip.getResources().getColor(R.color.md_theme_onSurfaceVariant, null);
-        } else { // error
-            bg = chip.getResources().getColor(R.color.md_theme_errorContainer, null);
-            fg = chip.getResources().getColor(R.color.md_theme_onErrorContainer, null);
+    private void applyStatusIcon(TaskVH holder, int status) {
+        Context ctx = holder.itemView.getContext();
+        int bgRes;
+        int tintRes;
+        int iconRes;
+        if (status == 0) { // done
+            bgRes = R.drawable.bg_task_status_done;
+            tintRes = R.color.task_status_done;
+            iconRes = R.drawable.ic_check_circle_outline_24;
+        } else if (status > 0) { // error
+            bgRes = R.drawable.bg_task_status_error;
+            tintRes = R.color.task_status_error;
+            iconRes = R.drawable.ic_error_outline;
+        } else if (status == -2) { // running
+            bgRes = R.drawable.bg_task_status_running;
+            tintRes = R.color.task_status_running;
+            iconRes = R.drawable.ic_refresh;
+        } else { // waiting
+            bgRes = R.drawable.bg_task_status_waiting;
+            tintRes = R.color.task_status_waiting;
+            iconRes = R.drawable.tasks;
         }
-        chip.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(bg));
-        chip.setTextColor(fg);
+
+        holder.layoutStatusIcon.setBackgroundResource(bgRes);
+        holder.imageStatus.setImageResource(iconRes);
+        holder.imageStatus.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(ctx, tintRes)));
     }
 
     private String formatUtcToBeijing(String iso) {

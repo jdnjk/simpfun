@@ -1,4 +1,4 @@
-package cn.jdnjk.simpfun.ui.ins.backups;
+package cn.jdnjk.simpfun.ui.ins.mirror.backups;
 
 import android.app.AlertDialog;
 import android.app.DownloadManager;

@@ -7,6 +7,7 @@ import android.os.Looper;
 import androidx.annotation.Nullable;
 import cn.jdnjk.simpfun.api.ApiClient;
 import okhttp3.Call;
+import okhttp3.FormBody;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -30,32 +31,83 @@ public class TasksApi {
     }
 
     public void getTasks(Context context, int serverId, Callback callback) {
-        if (context == null) {
-            invokeCallback(callback, null, false, "Context 不能为空");
+        String token = getTokenOrFail(context, callback);
+        if (token == null || !isValidServerId(serverId, callback)) return;
+
+        Request.Builder builder = newTaskRequestBuilder(serverId, callback);
+        if (builder == null) return;
+
+        Request request = builder
+                .get()
+                .header("Authorization", token)
+                .build();
+
+        executeRequest(request, callback);
+    }
+
+    public void cancelTask(Context context, int serverId, int taskId, Callback callback) {
+        changeTaskQueue(context, serverId, taskId, false, callback);
+    }
+
+    public void moveTaskToProQueue(Context context, int serverId, int taskId, Callback callback) {
+        changeTaskQueue(context, serverId, taskId, true, callback);
+    }
+
+    private void changeTaskQueue(Context context, int serverId, int taskId, boolean proQueue, Callback callback) {
+        String token = getTokenOrFail(context, callback);
+        if (token == null || !isValidServerId(serverId, callback)) return;
+        if (taskId <= 0) {
+            invokeCallback(callback, null, false, "无效的任务ID");
             return;
         }
-        if (serverId <= 0) {
-            invokeCallback(callback, null, false, "无效的服务器ID");
-            return;
+
+        Request.Builder builder = newTaskRequestBuilder(serverId, callback);
+        if (builder == null) return;
+
+        FormBody body = new FormBody.Builder()
+                .add("task_id", String.valueOf(taskId))
+                .build();
+        Request request = builder
+                .method(proQueue ? "PUT" : "POST", body)
+                .header("Authorization", token)
+                .build();
+
+        executeRequest(request, callback);
+    }
+
+    private String getTokenOrFail(Context context, Callback callback) {
+        if (context == null) {
+            invokeCallback(callback, null, false, "Context 不能为空");
+            return null;
         }
         SharedPreferences sp = context.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
         String token = sp.getString(TOKEN_KEY, null);
         if (token == null || token.isEmpty()) {
             invokeCallback(callback, null, false, "未登录，请先登录");
-            return;
+            return null;
         }
+        return token;
+    }
 
+    private boolean isValidServerId(int serverId, Callback callback) {
+        if (serverId <= 0) {
+            invokeCallback(callback, null, false, "无效的服务器ID");
+            return false;
+        }
+        return true;
+    }
+
+    @Nullable
+    private Request.Builder newTaskRequestBuilder(int serverId, Callback callback) {
         HttpUrl url = HttpUrl.parse(BASE_INS_URL + serverId + "/tasks");
         if (url == null) {
             invokeCallback(callback, null, false, "URL 解析错误");
-            return;
+            return null;
         }
+        return new Request.Builder().url(url);
+    }
 
-        Request request = new Request.Builder()
-                .url(url)
-                .header("Authorization", token)
-                .build();
-
+    private void executeRequest(Request request, Callback callback) {
         OkHttpClient client = ApiClient.getInstance().getClient();
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
@@ -84,7 +136,7 @@ public class TasksApi {
                     } else if (code == 500) {
                         new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "服务器繁忙，请稍后再试"));
                     } else {
-                        String msg = json.optString("msg", "获取任务失败");
+                        String msg = json.optString("msg", "操作失败");
                         new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, msg));
                     }
                 } catch (JSONException ex) {

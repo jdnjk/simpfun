@@ -56,7 +56,7 @@ public final class ServerStatsFormatter {
         long hours = (totalSeconds % 86400) / 3600;
         long minutes = (totalSeconds % 3600) / 60;
         if (days > 0) {
-            return String.format(Locale.US, "%d days, %02d:%02d", days, hours, minutes);
+            return String.format(Locale.US, "%d 天, %02d:%02d", days, hours, minutes);
         }
         return String.format(Locale.US, "%02d:%02d", hours, minutes);
     }

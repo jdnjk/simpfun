@@ -37,9 +37,11 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.TreeSet;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.PlanAPI;
@@ -88,8 +90,13 @@ public class PlansFragment extends Fragment {
 
         swipeRefreshLayout.setOnRefreshListener(() -> loadPlans(true));
 
-        loadPlans(true);
         return root;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        loadPlans(true);
     }
 
     @Override
@@ -275,7 +282,7 @@ public class PlansFragment extends Fragment {
         cbRepeat.setOnCheckedChangeListener((btn, checked) -> layoutInterval.setVisibility(checked ? View.VISIBLE : View.GONE));
 
         final Calendar[] specificDateHolder = {null};
-        final Pair<Long, Long>[] multiDateRangeHolder = new Pair[]{null};
+        final List<Pair<Long, Long>> multiDateRanges = new ArrayList<>();
         final int[] multiTimeHolder = {-1, -1};
 
         SimpleDateFormat sdfDisplay = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
@@ -327,7 +334,7 @@ public class PlansFragment extends Fragment {
 
         etMultiDateRange.setOnClickListener(v -> {
             MaterialDatePicker<Pair<Long, Long>> rangePicker = MaterialDatePicker.Builder.dateRangePicker()
-                    .setTitleText("选择多天范围")
+                    .setTitleText(multiDateRanges.isEmpty() ? "选择日期段" : "继续添加日期段")
                     .setCalendarConstraints(new CalendarConstraints.Builder()
                             .setValidator(DateValidatorPointForward.now())
                             .build())
@@ -335,12 +342,19 @@ public class PlansFragment extends Fragment {
 
             rangePicker.addOnPositiveButtonClickListener(selection -> {
                 if (!isViewAvailable()) return;
-                multiDateRangeHolder[0] = selection;
-                etMultiDateRange.setText(sdfDateOnly.format(selection.first) + " ~ " + sdfDateOnly.format(selection.second));
+                if (selection == null || selection.first == null || selection.second == null) return;
+                multiDateRanges.add(selection);
+                updateMultiDateRangeText(etMultiDateRange, multiDateRanges, sdfDateOnly);
             });
             if (isViewAvailable()) {
                 rangePicker.show(getChildFragmentManager(), "plan_multi_date_range");
             }
+        });
+        etMultiDateRange.setOnLongClickListener(v -> {
+            multiDateRanges.clear();
+            etMultiDateRange.setText("");
+            showToast("已清空日期段");
+            return true;
         });
 
         etMultiTime.setOnClickListener(v -> {
@@ -425,9 +439,8 @@ public class PlansFragment extends Fragment {
                 return;
             }
 
-            Pair<Long, Long> range = multiDateRangeHolder[0];
-            if (range == null || range.first == null || range.second == null) {
-                showToast("请选择日期范围");
+            if (multiDateRanges.isEmpty()) {
+                showToast("请至少选择一个日期段");
                 return;
             }
             if (multiTimeHolder[0] < 0 || multiTimeHolder[1] < 0) {
@@ -435,28 +448,7 @@ public class PlansFragment extends Fragment {
                 return;
             }
 
-            Calendar startUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-            startUtc.setTimeInMillis(range.first);
-            Calendar endUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-            endUtc.setTimeInMillis(range.second);
-
-            Calendar iter = Calendar.getInstance();
-            iter.set(startUtc.get(Calendar.YEAR), startUtc.get(Calendar.MONTH), startUtc.get(Calendar.DAY_OF_MONTH),
-                    multiTimeHolder[0], multiTimeHolder[1], 0);
-            iter.set(Calendar.MILLISECOND, 0);
-
-            Calendar end = Calendar.getInstance();
-            end.set(endUtc.get(Calendar.YEAR), endUtc.get(Calendar.MONTH), endUtc.get(Calendar.DAY_OF_MONTH),
-                    multiTimeHolder[0], multiTimeHolder[1], 0);
-            end.set(Calendar.MILLISECOND, 0);
-
-            Calendar now = Calendar.getInstance();
-            List<String> sendTimes = new ArrayList<>();
-            while (!iter.after(end)) {
-                if (!iter.before(now)) sendTimes.add(apiFormat.format(iter.getTime()));
-                iter.add(Calendar.DAY_OF_YEAR, 1);
-            }
-
+            List<String> sendTimes = buildMultiPlanTimes(multiDateRanges, multiTimeHolder[0], multiTimeHolder[1], apiFormat);
             if (sendTimes.isEmpty()) {
                 showToast("所选时间均早于当前时间");
                 return;
@@ -467,6 +459,54 @@ public class PlansFragment extends Fragment {
         }));
 
         showDialog(dialog);
+    }
+
+    private void updateMultiDateRangeText(TextInputEditText editText, List<Pair<Long, Long>> ranges, SimpleDateFormat sdfDateOnly) {
+        List<String> labels = new ArrayList<>();
+        for (Pair<Long, Long> range : ranges) {
+            if (range == null || range.first == null || range.second == null) continue;
+            labels.add(formatDateRange(range, sdfDateOnly));
+        }
+        editText.setText(String.join("，", labels));
+    }
+
+    private String formatDateRange(Pair<Long, Long> range, SimpleDateFormat sdfDateOnly) {
+        String start = sdfDateOnly.format(new Date(range.first));
+        String end = sdfDateOnly.format(new Date(range.second));
+        return start.equals(end) ? start : start + " ~ " + end;
+    }
+
+    private List<String> buildMultiPlanTimes(List<Pair<Long, Long>> ranges, int hour, int minute, SimpleDateFormat apiFormat) {
+        Calendar now = Calendar.getInstance();
+        TreeSet<Long> timeMillisSet = new TreeSet<>();
+
+        for (Pair<Long, Long> range : ranges) {
+            if (range == null || range.first == null || range.second == null) continue;
+
+            Calendar startUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            startUtc.setTimeInMillis(range.first);
+            Calendar endUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+            endUtc.setTimeInMillis(range.second);
+
+            Calendar iter = Calendar.getInstance();
+            iter.set(startUtc.get(Calendar.YEAR), startUtc.get(Calendar.MONTH), startUtc.get(Calendar.DAY_OF_MONTH), hour, minute, 0);
+            iter.set(Calendar.MILLISECOND, 0);
+
+            Calendar end = Calendar.getInstance();
+            end.set(endUtc.get(Calendar.YEAR), endUtc.get(Calendar.MONTH), endUtc.get(Calendar.DAY_OF_MONTH), hour, minute, 0);
+            end.set(Calendar.MILLISECOND, 0);
+
+            while (!iter.after(end)) {
+                if (!iter.before(now)) timeMillisSet.add(iter.getTimeInMillis());
+                iter.add(Calendar.DAY_OF_YEAR, 1);
+            }
+        }
+
+        List<String> sendTimes = new ArrayList<>();
+        for (Long millis : timeMillisSet) {
+            sendTimes.add(apiFormat.format(new Date(millis)));
+        }
+        return sendTimes;
     }
 
     private void sendMultiPlans(String cmd, List<String> times, int index, int success, int failed, int generation) {
