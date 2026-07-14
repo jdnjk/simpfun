@@ -131,6 +131,14 @@ public class DebugFragment extends Fragment {
                 Toast.makeText(ctx, "请输入 URL", Toast.LENGTH_SHORT).show();
                 return;
             }
+            if ("simpfun://debug/testJavaCrash".equals(input)) {
+                CrashReport.testJavaCrash();
+                return;
+            }
+            if ("simpfun://debug/testNativeCrash".equals(input)) {
+                CrashReport.testNativeCrash();
+                return;
+            }
             String url = input.contains("://") ? input : ("https://" + input);
 
             Intent intent = new Intent(ctx, SWebView.class);

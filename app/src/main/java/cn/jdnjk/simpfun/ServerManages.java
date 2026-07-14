@@ -1,8 +1,6 @@
 package cn.jdnjk.simpfun;
 
 import android.content.Context;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -16,6 +14,7 @@ import android.widget.EditText;
 import androidx.appcompat.app.AlertDialog;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -37,10 +36,16 @@ import cn.jdnjk.simpfun.databinding.ActivityMainBinding;
 import cn.jdnjk.simpfun.service.TerminalWebSocketListener;
 import cn.jdnjk.simpfun.service.TerminalWebSocketManager;
 import cn.jdnjk.simpfun.ui.ins.term.TerminalFragment;
+import cn.jdnjk.simpfun.utils.ClipboardUtils;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class ServerManages extends AppCompatActivity implements TerminalWebSocketListener {
+
+    public interface InstanceDetailCallback {
+        void onSuccess(@Nullable JSONObject detail);
+        void onFailure(String errorMsg);
+    }
 
     public static final String EXTRA_DEVICE_ID = "extra_device_id";
     public static final String EXTRA_OPEN_NAV_ID = "extra_open_nav_id";
@@ -182,23 +187,52 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
             return;
         }
 
+        refreshInstanceDetail(new InstanceDetailCallback() {
+            @Override
+            public void onSuccess(@Nullable JSONObject detail) {
+                // Drawer state is applied by refreshInstanceDetail.
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                Log.e("ServerManages", "Failed to get server details: " + errorMsg);
+            }
+        });
+    }
+
+    public void refreshInstanceDetail(@NonNull InstanceDetailCallback callback) {
+        String token = getToken();
+        if (token == null) {
+            callback.onFailure("尚未登录");
+            return;
+        }
+        if (deviceId == -1) {
+            callback.onFailure("设备ID无效");
+            return;
+        }
+
         new MainApi(this).getInstanceDetail(token, String.valueOf(deviceId), new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject jsonResponse) {
                 try {
                     InstanceDetailStore.getInstance().put(deviceId, jsonResponse);
                     JSONObject detail = InstanceDetailStore.getInstance().getDetailData(deviceId);
-                    if (detail != null) {
-                        applyServerDetail(detail);
+                    if (detail == null) {
+                        callback.onFailure("实例详情为空");
+                        return;
                     }
+                    applyServerDetail(detail);
+                    callback.onSuccess(detail);
                 } catch (Exception e) {
                     Log.e("ServerManages", "Error caching server details", e);
+                    callback.onFailure("解析实例详情失败");
                 }
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 Log.e("ServerManages", "Failed to get server details: " + errorMsg);
+                callback.onFailure(errorMsg);
             }
         });
     }
@@ -220,6 +254,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
         runOnUiThread(() -> {
             if (binding == null || navigationView == null) return;
             View headerView = navigationView.getHeaderView(0);
+            if (headerView == null) return;
             TextView textStatus = headerView.findViewById(R.id.textServerStatus);
             if (textStatus != null) {
                 textStatus.setText(statusText);
@@ -271,8 +306,9 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
             String finalFullIp = fullIp;
 
             runOnUiThread(() -> {
-                NavigationView navigationView = binding.navView;
+                if (binding == null || navigationView == null) return;
                 View headerView = navigationView.getHeaderView(0);
+                if (headerView == null) return;
 
                 TextView textName = headerView.findViewById(R.id.textServerName);
                 TextView textIp = headerView.findViewById(R.id.textServerIp);
@@ -287,10 +323,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
                     textIp.setText(finalIpStr);
                     textIp.setOnClickListener(v -> {
                         if (!finalFullIp.isEmpty()) {
-                            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                            ClipData clip = ClipData.newPlainText("Server IP", finalFullIp);
-                            clipboard.setPrimaryClip(clip);
-                            Toast.makeText(ServerManages.this, "IP已复制", Toast.LENGTH_SHORT).show();
+                            ClipboardUtils.copyPlainText(ServerManages.this, "Server IP", finalFullIp, "IP已复制");
                         }
                     });
                 }

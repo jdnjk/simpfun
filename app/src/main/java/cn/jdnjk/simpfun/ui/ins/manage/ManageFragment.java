@@ -1,8 +1,6 @@
 package cn.jdnjk.simpfun.ui.ins.manage;
 
 import android.app.Activity;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -32,6 +30,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -54,17 +53,24 @@ import cn.jdnjk.simpfun.api.ins.PortApi;
 import cn.jdnjk.simpfun.api.ins.SupportAPI;
 import cn.jdnjk.simpfun.ui.create.CreateServer;
 import cn.jdnjk.simpfun.ui.setting.ManageScreenshotProtection;
+import cn.jdnjk.simpfun.utils.ClipboardUtils;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 import cn.jdnjk.simpfun.utils.PageDataStore;
 import cn.jdnjk.simpfun.utils.SftpCredentialStore;
 
 public class ManageFragment extends Fragment {
+    private static final String PASSWORD_MASK = "••••••••";
+
     private JSONObject cachedDetail;
     private JSONObject cachedSftp;
     private JSONObject cachedSupport;
     private boolean supportLoaded;
     private boolean supportActionRunning;
+    private boolean detailRefreshRunning;
+    private int detailRefreshGeneration;
+    private boolean sftpPasswordVisible;
 
+    private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayout contentLayout;
     private View cardSupport;
     private TextView noData;
@@ -131,6 +137,18 @@ public class ManageFragment extends Fragment {
     }
 
     @Override
+    public void onDestroyView() {
+        detailRefreshGeneration++;
+        detailRefreshRunning = false;
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnRefreshListener(null);
+            swipeRefreshLayout.setRefreshing(false);
+        }
+        swipeRefreshLayout = null;
+        super.onDestroyView();
+    }
+
+    @Override
     public void onStart() {
         super.onStart();
         applyScreenshotProtection();
@@ -140,6 +158,7 @@ public class ManageFragment extends Fragment {
     public void onResume() {
         super.onResume();
         applyScreenshotProtection();
+        sftpPasswordVisible = false;
         refreshCachedDetail();
         render();
         fetchSftp();
@@ -173,6 +192,11 @@ public class ManageFragment extends Fragment {
     }
 
     private void bindViews(View root) {
+        swipeRefreshLayout = root.findViewById(R.id.swipe_refresh_layout);
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnRefreshListener(() -> refreshDetailFromApi(true, true, null));
+        }
+
         contentLayout = root.findViewById(R.id.layout_manage_content);
         cardSupport = root.findViewById(R.id.card_support);
         noData = root.findViewById(R.id.tv_manage_no_data);
@@ -266,7 +290,18 @@ public class ManageFragment extends Fragment {
         tvSftpHost.setOnClickListener(v -> copyFieldValue(tvSftpHost, "SFTP IP"));
         tvSftpPort.setOnClickListener(v -> copyFieldValue(tvSftpPort, "SFTP 端口"));
         tvSftpUser.setOnClickListener(v -> copyFieldValue(tvSftpUser, "SFTP 用户名"));
-        tvSftpPassword.setOnClickListener(v -> copyFieldValue(tvSftpPassword, "SFTP 密码"));
+        tvSftpPassword.setOnClickListener(v -> copyFieldValue(tvSftpPassword, "SFTP 密码", true));
+        tvSftpPassword.setOnLongClickListener(v -> {
+            Object tagValue = tvSftpPassword.getTag();
+            String password = tagValue instanceof String ? ((String) tagValue).trim() : "";
+            if (password.isEmpty() || "-".equals(password)) {
+                return true;
+            }
+            sftpPasswordVisible = !sftpPasswordVisible;
+            updateSftpPasswordText();
+            Toast.makeText(requireContext(), sftpPasswordVisible ? "SFTP 密码已显示" : "SFTP 密码已隐藏", Toast.LENGTH_SHORT).show();
+            return true;
+        });
     }
 
     private void refreshCachedDetail() {
@@ -294,11 +329,11 @@ public class ManageFragment extends Fragment {
             tvSftpHost.setText("服务器IP: -");
             tvSftpPort.setText("服务器端口: -");
             tvSftpUser.setText("用户名: -");
-            tvSftpPassword.setText("密码: -");
             tvSftpHost.setTag("-");
             tvSftpPort.setTag("-");
             tvSftpUser.setTag("-");
             tvSftpPassword.setTag("-");
+            updateSftpPasswordText();
             renderSupportCard();
             return;
         }
@@ -355,11 +390,11 @@ public class ManageFragment extends Fragment {
         tvSftpHost.setText("服务器IP: " + sftpHost);
         tvSftpPort.setText("服务器端口: " + sftpPort);
         tvSftpUser.setText("用户名: " + sftpUser);
-        tvSftpPassword.setText("密码: " + sftpPassword);
         tvSftpHost.setTag(sftpHost);
         tvSftpPort.setTag(sftpPort);
         tvSftpUser.setTag(sftpUser);
         tvSftpPassword.setTag(sftpPassword);
+        updateSftpPasswordText();
 
         bindPorts(cachedDetail.optJSONArray("allocations"));
 
@@ -953,21 +988,21 @@ public class ManageFragment extends Fragment {
     }
 
     private void copyTroubleshootId() {
-        if (cachedDetail == null) return;
+        if (cachedDetail == null || getContext() == null) return;
         String id = safe(cachedDetail.optString("uuid"));
-        if ("-".equals(id) || getContext() == null) {
+        if ("-".equals(id)) {
             Toast.makeText(requireContext(), "暂无故障排错ID", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        ClipboardManager cm = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-        if (cm != null) {
-            cm.setPrimaryClip(ClipData.newPlainText("troubleshoot_id", id));
-            Toast.makeText(requireContext(), "故障排错ID已复制", Toast.LENGTH_SHORT).show();
-        }
+        ClipboardUtils.copyPlainText(requireContext(), "troubleshoot_id", id, "故障排错ID已复制");
     }
 
     private void copyFieldValue(TextView view, String label) {
+        copyFieldValue(view, label, false);
+    }
+
+    private void copyFieldValue(TextView view, String label, boolean sensitive) {
         if (view == null || getContext() == null) return;
         Object tagValue = view.getTag();
         String value = tagValue instanceof String ? ((String) tagValue).trim() : extractValuePart(String.valueOf(view.getText()));
@@ -976,10 +1011,10 @@ public class ManageFragment extends Fragment {
             return;
         }
 
-        ClipboardManager cm = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-        if (cm != null) {
-            cm.setPrimaryClip(ClipData.newPlainText(label, value));
-            Toast.makeText(requireContext(), label + "已复制", Toast.LENGTH_SHORT).show();
+        if (sensitive) {
+            ClipboardUtils.copySensitiveText(requireContext(), label, value, label + "已复制");
+        } else {
+            ClipboardUtils.copyPlainText(requireContext(), label, value, label + "已复制");
         }
     }
 
@@ -993,6 +1028,20 @@ public class ManageFragment extends Fragment {
             return text.trim();
         }
         return text.substring(idx + 1).trim();
+    }
+
+    private void updateSftpPasswordText() {
+        if (tvSftpPassword == null) return;
+        Object tagValue = tvSftpPassword.getTag();
+        String password = tagValue instanceof String ? ((String) tagValue).trim() : "-";
+        tvSftpPassword.setText("密码: " + formatSftpPasswordDisplay(password));
+    }
+
+    private String formatSftpPasswordDisplay(String password) {
+        if (password == null || password.trim().isEmpty() || "-".equals(password.trim())) {
+            return "-";
+        }
+        return sftpPasswordVisible ? password : PASSWORD_MASK;
     }
 
     private void confirmDeleteInstance() {
@@ -1032,70 +1081,113 @@ public class ManageFragment extends Fragment {
     }
 
     private void fetchSftp() {
-        fetchSftp(false);
+        fetchSftp(false, null);
     }
 
     private void fetchSftp(boolean forceRefresh) {
-        if (!(getActivity() instanceof ServerManages activity)) return;
+        fetchSftp(forceRefresh, null);
+    }
+
+    private void fetchSftp(boolean forceRefresh, @Nullable Runnable done) {
+        if (!(getActivity() instanceof ServerManages activity) || getContext() == null) {
+            if (done != null) done.run();
+            return;
+        }
         String instanceId = String.valueOf(activity.getDeviceId());
         if (forceRefresh) {
             SftpCredentialStore.get(requireContext()).delete(instanceId);
             cachedSftp = null;
+            sftpPasswordVisible = false;
             render();
         } else {
             SftpCredentialStore.Credential cached = SftpCredentialStore.get(requireContext()).getValid(instanceId);
             if (cached != null) {
                 cachedSftp = cached.toJson();
+                sftpPasswordVisible = false;
                 render();
+                if (done != null) done.run();
                 return;
             }
         }
-        String token = getToken();
-        if (token == null) return;
-
-        new MainApi(requireContext()).getSftp(token, instanceId, new MainApi.Callback() {
-            @Override
-            public void onSuccess(JSONObject data) {
-                if (!isAdded()) return;
-                JSONObject sftpData = data.optJSONObject("data");
-                cachedSftp = sftpData != null ? sftpData : data;
-                render();
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                // Keep previous/fallback display when SFTP request fails.
-            }
-        });
-    }
-
-    private void refreshDetailFromApi(@Nullable Runnable done) {
-        if (!(getActivity() instanceof ServerManages activity)) {
-            if (done != null) done.run();
-            return;
-        }
-
         String token = getToken();
         if (token == null) {
             if (done != null) done.run();
             return;
         }
 
-        new MainApi(requireContext()).getInstanceDetail(token, String.valueOf(activity.getDeviceId()), new MainApi.Callback() {
+        new MainApi(requireContext()).getSftp(token, instanceId, new MainApi.Callback() {
             @Override
             public void onSuccess(JSONObject data) {
-                refreshCachedDetail();
+                if (!isAdded()) {
+                    if (done != null) done.run();
+                    return;
+                }
+                JSONObject sftpData = data.optJSONObject("data");
+                cachedSftp = sftpData != null ? sftpData : data;
+                sftpPasswordVisible = false;
                 render();
-                fetchSftp();
                 if (done != null) done.run();
             }
 
             @Override
             public void onFailure(String errorMsg) {
-                Toast.makeText(requireContext(), "刷新实例信息失败: " + errorMsg, Toast.LENGTH_SHORT).show();
                 if (done != null) done.run();
+                // Keep previous/fallback display when SFTP request fails.
             }
         });
+    }
+
+    private void refreshDetailFromApi(@Nullable Runnable done) {
+        refreshDetailFromApi(false, false, done);
+    }
+
+    private void refreshDetailFromApi(boolean fromSwipe, boolean forceSftpRefresh, @Nullable Runnable done) {
+        if (detailRefreshRunning) {
+            if (fromSwipe && swipeRefreshLayout != null) {
+                swipeRefreshLayout.setRefreshing(true);
+            }
+            if (done != null) done.run();
+            return;
+        }
+        if (!(getActivity() instanceof ServerManages activity)) {
+            finishDetailRefresh(done);
+            return;
+        }
+
+        detailRefreshRunning = true;
+        int requestGeneration = ++detailRefreshGeneration;
+        if (fromSwipe && swipeRefreshLayout != null) {
+            swipeRefreshLayout.setRefreshing(true);
+        }
+
+        activity.refreshInstanceDetail(new ServerManages.InstanceDetailCallback() {
+            @Override
+            public void onSuccess(@Nullable JSONObject detail) {
+                if (requestGeneration != detailRefreshGeneration || !isAdded()) {
+                    finishDetailRefresh(done);
+                    return;
+                }
+                cachedDetail = detail;
+                render();
+                fetchSftp(forceSftpRefresh, () -> fetchSupport(() -> finishDetailRefresh(done)));
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (requestGeneration == detailRefreshGeneration && isAdded()) {
+                    Toast.makeText(requireContext(), "刷新实例信息失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+                }
+                finishDetailRefresh(done);
+            }
+        });
+    }
+
+    private void finishDetailRefresh(@Nullable Runnable done) {
+        detailRefreshRunning = false;
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setRefreshing(false);
+        }
+        if (done != null) done.run();
     }
 
     @Nullable

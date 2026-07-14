@@ -1,7 +1,5 @@
 package cn.jdnjk.simpfun.ui.invite;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,6 +22,7 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.model.InviteData;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
+import cn.jdnjk.simpfun.utils.ClipboardUtils;
 import cn.jdnjk.simpfun.utils.PageDataStore;
 
 public class InviteFragment extends Fragment {
@@ -56,10 +55,7 @@ public class InviteFragment extends Fragment {
 
         btnCopyCode.setOnClickListener(v -> {
             if (!inviteCode.isEmpty()) {
-                ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipData clip = ClipData.newPlainText("Invite Code", inviteCode);
-                clipboard.setPrimaryClip(clip);
-                Toast.makeText(getContext(), "推荐码已复制到剪贴板", Toast.LENGTH_SHORT).show();
+                ClipboardUtils.copyPlainText(requireContext(), "Invite Code", inviteCode, "推荐码已复制到剪贴板");
             }
         });
 

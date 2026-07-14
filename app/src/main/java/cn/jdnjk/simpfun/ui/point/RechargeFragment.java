@@ -1,7 +1,5 @@
 package cn.jdnjk.simpfun.ui.point;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -55,6 +53,7 @@ import cn.jdnjk.simpfun.model.BenefitCardTypeOption;
 import cn.jdnjk.simpfun.model.RechargeMode;
 import cn.jdnjk.simpfun.model.RechargeTier;
 import cn.jdnjk.simpfun.model.TrafficPackageOption;
+import cn.jdnjk.simpfun.utils.ClipboardUtils;
 import cn.jdnjk.simpfun.utils.DialogUtils;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 
@@ -799,8 +798,7 @@ public class RechargeFragment extends Fragment {
             if (PAY_METHOD_ALIPAY.equals(paymentMethod)) {
                 paySuccessHandled = false;
                 if (hiddenPayWebView != null) hiddenPayWebView.loadUrl(url);
-            } else {
-                copyToClipboard(url);
+            } else if (copyToClipboard(url)) {
                 showToast("已复制扫码链接，请在微信中打开并粘在任意聊天框点击支付");
             }
         } else {
@@ -893,12 +891,8 @@ public class RechargeFragment extends Fragment {
         });
     }
 
-    private void copyToClipboard(String text) {
-        if (getContext() == null) return;
-        ClipboardManager cm = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-        if (cm != null) {
-            cm.setPrimaryClip(ClipData.newPlainText("Pay URL", text));
-        }
+    private boolean copyToClipboard(String text) {
+        return ClipboardUtils.copyPlainText(getContext(), "Pay URL", text, null);
     }
 
     private void showToast(String msg) {

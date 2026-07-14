@@ -1,14 +1,11 @@
 package cn.jdnjk.simpfun.ui.ins.term;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -55,6 +52,7 @@ import cn.jdnjk.simpfun.service.TerminalWebSocketListener;
 import cn.jdnjk.simpfun.service.TerminalWebSocketManager;
 import cn.jdnjk.simpfun.ui.setting.TerminalColorUtils;
 import cn.jdnjk.simpfun.utils.AiResponseFormatter;
+import cn.jdnjk.simpfun.utils.ClipboardUtils;
 
 public class TerminalFragment extends Fragment implements TerminalWebSocketListener {
     private static final int MAX_AI_ANALYZE_CHARS = 12000;
@@ -627,7 +625,6 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             contentView.setPadding(padding, padding, padding, padding);
             contentView.setText(content);
             contentView.setTextIsSelectable(true);
-            contentView.setMovementMethod(new ScrollingMovementMethod());
 
             android.widget.ScrollView scrollView = new android.widget.ScrollView(context);
             scrollView.addView(contentView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -648,10 +645,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     private void copyToClipboard(String label, String text, String toastText) {
         Context context = getContext();
         if (context == null) return;
-        ClipboardManager clipboard = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard == null) return;
-        clipboard.setPrimaryClip(ClipData.newPlainText(label, text));
-        showToast(toastText);
+        ClipboardUtils.copyPlainText(context, label, text, toastText);
     }
 
     public void onHostDeviceChanged() {
