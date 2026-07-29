@@ -7,28 +7,22 @@ import android.os.Looper;
 
 import androidx.annotation.Nullable;
 
+import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Objects;
 
 import cn.jdnjk.simpfun.api.ApiClient;
-import okhttp3.Call;
-import okhttp3.FormBody;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
 
 public class DiamondApi {
     private static final String SP_NAME = "token";
     private static final String TOKEN_KEY = "token";
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public interface Callback {
         void onSuccess(JSONObject data);
@@ -68,7 +62,7 @@ public class DiamondApi {
         client.newCall(request).enqueue(new okhttp3.Callback() {
             @Override
             public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "网络请求失败: " + e.getMessage()));
+                postCallback(callback, null, false, "网络请求失败: " + e.getMessage());
             }
 
             @Override
@@ -125,11 +119,11 @@ public class DiamondApi {
     }
 
     private void handleResponse(@NotNull Response response, Callback callback) {
-        String bodyString;
-        try {
-            bodyString = Objects.requireNonNull(response.body()).string();
+        try (Response r = response) {
+            ResponseBody rb = r.body();
+            String bodyString = rb.string();
             JSONObject json = new JSONObject(bodyString);
-            int code = json.optInt("code", response.code());
+            int code = json.optInt("code", r.code());
             if (code == 200) {
                 JSONObject data = new JSONObject();
                 for (Iterator<String> it = json.keys(); it.hasNext(); ) {
@@ -138,20 +132,25 @@ public class DiamondApi {
                         data.put(key, json.get(key));
                     }
                 }
-                new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, data, true, null));
+                postCallback(callback, data, true, null);
             } else if (code == 429) {
-                new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "请求过于频繁，请稍后再试"));
+                postCallback(callback, null, false, "请求过于频繁，请稍后再试");
             } else if (code == 500) {
-                new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "服务器繁忙，请稍后再试"));
+                postCallback(callback, null, false, "服务器繁忙，请稍后再试");
             } else {
                 String msg = json.optString("msg", "请求失败");
-                new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, msg));
+                postCallback(callback, null, false, msg);
             }
         } catch (JSONException ex) {
-            new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "数据解析错误"));
-        } catch (Exception ex) {
-            new Handler(Looper.getMainLooper()).post(() -> invokeCallback(callback, null, false, "未知错误"));
+            postCallback(callback, null, false, "数据解析错误");
+        } catch (IOException ex) {
+            postCallback(callback, null, false, "读取响应失败");
         }
+    }
+
+    private void postCallback(Callback callback, @Nullable JSONObject data, boolean success, @Nullable String errorMsg) {
+        if (callback == null) return;
+        mainHandler.post(() -> invokeCallback(callback, data, success, errorMsg));
     }
 
     private void invokeCallback(Callback callback, @Nullable JSONObject data, boolean success, @Nullable String errorMsg) {

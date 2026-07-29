@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import cn.jdnjk.simpfun.utils.Feedback;
 import org.json.JSONArray;
 
 import java.util.ArrayList;
@@ -113,6 +114,10 @@ public class DualFilePaneFragment extends Fragment {
         }
     }
 
+    private boolean isViewAlive() {
+        return isAdded() && getView() != null && getContext() != null;
+    }
+
     @Override
     public void onDestroyView() {
         if (transferCoordinator != null) {
@@ -201,7 +206,7 @@ public class DualFilePaneFragment extends Fragment {
             transferServerToServer(serverSource, serverTarget, items, move);
             return;
         }
-        Toast.makeText(requireContext(), "另一页不是对应的本地/服务器面板", Toast.LENGTH_SHORT).show();
+        Feedback.error(getView(), "另一页不是对应的本地/服务器面板");
     }
 
     private void transferServerToServer(FilePaneFragment source, FilePaneFragment target, List<FileItem> items, boolean move) {
@@ -211,7 +216,7 @@ public class DualFilePaneFragment extends Fragment {
         }
         int deviceId = source.getDeviceIdForHost(context);
         if (deviceId <= 0) {
-            Toast.makeText(context, R.string.invalid_device_id, Toast.LENGTH_SHORT).show();
+            Feedback.error(getView(), getString(R.string.invalid_device_id));
             return;
         }
         if (move) {

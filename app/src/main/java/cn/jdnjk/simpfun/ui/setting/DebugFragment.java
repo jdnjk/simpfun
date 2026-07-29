@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 
+import cn.jdnjk.simpfun.utils.Feedback;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.tencent.bugly.crashreport.CrashReport;
 
@@ -90,7 +91,7 @@ public class DebugFragment extends Fragment {
                     action.run();
                 }
             } else if (isAdded()) {
-                Toast.makeText(requireContext(), "通知权限未授予，无法发送测试通知", Toast.LENGTH_LONG).show();
+                Feedback.error(getView(), "通知权限未授予，无法发送测试通知");
             }
         });
     }
@@ -128,7 +129,7 @@ public class DebugFragment extends Fragment {
         btnOpenSWebView.setOnClickListener(v -> {
             String input = etWebUrl.getText() == null ? null : etWebUrl.getText().toString().trim();
             if (TextUtils.isEmpty(input)) {
-                Toast.makeText(ctx, "请输入 URL", Toast.LENGTH_SHORT).show();
+                Feedback.error(getView(), "请输入 URL");
                 return;
             }
             if ("simpfun://debug/testJavaCrash".equals(input)) {
@@ -163,29 +164,29 @@ public class DebugFragment extends Fragment {
         btnSave.setOnClickListener(v -> {
             String newToken = etToken.getText() == null ? null : etToken.getText().toString();
             if (TextUtils.isEmpty(newToken)) {
-                Toast.makeText(ctx, "Token 为空", Toast.LENGTH_SHORT).show();
+                Feedback.error(getView(), "Token 为空");
                 return;
             }
             spToken.edit().putString(KEY_TOKEN, newToken).apply();
-            Toast.makeText(ctx, "Token 已保存", Toast.LENGTH_SHORT).show();
+            Feedback.info(getView(), "Token 已保存");
         });
 
         btnClear.setOnClickListener(v -> {
             spToken.edit().remove(KEY_TOKEN).apply();
             etToken.setText("");
-            Toast.makeText(ctx, "Token 已清空", Toast.LENGTH_SHORT).show();
+            Feedback.info(getView(), "Token 已清空");
         });
 
         btnPickNotificationTime.setOnClickListener(v -> showDateTimePicker());
 
         btnSendTestNotification.setOnClickListener(v -> withNotificationPermission(() -> {
             DebugNotificationHelper.showTestNotification(ctx, getNotificationTitle(), getNotificationContent());
-            Toast.makeText(ctx, "测试通知已发送", Toast.LENGTH_SHORT).show();
+            Feedback.info(getView(), "测试通知已发送");
         }));
 
         btnScheduleTestNotification.setOnClickListener(v -> withNotificationPermission(() -> {
             if (scheduledTriggerAtMillis <= System.currentTimeMillis()) {
-                Toast.makeText(ctx, "请先选择未来时间", Toast.LENGTH_SHORT).show();
+                Feedback.error(getView(), "请先选择未来时间");
                 return;
             }
             DebugNotificationScheduler.ScheduleResult result = DebugNotificationScheduler.scheduleTestNotification(
@@ -195,10 +196,10 @@ public class DebugFragment extends Fragment {
                     getNotificationContent()
             );
             String timeText = scheduleFormat.format(new Date(scheduledTriggerAtMillis));
-            String toastText = result.isExact()
+            String resultText = result.isExact()
                     ? "已设置测试通知：" + timeText
                     : "系统未授予精确定时，已设置近似提醒：" + timeText;
-            Toast.makeText(ctx, toastText, Toast.LENGTH_LONG).show();
+            Feedback.info(getView(), resultText);
         }));
     }
 

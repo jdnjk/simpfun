@@ -43,10 +43,12 @@ public class TasksAdapter extends RecyclerView.Adapter<TasksAdapter.TaskVH> {
         Context ctx = holder.itemView.getContext();
         String statusText = mapStatus(ctx, item.getStatus());
         holder.imageStatus.setContentDescription(statusText);
+        holder.textStatusLabel.setText(statusText);
         applyStatusIcon(holder, item.getStatus());
 
         holder.textComment.setText(item.getComment() == null ? "" : item.getComment());
-        holder.textTime.setText(ctx.getString(R.string.task_meta_format, item.getId(), formatUtcToBeijing(item.getCreateTime())));
+        holder.textTime.setText(formatUtcToBeijing(item.getCreateTime()));
+        holder.textTaskId.setText("ID: " + item.getId());
     }
 
     @Override
@@ -55,13 +57,15 @@ public class TasksAdapter extends RecyclerView.Adapter<TasksAdapter.TaskVH> {
     public static class TaskVH extends RecyclerView.ViewHolder {
         final FrameLayout layoutStatusIcon;
         final ImageView imageStatus;
-        final TextView textComment, textTime;
+        final TextView textComment, textTime, textStatusLabel, textTaskId;
         public TaskVH(@NonNull View itemView) {
             super(itemView);
             layoutStatusIcon = itemView.findViewById(R.id.layout_task_status_icon);
             imageStatus = itemView.findViewById(R.id.image_task_status);
             textComment = itemView.findViewById(R.id.text_task_comment);
             textTime = itemView.findViewById(R.id.text_task_time);
+            textStatusLabel = itemView.findViewById(R.id.text_task_status_label);
+            textTaskId = itemView.findViewById(R.id.text_task_id);
         }
     }
 

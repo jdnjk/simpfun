@@ -10,7 +10,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="#000000"
+            android:background="?attr/colorSurface"
             android:paddingTop="4dp"
             android:paddingBottom="4dp"
             android:scrollbars="vertical"
@@ -45,7 +45,9 @@
                 android:layout_marginStart="8dp"
                 android:contentDescription="发送"
                 app:icon="@drawable/ic_send"
-                app:iconGravity="textStart"/>
+                app:iconGravity="textStart"
+                app:backgroundTint="@android:color/transparent"
+                app:iconTint="?attr/colorOnSurface"/>
 
     </LinearLayout>
 

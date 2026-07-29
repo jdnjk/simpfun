@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.CServerApi;
+import cn.jdnjk.simpfun.utils.Feedback;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 import com.bumptech.glide.Glide;
 import okhttp3.*;
@@ -443,7 +444,7 @@ public class CreateServer extends AppCompatActivity {
             return;
         }
         if (!item.selectable) {
-            Toast.makeText(this, "该项不可选择", Toast.LENGTH_SHORT).show();
+            Feedback.info(this, "该项不可选择");
             return;
         }
         switch (currentStep) {
@@ -647,7 +648,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void showChangeConfigSpecResolveError(String message) {
         replaceData(ListItem.info("提示", message));
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        Feedback.error(this, message);
     }
 
     private void handleSpecList(JSONObject json) {
@@ -808,7 +809,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void showReinstallConfirmDialog() {
         if (versionId == null) {
-            Toast.makeText(this, "请选择实例版本", Toast.LENGTH_SHORT).show();
+            Feedback.info(this, "请选择实例版本");
             return;
         }
 
@@ -836,11 +837,11 @@ public class CreateServer extends AppCompatActivity {
     private void reinstallInstance(boolean save, boolean diff) {
         if (isSubmitting) return;
         if (serverId <= 0 || versionId == null || versionId <= 0) {
-            Toast.makeText(this, "重装参数无效", Toast.LENGTH_SHORT).show();
+            Feedback.error(this, "重装参数无效");
             return;
         }
         if (TextUtils.isEmpty(token)) {
-            Toast.makeText(this, "尚未登录", Toast.LENGTH_SHORT).show();
+            Feedback.info(this, "尚未登录");
             return;
         }
 
@@ -857,11 +858,11 @@ public class CreateServer extends AppCompatActivity {
     private void changeInstance() {
         if (isSubmitting) return;
         if (serverId <= 0 || specId == null || specId <= 0) {
-            Toast.makeText(this, "变配参数无效", Toast.LENGTH_SHORT).show();
+            Feedback.error(this, "变配参数无效");
             return;
         }
         if (TextUtils.isEmpty(token)) {
-            Toast.makeText(this, "尚未登录", Toast.LENGTH_SHORT).show();
+            Feedback.error(this, "尚未登录");
             return;
         }
 
@@ -888,14 +889,16 @@ public class CreateServer extends AppCompatActivity {
         call.enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 runOnUiThread(() -> {
+                    if (isDead()) return;
                     resetSubmitState();
                     showLoading(false);
-                    Toast.makeText(CreateServer.this, defaultFailureMessage + ":" + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Feedback.error(CreateServer.this, defaultFailureMessage + ":" + e.getMessage());
                 });
             }
             @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 String body = response.body().string();
                 runOnUiThread(() -> {
+                    if (isDead()) return;
                     showLoading(false);
                     try {
                         JSONObject json = new JSONObject(body);
@@ -904,11 +907,11 @@ public class CreateServer extends AppCompatActivity {
                             onSuccess.handle(json);
                         } else {
                             resetSubmitState();
-                            Toast.makeText(CreateServer.this, json.optString("msg", defaultFailureMessage), Toast.LENGTH_LONG).show();
+                            Feedback.error(CreateServer.this, json.optString("msg", defaultFailureMessage));
                         }
                     } catch (Exception e) {
                         resetSubmitState();
-                        Toast.makeText(CreateServer.this, "解析失败", Toast.LENGTH_LONG).show();
+                        Feedback.error(CreateServer.this, "解析失败");
                     }
                 });
             }
@@ -958,8 +961,32 @@ public class CreateServer extends AppCompatActivity {
         if (versionId == null || specId == null) return;
         showLoading(true);
         CServerApi.createInstance(isCustom, versionId, specId, token).enqueue(new okhttp3.Callback() {
-            @Override public void onFailure(@NotNull Call call, @NotNull IOException e) { runOnUiThread(() -> { showLoading(false); Toast.makeText(CreateServer.this, "创建失败:" + e.getMessage(), Toast.LENGTH_LONG).show();}); }
-            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException { String body = response.body().string(); runOnUiThread(() -> { showLoading(false); try { JSONObject o = new JSONObject(body); if (o.optInt("code") == 200) { Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show(); finish(); } else { Toast.makeText(CreateServer.this, o.optString("msg","创建失败"), Toast.LENGTH_LONG).show(); } } catch (Exception e){ Toast.makeText(CreateServer.this, "解析失败", Toast.LENGTH_LONG).show(); }}); }
+            @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                runOnUiThread(() -> {
+                    if (isDead()) return;
+                    showLoading(false);
+                    Feedback.error(findViewById(android.R.id.content), "创建失败:" + e.getMessage(),
+                            "重试", CreateServer.this::createInstance);
+                });
+            }
+            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    if (isDead()) return;
+                    showLoading(false);
+                    try {
+                        JSONObject o = new JSONObject(body);
+                        if (o.optInt("code") == 200) {
+                            Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show();
+                            finish();
+                        } else {
+                            Feedback.error(CreateServer.this, o.optString("msg", "创建失败"));
+                        }
+                    } catch (Exception e) {
+                        Feedback.error(CreateServer.this, "解析失败");
+                    }
+                });
+            }
         });
     }
 
@@ -967,7 +994,8 @@ public class CreateServer extends AppCompatActivity {
     private interface ErrorHandler { void handle(String message); }
 
     private void executeCall(Call call, JsonHandler handler) {
-        executeCall(call, handler, message -> Toast.makeText(CreateServer.this, message, Toast.LENGTH_LONG).show());
+        executeCall(call, handler, message -> Feedback.error(findViewById(android.R.id.content), message,
+                "重试", this::refreshCurrentStep));
     }
 
     private void executeCall(Call call, JsonHandler handler, ErrorHandler errorHandler) {
@@ -975,6 +1003,7 @@ public class CreateServer extends AppCompatActivity {
         call.enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 runOnUiThread(() -> {
+                    if (isDead()) return;
                     showLoading(false);
                     errorHandler.handle("网络失败:" + e.getMessage());
                 });
@@ -982,6 +1011,7 @@ public class CreateServer extends AppCompatActivity {
             @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 String body = response.body().string();
                 runOnUiThread(() -> {
+                    if (isDead()) return;
                     showLoading(false);
                     try {
                         JSONObject obj = new JSONObject(body);
@@ -996,6 +1026,10 @@ public class CreateServer extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private boolean isDead() {
+        return isFinishing() || isDestroyed();
     }
 
     private String buildParseErrorMessage(String body) {

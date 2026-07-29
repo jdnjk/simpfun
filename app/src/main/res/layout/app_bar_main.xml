@@ -10,13 +10,15 @@
     <com.google.android.material.appbar.AppBarLayout
             android:layout_height="wrap_content"
             android:layout_width="match_parent"
-            android:theme="@style/Theme.Simpfun">
+            android:theme="@style/Theme.Simpfun"
+            app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
-                android:background="?attr/colorPrimary"
+                android:background="?attr/colorSurface"
                 app:popupTheme="@style/Theme.Simpfun"
+                app:titleTextColor="?attr/colorOnSurface"
                 android:layout_height="?attr/actionBarSize">
 
             <TextView
@@ -26,7 +28,7 @@
                     android:gravity="center_vertical"
                     android:ellipsize="middle"
                     android:maxLines="1"
-                    android:textColor="?attr/colorOnPrimary"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="18sp"
                     android:visibility="gone" />
 

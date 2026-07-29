@@ -71,8 +71,8 @@ public class ProfileFragment extends Fragment {
 
         swipeRefresh = root.findViewById(R.id.swipe_refresh);
         swipeRefresh.setColorSchemeResources(
-                R.color.md_theme_primary_highContrast,
-                R.color.md_theme_secondary_highContrast);
+                R.color.md_theme_primary,
+                R.color.md_theme_secondary);
         scrollView = root.findViewById(R.id.scroll_profile);
         if (getActivity() instanceof MainActivity mainActivity) {
             bottomNavBinding.attach(scrollView, mainActivity::onPrimaryScroll);

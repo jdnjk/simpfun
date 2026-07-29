@@ -366,7 +366,14 @@ class FilePaneViews {
             }
             TextView divider = new TextView(context);
             divider.setText(">");
-            divider.setTextColor(Color.LTGRAY);
+            int secondaryColor;
+            android.util.TypedValue tv = new android.util.TypedValue();
+            if (context.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tv, true)) {
+                secondaryColor = tv.data;
+            } else {
+                secondaryColor = Color.GRAY;
+            }
+            divider.setTextColor(secondaryColor);
             divider.setTextSize(14);
             pathContainer.addView(divider);
 
@@ -509,13 +516,25 @@ class FilePaneViews {
     private TextView createPathNode(Context context, String text, boolean current) {
         TextView node = new TextView(context);
         node.setText(text);
-        node.setTextColor(Color.WHITE);
+        
+        int color;
+        android.util.TypedValue typedValue = new android.util.TypedValue();
+        if (context.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedValue, true)) {
+            color = typedValue.data;
+        } else {
+            color = Color.BLACK;
+        }
+        
+        node.setTextColor(color);
         node.setTextSize(16);
         node.setPadding(16, 8, 16, 8);
         node.setGravity(Gravity.CENTER);
         node.setBackgroundResource(android.R.color.transparent);
         if (current) {
             node.setTypeface(null, Typeface.BOLD);
+            if (context.getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+                node.setTextColor(typedValue.data);
+            }
         }
         return node;
     }

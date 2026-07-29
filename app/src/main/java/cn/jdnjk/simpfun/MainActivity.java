@@ -41,7 +41,9 @@ public class MainActivity extends AppCompatActivity {
         WindowInsetsControllerCompat windowInsetsController =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (windowInsetsController != null) {
-            windowInsetsController.setAppearanceLightStatusBars(false);
+            boolean isNightMode = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) 
+                    == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+            windowInsetsController.setAppearanceLightStatusBars(!isNightMode);
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

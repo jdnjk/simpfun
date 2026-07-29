@@ -20,8 +20,11 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import cn.jdnjk.simpfun.utils.EditorMenuHandler;
+import cn.jdnjk.simpfun.utils.Feedback;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.widget.CodeEditor;
@@ -53,6 +56,7 @@ public class FileEditorActivity extends AppCompatActivity {
     private String fileName;
     private static boolean textMateInited = false;
     private ActivityResultLauncher<android.content.Intent> saveAsLauncher;
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
 
     private static final Map<String, String> EXTENSION_TO_SCOPE = new HashMap<>();
 
@@ -232,39 +236,50 @@ public class FileEditorActivity extends AppCompatActivity {
 
     private void saveFile() {
         if (localPath == null) {
-            Toast.makeText(this, "路径无效", Toast.LENGTH_SHORT).show();
+            Feedback.error(this, "路径无效");
             return;
         }
-        try (FileOutputStream fos = new FileOutputStream(localPath)) {
-            String text = codeEditor.getText().toString();
-            fos.write(text.getBytes());
-        } catch (Exception e) {
-            Toast.makeText(this, "保存失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            return;
-        } catch (OutOfMemoryError error) {
-            Toast.makeText(this, "文本过大，内存不足", Toast.LENGTH_LONG).show();
-            Log.e("FileEditorActivity", "内存溢出错误", error);
-            return;
-        }
-        Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
-        // 返回结果给调用者，由 Pane 负责上传
-        android.content.Intent result = new android.content.Intent();
-        result.putExtra("local_path", localPath);
-        result.putExtra("remote_path", remotePath);
-        result.putExtra("server_id", serverId);
-        setResult(RESULT_OK, result);
-        finish();
+        final String path = localPath;
+        final String text = codeEditor.getText().toString();
+        ioExecutor.execute(() -> {
+            String failure = null;
+            try (FileOutputStream fos = new FileOutputStream(path)) {
+                fos.write(text.getBytes());
+            } catch (Exception e) {
+                Log.e("FileEditorActivity", "File save error", e);
+                failure = "保存失败: " + e.getMessage();
+            } catch (OutOfMemoryError error) {
+                Log.e("FileEditorActivity", "内存溢出错误", error);
+                failure = "文本过大，内存不足";
+            }
+            final String message = failure;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (message != null) {
+                    updateUIState();
+                    Feedback.error(FileEditorActivity.this, message);
+                    return;
+                }
+                isModified = false;
+                updateUIState();
+                // 这里紧接着 finish()，Snackbar 会随窗口一起消失，只有 Toast 能留到下个页面。
+                Toast.makeText(FileEditorActivity.this, "已保存", Toast.LENGTH_SHORT).show();
+                // 返回结果给调用者，由 Pane 负责上传
+                android.content.Intent result = new android.content.Intent();
+                result.putExtra("local_path", path);
+                result.putExtra("remote_path", remotePath);
+                result.putExtra("server_id", serverId);
+                setResult(RESULT_OK, result);
+                finish();
+            });
+        });
     }
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        // getWindow().setStatusBarColor(Color.TRANSPARENT); // Deprecated
-        WindowInsetsControllerCompat windowInsetsController =
-                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        windowInsetsController.setAppearanceLightStatusBars(false); // Dark theme usually
+        ThemeUtils.applyEdgeToEdge(this);
 
         setContentView(R.layout.activity_file_editor);
         applyWindowInsets();
@@ -342,25 +357,46 @@ public class FileEditorActivity extends AppCompatActivity {
         }
 
         updateUIState();
+
+        if (localPath != null) {
+            loadLocalFile();
+        }
     }
 
     private void loadLocalFile() {
         if (localPath == null) return;
-        try {
-            File file = new File(localPath);
-            if (!file.exists()) {
-                Toast.makeText(this, "文件不存在", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            // Increase buffer size for large files
-            StringBuilder text = getStringBuilder(file);
-
-            codeEditor.setText(text);
-            isModified = false; // Initial load is not modified
-        } catch (Exception e) {
-            Toast.makeText(this, "加载失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-            Log.e("FileEditorActivity", "File load error", e);
+        final File file = new File(localPath);
+        if (!file.exists()) {
+            Feedback.error(this, "文件不存在");
+            return;
         }
+        ioExecutor.execute(() -> {
+            StringBuilder loaded = null;
+            String failure = null;
+            try {
+                // Increase buffer size for large files
+                loaded = getStringBuilder(file);
+            } catch (Exception e) {
+                Log.e("FileEditorActivity", "File load error", e);
+                failure = "加载失败: " + e.getMessage();
+            } catch (OutOfMemoryError error) {
+                Log.e("FileEditorActivity", "内存溢出错误", error);
+                failure = "文件过大，内存不足";
+            }
+            final StringBuilder text = loaded;
+            final String message = failure;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (message != null) {
+                    updateUIState();
+                    Feedback.error(FileEditorActivity.this, message);
+                    return;
+                }
+                codeEditor.setText(text);
+                isModified = false; // Initial load is not modified
+                updateUIState();
+            });
+        });
     }
 
     private static @NonNull StringBuilder getStringBuilder(File file) throws IOException {
@@ -372,10 +408,9 @@ public class FileEditorActivity extends AppCompatActivity {
             }
         }
         // Remove last newline if added
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            if (!text.isEmpty() && text.charAt(text.length() - 1) == '\n') {
-                text.setLength(text.length() - 1);
-            }
+        int len = text.length();
+        if (len > 0 && text.charAt(len - 1) == '\n') {
+            text.setLength(len - 1);
         }
         return text;
     }
@@ -389,25 +424,41 @@ public class FileEditorActivity extends AppCompatActivity {
         try {
             saveAsLauncher.launch(intent);
         } catch (android.content.ActivityNotFoundException e) {
-            Toast.makeText(this, "未找到文件管理器", Toast.LENGTH_SHORT).show();
+            Feedback.error(this, "未找到文件管理器");
         }
     }
 
 
     private void saveContentToUri(android.net.Uri uri) {
-        try {
-            OutputStream os = getContentResolver().openOutputStream(uri);
-            if (os != null) {
-                String text = codeEditor.getText().toString();
-                os.write(text.getBytes());
-                os.close();
-                Toast.makeText(this, "另存为成功", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "无法打开输出流", Toast.LENGTH_SHORT).show();
+        final String text = codeEditor.getText().toString();
+        ioExecutor.execute(() -> {
+            String failure = null;
+            try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                if (os == null) {
+                    failure = "无法打开输出流";
+                } else {
+                    os.write(text.getBytes());
+                }
+            } catch (Exception e) {
+                Log.e("FileEditorActivity", "Save as error", e);
+                failure = "保存失败: " + e.getMessage();
             }
-        } catch (Exception e) {
-            Toast.makeText(this, "保存失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            Log.e("FileEditorActivity", "Save as error", e);
-        }
+            final String message = failure;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                updateUIState();
+                if (message != null) {
+                    Feedback.error(FileEditorActivity.this, message);
+                } else {
+                    Feedback.info(FileEditorActivity.this, "另存为成功");
+                }
+            });
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        ioExecutor.shutdownNow();
+        super.onDestroy();
     }
 }

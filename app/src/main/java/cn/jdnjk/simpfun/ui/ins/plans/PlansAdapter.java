@@ -108,6 +108,7 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlanViewHold
     }
 
     class PlanViewHolder extends RecyclerView.ViewHolder {
+        final com.google.android.material.card.MaterialCardView cardPlan;
         final CheckBox cbxPlan;
         final Chip chipCommand;
         final TextView tvTime;
@@ -119,6 +120,7 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlanViewHold
 
         PlanViewHolder(@NonNull View itemView) {
             super(itemView);
+            cardPlan = itemView.findViewById(R.id.card_plan);
             cbxPlan = itemView.findViewById(R.id.cbx_plan);
             chipCommand = itemView.findViewById(R.id.chip_command);
             tvTime = itemView.findViewById(R.id.tv_scheduled_time);
@@ -166,35 +168,97 @@ public class PlansAdapter extends RecyclerView.Adapter<PlansAdapter.PlanViewHold
                 repeatRow.setVisibility(View.GONE);
             }
 
-            tvId.setText("#" + item.getId());
+            tvId.setText("ID: #" + item.getId());
 
             cbxPlan.setOnCheckedChangeListener(null);
-            cbxPlan.setChecked(selectedIds.contains(item.getId()));
+            boolean isSelected = selectedIds.contains(item.getId());
+            cbxPlan.setChecked(isSelected);
             cbxPlan.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (isChecked) selectedIds.add(item.getId());
                 else selectedIds.remove(item.getId());
+                notifyItemChanged(getBindingAdapterPosition());
                 notifySelectionChanged();
             });
+
+            // Update card appearance based on selection
+            android.content.Context ctx = itemView.getContext();
+            android.util.TypedValue typedValue = new android.util.TypedValue();
+            int strokeColor;
+            int bgColor;
+            
+            if (isSelected) {
+                if (ctx.getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true)) {
+                    strokeColor = typedValue.data;
+                } else {
+                    strokeColor = Color.BLUE;
+                }
+                if (ctx.getTheme().resolveAttribute(com.google.android.material.R.attr.colorPrimaryContainer, typedValue, true)) {
+                    bgColor = typedValue.data;
+                } else {
+                    bgColor = 0xFFE0E0E0;
+                }
+                cardPlan.setStrokeWidth(4);
+            } else {
+                if (ctx.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOutlineVariant, typedValue, true)) {
+                    strokeColor = typedValue.data;
+                } else {
+                    strokeColor = Color.GRAY;
+                }
+                if (ctx.getTheme().resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true)) {
+                    bgColor = typedValue.data;
+                } else {
+                    bgColor = Color.WHITE;
+                }
+                cardPlan.setStrokeWidth(1);
+            }
+            
+            cardPlan.setStrokeColor(android.content.res.ColorStateList.valueOf(strokeColor));
+            cardPlan.setCardBackgroundColor(android.content.res.ColorStateList.valueOf(bgColor));
         }
 
         private void bindCommand(String cmd) {
+            android.content.Context ctx = itemView.getContext();
+            android.util.TypedValue typedValue = new android.util.TypedValue();
+            
+            int bgColorAttr;
+            int textColorAttr;
+            String text;
+
             if ("<POWER_ON>".equals(cmd)) {
-                chipCommand.setText("开机");
-                chipCommand.setChipBackgroundColorResource(android.R.color.holo_green_dark);
-                chipCommand.setTextColor(Color.WHITE);
+                text = "开机";
+                bgColorAttr = com.google.android.material.R.attr.colorTertiaryContainer;
+                textColorAttr = com.google.android.material.R.attr.colorOnTertiaryContainer;
             } else if ("<POWER_OFF>".equals(cmd)) {
-                chipCommand.setText("关机");
-                chipCommand.setChipBackgroundColorResource(android.R.color.holo_red_dark);
-                chipCommand.setTextColor(Color.WHITE);
+                text = "关机";
+                bgColorAttr = com.google.android.material.R.attr.colorErrorContainer;
+                textColorAttr = com.google.android.material.R.attr.colorOnErrorContainer;
             } else if ("<RESTART>".equals(cmd)) {
-                chipCommand.setText("重启");
-                chipCommand.setChipBackgroundColorResource(android.R.color.holo_orange_dark);
-                chipCommand.setTextColor(Color.WHITE);
+                text = "重启";
+                bgColorAttr = com.google.android.material.R.attr.colorSecondaryContainer;
+                textColorAttr = com.google.android.material.R.attr.colorOnSecondaryContainer;
             } else {
-                chipCommand.setText(cmd);
-                chipCommand.setChipBackgroundColorResource(android.R.color.darker_gray);
-                chipCommand.setTextColor(Color.WHITE);
+                text = cmd;
+                bgColorAttr = com.google.android.material.R.attr.colorSurfaceVariant;
+                textColorAttr = com.google.android.material.R.attr.colorOnSurfaceVariant;
             }
+
+            chipCommand.setText(text);
+            
+            int bgColor;
+            if (ctx.getTheme().resolveAttribute(bgColorAttr, typedValue, true)) {
+                bgColor = typedValue.data;
+            } else {
+                bgColor = Color.LTGRAY;
+            }
+            chipCommand.setChipBackgroundColor(android.content.res.ColorStateList.valueOf(bgColor));
+
+            int textColor;
+            if (ctx.getTheme().resolveAttribute(textColorAttr, typedValue, true)) {
+                textColor = typedValue.data;
+            } else {
+                textColor = Color.BLACK;
+            }
+            chipCommand.setTextColor(textColor);
         }
 
         private String formatInterval(int intervalSecs) {

@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import cn.jdnjk.simpfun.utils.Feedback;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.json.JSONArray;
@@ -69,11 +70,42 @@ public class BackupFragment extends Fragment {
         btnToggleMulti.setOnClickListener(v -> handleSelectionButtonClick());
         btnNewBackup.setOnClickListener(v -> showCreateBackupDialog());
 
-        loadBackups(true);
         return root;
     }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // 首次加载放在 onViewCreated：getView() 要等 onCreateView 返回后才有值，
+        // 在 onCreateView 里调用会被 loadBackups 开头的 isViewAlive() 挡掉，
+        // 结果备份列表首次进入永远是空的。
+        loadBackups(true);
+    }
+
+    private boolean isViewAlive() {
+        return isAdded() && getView() != null && getContext() != null;
+    }
+
+    @Override
+    public void onDestroyView() {
+        isLoading = false;
+        if (recyclerView != null) {
+            recyclerView.setAdapter(null);
+        }
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setOnRefreshListener(null);
+        }
+        swipeRefreshLayout = null;
+        recyclerView = null;
+        emptyStateLayout = null;
+        tvBackupSummary = null;
+        btnToggleMulti = null;
+        adapter = null;
+        super.onDestroyView();
+    }
+
     private void handleSelectionButtonClick() {
+        if (adapter == null) return;
         if (adapter.isMultiSelectMode() && adapter.getSelectedCount() > 0) {
             showSelectionMenu();
             return;
@@ -82,12 +114,14 @@ public class BackupFragment extends Fragment {
     }
 
     private void toggleMultiMode() {
+        if (adapter == null) return;
         boolean nextMode = !adapter.isMultiSelectMode();
         adapter.setMultiSelectMode(nextMode);
         updateActionButtons(adapter.getSelectedCount());
     }
 
     private void showSelectionMenu() {
+        if (!isViewAlive() || btnToggleMulti == null) return;
         PopupMenu popupMenu = new PopupMenu(requireContext(), btnToggleMulti);
         popupMenu.getMenu().add("删除所选");
         popupMenu.getMenu().add("完成选择");
@@ -107,6 +141,9 @@ public class BackupFragment extends Fragment {
         if (isLoading) {
             return;
         }
+        if (!isViewAlive()) {
+            return;
+        }
         isLoading = true;
 
         if (showSpinner && swipeRefreshLayout != null) {
@@ -114,10 +151,10 @@ public class BackupFragment extends Fragment {
         }
 
         String token = getToken();
-        if (token == null || token.trim().isEmpty()) {
+        if (token == null) {
             finishLoading();
             updateSummary(-1);
-            showToast("尚未登录");
+            showMessage("尚未登录", true);
             return;
         }
 
@@ -125,7 +162,7 @@ public class BackupFragment extends Fragment {
         if (deviceId <= 0) {
             finishLoading();
             updateSummary(-1);
-            showToast("设备ID无效");
+            showMessage("设备ID无效", true);
             return;
         }
 
@@ -162,12 +199,14 @@ public class BackupFragment extends Fragment {
             public void onFailure(String errorMsg) {
                 finishLoading();
                 updateSummary(-1);
-                showToast("获取备份失败: " + errorMsg);
+                Feedback.error(getView(), "获取备份失败: " + errorMsg,
+                        "重试", () -> loadBackups(true));
             }
         });
     }
 
     private void showBackupActionMenu(BackupItem item, View anchor) {
+        if (!isViewAlive()) return;
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         popupMenu.getMenu().add("还原");
         popupMenu.getMenu().add("重命名");
@@ -190,6 +229,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void restoreBackup(BackupItem selected) {
+        if (!isViewAlive()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认还原")
                 .setMessage("将还原到备份 #" + selected.getId() + "，确认继续？")
@@ -197,19 +237,21 @@ public class BackupFragment extends Fragment {
                     String token = getToken();
                     int deviceId = getDeviceId();
                     if (token == null || deviceId <= 0) {
-                        showToast("登录状态或设备ID无效");
+                        showMessage("登录状态或设备ID无效", true);
                         return;
                     }
 
                     new MirrorApi(requireContext()).restoreBackup(token, deviceId, selected.getId(), new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
-                            showToast("还原请求已提交");
+                            showMessage("还原请求已提交", false);
                         }
 
                         @Override
                         public void onFailure(String errorMsg) {
-                            showToast("还原失败: " + errorMsg);
+                            if (!isViewAlive()) return;
+                            Feedback.error(getView(), "还原失败: " + errorMsg,
+                                    "重试", () -> restoreBackup(selected));
                         }
                     });
                 })
@@ -218,6 +260,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void renameBackup(BackupItem selected) {
+        if (!isViewAlive()) return;
         final EditText input = new EditText(requireContext());
         input.setText(selected.getTag());
         input.setSelection(input.getText().length());
@@ -228,27 +271,28 @@ public class BackupFragment extends Fragment {
                 .setPositiveButton("确定", (dialog, which) -> {
                     String newTag = input.getText() == null ? "" : input.getText().toString().trim();
                     if (newTag.isEmpty()) {
-                        showToast("备份名称不能为空");
+                        showMessage("备份名称不能为空", true);
                         return;
                     }
 
                     String token = getToken();
                     int deviceId = getDeviceId();
                     if (token == null || deviceId <= 0) {
-                        showToast("登录状态或设备ID无效");
+                        showMessage("登录状态或设备ID无效", true);
                         return;
                     }
 
                     new MirrorApi(requireContext()).renameBackup(token, deviceId, selected.getId(), newTag, new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
-                            showToast("重命名成功");
+                            if (!isViewAlive()) return;
+                            showMessage("重命名成功", false);
                             loadBackups(false);
                         }
 
                         @Override
                         public void onFailure(String errorMsg) {
-                            showToast("重命名失败: " + errorMsg);
+                            showMessage("重命名失败: " + errorMsg, true);
                         }
                     });
                 })
@@ -260,16 +304,17 @@ public class BackupFragment extends Fragment {
         String token = getToken();
         int deviceId = getDeviceId();
         if (token == null || deviceId <= 0) {
-            showToast("登录状态或设备ID无效");
+            showMessage("登录状态或设备ID无效", true);
             return;
         }
 
         new MirrorApi(requireContext()).getDownloadKey(token, deviceId, selected.getId(), new MirrorApi.Callback() {
             @Override
             public void onSuccess(JSONObject response) {
+                if (!isViewAlive()) return;
                 String uuid = response.optString("uuid", "");
                 if (uuid.isEmpty()) {
-                    showToast("下载密钥为空");
+                    showMessage("下载密钥为空", true);
                     return;
                 }
                 enqueueSystemDownload(selected, uuid);
@@ -277,16 +322,19 @@ public class BackupFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                showToast("获取下载密钥失败: " + errorMsg);
+                if (!isViewAlive()) return;
+                Feedback.error(getView(), "获取下载密钥失败: " + errorMsg,
+                        "重试", () -> downloadBackup(selected));
             }
         });
     }
 
     private void enqueueSystemDownload(BackupItem item, String uuid) {
+        if (!isViewAlive()) return;
         try {
             DownloadManager downloadManager = (DownloadManager) requireContext().getSystemService(Context.DOWNLOAD_SERVICE);
             if (downloadManager == null) {
-                showToast("系统下载器不可用");
+                showMessage("系统下载器不可用", true);
                 return;
             }
 
@@ -303,9 +351,9 @@ public class BackupFragment extends Fragment {
             request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
 
             downloadManager.enqueue(request);
-            showToast("已加入系统下载器");
+            showMessage("已加入系统下载器", false);
         } catch (Exception e) {
-            showToast("下载失败: " + e.getMessage());
+            showMessage("下载失败: " + e.getMessage(), true);
         }
     }
 
@@ -318,6 +366,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void confirmDeleteSingleBackup(BackupItem item) {
+        if (!isViewAlive()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定删除备份 “" + getBackupDisplayName(item) + "” 吗？")
@@ -331,9 +380,10 @@ public class BackupFragment extends Fragment {
     }
 
     private void deleteSelectedBackups() {
+        if (!isViewAlive() || adapter == null) return;
         List<BackupItem> selected = adapter.getSelectedItems();
         if (selected.isEmpty()) {
-            showToast("请先选择备份");
+            showMessage("请先选择备份", true);
             return;
         }
 
@@ -346,10 +396,11 @@ public class BackupFragment extends Fragment {
     }
 
     private void deleteBackupsConcurrent(List<BackupItem> selected) {
+        if (!isViewAlive()) return;
         String token = getToken();
         int deviceId = getDeviceId();
         if (token == null || deviceId <= 0) {
-            showToast("登录状态或设备ID无效");
+            showMessage("登录状态或设备ID无效", true);
             return;
         }
 
@@ -365,7 +416,8 @@ public class BackupFragment extends Fragment {
                 public void onSuccess(JSONObject response) {
                     success.incrementAndGet();
                     if (finished.incrementAndGet() == total) {
-                        showToast("删除完成: 成功" + success.get() + "，失败" + failed.get());
+                        if (!isViewAlive()) return;
+                        showMessage("删除完成: 成功" + success.get() + "，失败" + failed.get(), false);
                         loadBackups(false);
                     }
                 }
@@ -374,7 +426,8 @@ public class BackupFragment extends Fragment {
                 public void onFailure(String errorMsg) {
                     failed.incrementAndGet();
                     if (finished.incrementAndGet() == total) {
-                        showToast("删除完成: 成功" + success.get() + "，失败" + failed.get());
+                        if (!isViewAlive()) return;
+                        showMessage("删除完成: 成功" + success.get() + "，失败" + failed.get(), false);
                         loadBackups(false);
                     }
                 }
@@ -392,28 +445,29 @@ public class BackupFragment extends Fragment {
                 .setPositiveButton("创建", (dialog, which) -> {
                     String tag = input.getText() == null ? "" : input.getText().toString().trim();
                     if (tag.isEmpty()) {
-                        showToast("备份名称不能为空");
+                        showMessage("备份名称不能为空",true);
                         return;
                     }
 
                     String token = getToken();
                     int deviceId = getDeviceId();
                     if (token == null || deviceId <= 0) {
-                        showToast("登录状态或设备ID无效");
+                        showMessage("登录状态或设备ID无效", true);
                         return;
                     }
 
                     new MirrorApi(requireContext()).createBackup(token, deviceId, tag, new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
+                            if (!isViewAlive()) return;
                             String msg = response.optString("msg", "备份任务创建成功");
-                            showToast(msg);
+                            showMessage(msg, false);
                             loadBackups(false);
                         }
 
                         @Override
                         public void onFailure(String errorMsg) {
-                            showToast("创建备份失败: " + errorMsg);
+                            showMessage("创建备份失败: " + errorMsg, true);
                         }
                     });
                 })
@@ -430,6 +484,9 @@ public class BackupFragment extends Fragment {
     }
 
     private void updateActionButtons(int selectedCount) {
+        if (btnToggleMulti == null) {
+            return;
+        }
         boolean selecting = adapter != null && adapter.isMultiSelectMode();
         btnToggleMulti.setText(selecting ? "完成" : "选择");
     }
@@ -442,6 +499,9 @@ public class BackupFragment extends Fragment {
     }
 
     private void updateEmptyState(boolean isEmpty) {
+        if (recyclerView == null || emptyStateLayout == null) {
+            return;
+        }
         recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
         emptyStateLayout.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
     }
@@ -459,15 +519,23 @@ public class BackupFragment extends Fragment {
         }
     }
 
-    private void showToast(String msg) {
-        if (!isAdded()) {
+    private void showMessage(String msg, boolean isError) {
+        if (!isViewAlive()) {
             return;
         }
-        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
+        if (isError) {
+            Feedback.error(getView(), msg);
+        } else {
+            Feedback.info(getView(), msg);
+        }
     }
 
     private int getDeviceId() {
-        SharedPreferences sp = requireContext().getSharedPreferences("deviceid", Context.MODE_PRIVATE);
+        Context context = getContext();
+        if (context == null) {
+            return -1;
+        }
+        SharedPreferences sp = context.getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         return sp.getInt("device_id", -1);
     }
 

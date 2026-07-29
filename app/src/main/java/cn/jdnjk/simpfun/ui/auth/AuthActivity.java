@@ -17,8 +17,10 @@ import android.view.animation.AnimationUtils;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.LinearLayout;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import cn.jdnjk.simpfun.utils.Feedback;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
@@ -51,6 +53,7 @@ public class AuthActivity extends AppCompatActivity {
     private int currentStep = 1;
     private String savedUsername = "";
     private int pendingServerId = -1;
+    private AlertDialog activeDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,13 +61,37 @@ public class AuthActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_auth);
 
+        ThemeUtils.applyEdgeToEdge(this);
+        ThemeUtils.applyRootInsets(this);
+
         initViews();
         setupClickListeners();
+        setupBackNavigation();
         //setupAgreement();
 
         // 读取深链待跳转数据
         pendingServerId = getIntent().getIntExtra(SplashActivity.EXTRA_DEEP_SERVER_ID, -1);
         tryRestorePasswordStep();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (activeDialog != null) {
+            if (activeDialog.isShowing()) {
+                activeDialog.dismiss();
+            }
+            activeDialog = null;
+        }
+        super.onDestroy();
+    }
+
+    /** 页面是否还能安全地操作视图 / 弹窗。 */
+    private boolean isAlive() {
+        return !isFinishing() && !isDestroyed();
+    }
+
+    private View contentRoot() {
+        return findViewById(android.R.id.content);
     }
 
     private void initViews() {
@@ -105,34 +132,40 @@ public class AuthActivity extends AppCompatActivity {
         });
 
         textRegisterLink.setOnClickListener(v -> {
-            // 跳转到注册页面 (可以实现或者提示)
-            Toast.makeText(this, "正在为您跳转注册...", Toast.LENGTH_SHORT).show();
+            // TODO:跳转到注册页面 (可以实现或者提示)
         });
 
         textForgotUsername.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(this)
+            activeDialog = new MaterialAlertDialogBuilder(this)
                     .setTitle("忘记账号")
                     .setMessage("如果您忘记了账号，请在微信小程序中查看。")
                     .setPositiveButton("确定", null)
                     .show();
+            activeDialog.show();
         });
 
         textForgotPassword.setOnClickListener(v -> {
-            new MaterialAlertDialogBuilder(this)
+            activeDialog = new MaterialAlertDialogBuilder(this)
                     .setTitle("忘记密码")
                     .setMessage("如果您忘记了密码，可以通过小程序进行重置密码")
                     .setPositiveButton("确定", null)
                     .show();
+            activeDialog.show();
         });
     }
 
-    @Override
-    public void onBackPressed() {
-        if (currentStep == 2) {
-            switchToStep1();
-        } else {
-            super.onBackPressed();
-        }
+    private void setupBackNavigation() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (currentStep == 2) {
+                    switchToStep1();
+                    return;
+                }
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        });
     }
 
     private void switchToStep1() {
@@ -203,7 +236,7 @@ public class AuthActivity extends AppCompatActivity {
                 } else if (code == 401) {
                     showWhitelistDialog();
                 } else {
-                    Toast.makeText(AuthActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    Feedback.error(contentRoot(), errorMsg, "重试", AuthActivity.this::handleStep1);
                 }
             }
         });
@@ -287,12 +320,14 @@ public class AuthActivity extends AppCompatActivity {
         getToken.login(savedUsername, password, new GetToken.Callback() {
             @Override
             public void onSuccess(String token) {
+                if (!isAlive()) return;
                 showLoading(false);
                 onAuthSuccess("登录成功");
             }
 
             @Override
             public void onFailure(int code, String errorMsg) {
+                if (!isAlive()) return;
                 showLoading(false);
                 if ("密码错误".equals(errorMsg) || "账号或密码错误".equals(errorMsg)) {
                     layoutErrorPassword.setVisibility(View.VISIBLE);
@@ -325,6 +360,7 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void showWhitelistDialog() {
+        if (!isAlive()) return;
         String title = "需要微信小程序验证";
         String networkWarningHtml = buildWhitelistNetworkWarningHtml();
         String contentHtml = "<div>" +
@@ -370,12 +406,13 @@ public class AuthActivity extends AppCompatActivity {
                 try {
                     startActivity(wechatIntent);
                 } catch (Exception e) {
-                    Toast.makeText(this, "打开微信失败", Toast.LENGTH_SHORT).show();
+                    Feedback.error(this, "打开微信失败");
                 }
             });
         }
 
         AlertDialog dialog = builder.create();
+        activeDialog = dialog;
         dialog.show();
     }
 

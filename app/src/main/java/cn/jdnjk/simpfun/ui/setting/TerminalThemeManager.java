@@ -12,8 +12,8 @@ public class TerminalThemeManager {
     public static final int TERMINAL_THEME_FORCE_DARK = 2;
     public static final int LIGHT_BACKGROUND_COLOR = Color.WHITE;
     public static final int LIGHT_TEXT_COLOR = Color.BLACK;
-    public static final int DARK_BACKGROUND_COLOR = Color.parseColor("#000000");
-    public static final int DARK_TEXT_COLOR = Color.parseColor("#FFFFFF");
+    public static final int DARK_BACKGROUND_COLOR = Color.BLACK;
+    public static final int DARK_TEXT_COLOR = Color.WHITE;
     private static TerminalThemeManager instance;
     private final SharedPreferences preferences;
     private final Context context;

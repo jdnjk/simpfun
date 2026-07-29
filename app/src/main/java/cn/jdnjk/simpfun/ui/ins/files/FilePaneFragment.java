@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import cn.jdnjk.simpfun.utils.Feedback;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -294,9 +295,13 @@ public class FilePaneFragment extends Fragment implements
         return getContext();
     }
 
+    private boolean isViewAlive() {
+        return isAdded() && getView() != null && getContext() != null;
+    }
+
     @Override
     public boolean isActive() {
-        return isAdded() && views != null;
+        return isViewAlive() && views != null;
     }
 
     @Override
@@ -363,9 +368,13 @@ public class FilePaneFragment extends Fragment implements
 
     @Override
     public void toast(String message, int length) {
-        Context context = getContext();
-        if (context != null) {
-            Toast.makeText(context, message, length).show();
+        if (!isViewAlive()) {
+            return;
+        }
+        if (length == Toast.LENGTH_LONG) {
+            Feedback.error(getView(), message);
+        } else {
+            Feedback.info(getView(), message);
         }
     }
 
@@ -527,6 +536,9 @@ public class FilePaneFragment extends Fragment implements
     }
 
     private void showDualServerPopup(FileItem item, View anchor) {
+        if (!isViewAlive()) {
+            return;
+        }
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         DualFilePaneFragment dualFilePaneFragment = getParentFragment() instanceof DualFilePaneFragment parent ? parent : null;
         boolean canCrossTransfer = dualFilePaneFragment != null && dualFilePaneFragment.canTransferToOppositePane(this);

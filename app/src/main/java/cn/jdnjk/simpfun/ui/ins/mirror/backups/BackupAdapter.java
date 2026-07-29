@@ -52,7 +52,9 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
             backups.addAll(list);
         }
         selectedIds.clear();
-        notifyDataSetChanged();
+        if (!backups.isEmpty()) {
+            notifyItemRangeChanged(0, backups.size());
+        }
         notifySelectionChanged();
     }
 
@@ -66,21 +68,14 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
             selectedIds.clear();
             selectedIds.add(first);
         }
-        notifyDataSetChanged();
+        if (!backups.isEmpty()) {
+            notifyItemRangeChanged(0, backups.size());
+        }
         notifySelectionChanged();
     }
 
     public boolean isMultiSelectMode() {
         return multiSelectMode;
-    }
-
-    public void clearSelection() {
-        if (selectedIds.isEmpty()) {
-            return;
-        }
-        selectedIds.clear();
-        notifyDataSetChanged();
-        notifySelectionChanged();
     }
 
     public int getSelectedCount() {
@@ -109,8 +104,8 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
         BackupItem item = backups.get(position);
         holder.tvTag.setText(buildTagText(item));
         holder.tvSize.setText(formatSize(item.getSize()));
-        holder.tvExpire.setText("预计" + formatExpireDate(item.getValidTime()) + "释放");
-        holder.tvId.setText("ID=" + item.getId());
+        holder.tvExpire.setText(formatExpireDate(item.getValidTime()) + " 释放");
+        holder.tvId.setText("ID: " + item.getId());
 
         holder.tvWindows.setVisibility(item.isWindows() ? View.VISIBLE : View.GONE);
 
@@ -120,11 +115,14 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
         holder.btnMore.setVisibility(multiSelectMode ? View.GONE : View.VISIBLE);
 
         int strokeColor = holder.itemView.getResources().getColor(
-                selected ? R.color.md_theme_primary : R.color.md_theme_outlineVariant,
+                selected ? R.color.md_theme_primary : android.R.color.transparent,
                 null
         );
         holder.cardBackup.setStrokeColor(ColorStateList.valueOf(strokeColor));
-        holder.cardBackup.setStrokeWidth(1);
+        holder.cardBackup.setStrokeWidth(selected ? 4 : 0);
+        holder.cardBackup.setCardBackgroundColor(ColorStateList.valueOf(holder.itemView.getResources().getColor(
+                selected ? R.color.md_theme_primaryContainer : R.color.md_theme_surface, null
+        )));
 
         holder.itemView.setOnClickListener(v -> {
             if (multiSelectMode) {
@@ -209,7 +207,7 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
         final TextView tvWindows;
         final TextView tvExpire;
         final TextView tvId;
-        final TextView btnMore;
+        final View btnMore;
         final CheckBox cbSelected;
 
         BackupVH(@NonNull View itemView) {

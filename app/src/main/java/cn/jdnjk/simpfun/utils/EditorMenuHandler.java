@@ -7,8 +7,10 @@ import android.widget.Toast;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.api.ApiClient;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,19 +18,14 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.github.rosemoe.sora.event.PublishSearchResultEvent;
 import io.github.rosemoe.sora.widget.CodeEditor;
 import io.github.rosemoe.sora.widget.EditorSearcher;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.*;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -132,23 +129,48 @@ public class EditorMenuHandler {
 
     private void handleReload(Charset encoding) {
         if (localPath == null) return;
-        try {
-            File file = new File(localPath);
-            if (!file.exists()) {
-                Toast.makeText(activity, "文件不存在", Toast.LENGTH_SHORT).show();
+        File file = new File(localPath);
+        if (!file.exists()) {
+            Toast.makeText(activity, "文件不存在", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new Thread(() -> {
+            String text;
+            try {
+                byte[] data = readAllBytes(file);
+                text = new String(data, encoding);
+            } catch (IOException e) {
+                final String message = e.getMessage();
+                postToUi(() -> Toast.makeText(activity, "读取失败: " + message, Toast.LENGTH_SHORT).show());
                 return;
             }
-            FileInputStream fis = new FileInputStream(file);
-            byte[] data = new byte[(int) file.length()];
-            fis.read(data);
-            fis.close();
+            final String loaded = text;
+            postToUi(() -> {
+                codeEditor.setText(loaded);
+                currentEncoding = encoding;
+                Toast.makeText(activity, "已重新加载 (" + encoding.displayName() + ")", Toast.LENGTH_SHORT).show();
+            });
+        }, "editor-reload").start();
+    }
 
-            String text = new String(data, encoding);
-            codeEditor.setText(text);
-            currentEncoding = encoding;
-            Toast.makeText(activity, "已重新加载 (" + encoding.displayName() + ")", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            Toast.makeText(activity, "读取失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+    private void postToUi(Runnable action) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        activity.runOnUiThread(() -> {
+            if (activity.isFinishing() || activity.isDestroyed()) return;
+            action.run();
+        });
+    }
+
+    private static byte[] readAllBytes(File file) throws IOException {
+        try (FileInputStream fis = new FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(1024, (int) Math.min(file.length(), Integer.MAX_VALUE)));
+            byte[] chunk = new byte[8192];
+            int read;
+            while ((read = fis.read(chunk)) != -1) {
+                out.write(chunk, 0, read);
+            }
+            return out.toByteArray();
         }
     }
 
@@ -401,18 +423,22 @@ public class EditorMenuHandler {
         translateBatch(commentsToTranslate, new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                activity.runOnUiThread(() -> Toast.makeText(activity, "翻译请求失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                final String message = e.getMessage();
+                postToUi(() -> Toast.makeText(activity, "翻译请求失败: " + message, Toast.LENGTH_SHORT).show());
             }
 
             @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                if (!response.isSuccessful()) {
-                    activity.runOnUiThread(() -> Toast.makeText(activity, "翻译API错误: " + response.code(), Toast.LENGTH_SHORT).show());
-                    return;
-                }
+            public void onResponse(Call call, Response response) {
+                // 本回调运行在 OkHttp 的后台线程，body 读取与文本替换都在这里完成，主线程只负责 setText
+                try (Response resp = response) {
+                    if (!resp.isSuccessful()) {
+                        final int code = resp.code();
+                        postToUi(() -> Toast.makeText(activity, "翻译API错误: " + code, Toast.LENGTH_SHORT).show());
+                        return;
+                    }
 
-                try {
-                    String respBody = response.body().string();
+                    ResponseBody responseBody = resp.body();
+                    String respBody = responseBody.string();
                     JSONArray jsonArray = new JSONArray(respBody);
 
                     // 构建新的文本
@@ -434,13 +460,14 @@ public class EditorMenuHandler {
                         }
                     }
 
-                    activity.runOnUiThread(() -> {
-                         codeEditor.setText(newContent.toString());
-                         Toast.makeText(activity, "翻译完成", Toast.LENGTH_SHORT).show();
+                    final String translated = newContent.toString();
+                    postToUi(() -> {
+                        codeEditor.setText(translated);
+                        Toast.makeText(activity, "翻译完成", Toast.LENGTH_SHORT).show();
                     });
 
                 } catch (Exception e) {
-                    activity.runOnUiThread(() -> Toast.makeText(activity, "解析翻译结果失败", Toast.LENGTH_SHORT).show());
+                    postToUi(() -> Toast.makeText(activity, "解析翻译结果失败", Toast.LENGTH_SHORT).show());
                 }
             }
         });
@@ -458,7 +485,10 @@ public class EditorMenuHandler {
     }
 
     private void translateBatch(List<String> texts, Callback callback) {
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client = ApiClient.getInstance().getClient()
+                .newBuilder()
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build();
         MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
         JSONArray jsonBody = new JSONArray();
