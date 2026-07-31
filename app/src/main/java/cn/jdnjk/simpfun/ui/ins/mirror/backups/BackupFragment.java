@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.utils.Feedback;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -531,10 +532,11 @@ public class BackupFragment extends Fragment {
     }
 
     private int getDeviceId() {
-        Context context = getContext();
-        if (context == null) {
-            return -1;
+        if (getActivity() instanceof ServerManages activity && activity.getDeviceId() > 0) {
+            return activity.getDeviceId();
         }
+        Context context = getContext();
+        if (context == null) return -1;
         SharedPreferences sp = context.getSharedPreferences("deviceid", Context.MODE_PRIVATE);
         return sp.getInt("device_id", -1);
     }

@@ -1,11 +1,9 @@
 package cn.jdnjk.simpfun.ui.setting;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 
 public class TerminalThemeManager {
-    private static final String SETTINGS_PREFS = "setting_sp";
     private static final String TERMINAL_THEME_MODE_KEY = "terminal_theme_mode";
     public static final int TERMINAL_THEME_FOLLOW_SYSTEM = 0;
     public static final int TERMINAL_THEME_FORCE_LIGHT = 1;
@@ -15,12 +13,12 @@ public class TerminalThemeManager {
     public static final int DARK_BACKGROUND_COLOR = Color.BLACK;
     public static final int DARK_TEXT_COLOR = Color.WHITE;
     private static TerminalThemeManager instance;
-    private final SharedPreferences preferences;
+    private final SettingsSaveManager saveManager;
     private final Context context;
 
     private TerminalThemeManager(Context context) {
         this.context = context.getApplicationContext();
-        preferences = this.context.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE);
+        saveManager = SettingsSaveManager.getInstance(this.context);
     }
 
     public static TerminalThemeManager getInstance(Context context) {
@@ -31,11 +29,11 @@ public class TerminalThemeManager {
     }
 
     public void setTerminalThemeMode(int themeMode) {
-        preferences.edit().putInt(TERMINAL_THEME_MODE_KEY, themeMode).apply();
+        saveManager.putInt(TERMINAL_THEME_MODE_KEY, themeMode);
     }
 
     public int getTerminalThemeMode() {
-        return preferences.getInt(TERMINAL_THEME_MODE_KEY, TERMINAL_THEME_FOLLOW_SYSTEM);
+        return saveManager.getInt(TERMINAL_THEME_MODE_KEY, TERMINAL_THEME_FOLLOW_SYSTEM);
     }
 
     public String getTerminalThemeName(int themeMode) {

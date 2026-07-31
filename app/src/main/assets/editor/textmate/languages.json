@@ -1,6 +1,18 @@
 {
   "languages": [
     {
+      "grammar": "editor/textmate/ini/syntaxes/ini.tmLanguage.json",
+      "name": "ini",
+      "scopeName": "source.ini",
+      "languageConfiguration": "editor/textmate/ini/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/bat/syntaxes/batchfile.tmLanguage.json",
+      "name": "batch",
+      "scopeName": "source.batchfile",
+      "languageConfiguration": "editor/textmate/bat/language-configuration.json"
+    },
+    {
       "grammar": "editor/textmate/shellscript/syntaxes/shell-unix-bash.tmLanguage.json",
       "name": "shellscript",
       "scopeName": "source.shell",

@@ -23,4 +23,14 @@ public class TerminalColorUtils {
         int backgroundColor = terminalThemeManager.getTerminalBackgroundColor();
         view.setBackgroundColor(backgroundColor);
     }
+
+    /**
+     * 为TextView应用终端字体大小
+     * @param context 上下文
+     * @param textView 要应用字体大小的TextView
+     */
+    public static void applyTerminalFontSize(Context context, TextView textView) {
+        float fontSize = TerminalFontSizeManager.getInstance(context).getFontSize();
+        textView.setTextSize(fontSize);
+    }
 }

@@ -722,7 +722,12 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         if (!isViewAvailable() || text == null || text.isEmpty()) return;
         String normalized = text.replace("\r\n", "\n");
         if (normalized.indexOf('\r') >= 0 && normalized.indexOf('\n') < 0) {
-            normalized = normalized.substring(normalized.lastIndexOf('\r') + 1);
+            String afterLastCr = normalized.substring(normalized.lastIndexOf('\r') + 1);
+            if (!afterLastCr.isEmpty()) {
+                normalized = afterLastCr;
+            } else {
+                normalized = normalized.substring(0, normalized.lastIndexOf('\r'));
+            }
         } else {
             normalized = normalized.replace('\r', '\n');
         }
@@ -856,6 +861,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             tv.setPadding(tv.getPaddingLeft() + 8, tv.getPaddingTop() + 2, tv.getPaddingRight() + 8, tv.getPaddingBottom() + 2);
             tv.setTextIsSelectable(true);
             TerminalColorUtils.applyTerminalColors(context, tv);
+            TerminalColorUtils.applyTerminalFontSize(context, tv);
             return new LineVH(tv);
         }
 
@@ -863,6 +869,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         public void onBindViewHolder(@NonNull LineVH holder, int position) {
             String line = lines.get(position);
             TerminalColorUtils.applyTerminalColors(context, holder.textView);
+            TerminalColorUtils.applyTerminalFontSize(context, holder.textView);
             try {
                 AnsiParser.setAnsiText(holder.textView, normalizeAnsiForDisplay(line), 0);
             } catch (Exception ignored) {

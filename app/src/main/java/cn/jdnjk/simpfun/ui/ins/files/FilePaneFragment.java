@@ -559,7 +559,11 @@ public class FilePaneFragment extends Fragment implements
                     return true;
                 });
         popupMenu.getMenu().add(R.string.file_action_delete).setOnMenuItemClickListener(menuItem -> {
-            showDeleteConfirmDialog(item);
+            if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+                showDeleteSelectedConfirmDialog();
+            } else {
+                showDeleteConfirmDialog(item);
+            }
             return true;
         });
         popupMenu.getMenu().add(R.string.file_action_rename).setOnMenuItemClickListener(menuItem -> {
@@ -648,7 +652,11 @@ public class FilePaneFragment extends Fragment implements
         if (deleteAction != null) {
             deleteAction.setOnClickListener(v -> {
                 dialog.dismiss();
-                showDeleteConfirmDialog(item);
+                if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+                    showDeleteSelectedConfirmDialog();
+                } else {
+                    showDeleteConfirmDialog(item);
+                }
             });
         }
         if (copyAction != null) {

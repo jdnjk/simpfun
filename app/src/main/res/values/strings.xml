@@ -157,4 +157,14 @@
     <string name="create_server_cpu_cores">%1$d核</string>
     <string name="create_server_storage_gb">%1$dG</string>
     <string name="create_server_points">%1$d积分</string>
+
+    <!-- File conflict dialog -->
+    <string name="file_conflict_title">文件已存在</string>
+    <string name="file_conflict_filename">文件信息</string>
+    <string name="file_conflict_incoming">待写入项：%1$s · %2$s</string>
+    <string name="file_conflict_existing">已存在项：%1$s · %2$s</string>
+    <string name="file_conflict_replace">移动并替换</string>
+    <string name="file_conflict_skip">跳过该文件</string>
+    <string name="file_conflict_keep_both">移动但保留两个文件</string>
+    <string name="file_conflict_apply_all">为后续冲突执行相同操作</string>
 </resources>

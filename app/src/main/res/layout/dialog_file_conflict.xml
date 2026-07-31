@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="8dp">
+
+    <!-- 文件名标题 -->
+    <TextView
+        android:id="@+id/text_conflict_filename"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary"
+        tools:text="wechat.jpg" />
+
+    <!-- 文件信息区 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="12dp"
+        android:background="?attr/colorSurfaceVariant"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/text_incoming_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="?android:attr/textColorSecondary"
+            tools:text="待写入项：2026-07-28 12:15 · 43.06 KB" />
+
+        <TextView
+            android:id="@+id/text_existing_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:textColor="?android:attr/textColorSecondary"
+            tools:text="已存在项：2026-07-28 12:15 · 43.06 KB" />
+
+    </LinearLayout>
+
+    <!-- 操作选项 -->
+    <RadioGroup
+        android:id="@+id/radio_group_conflict"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp">
+
+        <RadioButton
+            android:id="@+id/radio_replace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="8dp"
+            android:text="@string/file_conflict_replace"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/radio_skip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="8dp"
+            android:text="@string/file_conflict_skip" />
+
+        <RadioButton
+            android:id="@+id/radio_keep_both"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="8dp"
+            android:text="@string/file_conflict_keep_both" />
+
+    </RadioGroup>
+
+    <!-- 为后续冲突执行相同操作 -->
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/checkbox_apply_all"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:paddingVertical="4dp"
+        android:text="@string/file_conflict_apply_all" />
+
+</LinearLayout>

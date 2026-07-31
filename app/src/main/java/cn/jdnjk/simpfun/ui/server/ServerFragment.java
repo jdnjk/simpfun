@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun.ui.server;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -11,6 +12,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -59,6 +62,16 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
     private ServerCardStyleManager cardStyleManager;
     private final ServerStatsService statsService = ServerStatsService.getInstance();
     private final Set<Integer> subscribedIds = new HashSet<>();
+
+    private final ActivityResultLauncher<Intent> createServerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() != Activity.RESULT_OK) return;
+                Intent data = result.getData();
+                if (data != null && data.getBooleanExtra(CreateServer.EXTRA_RESULT_CREATED, false)) {
+                    loadInstanceList(true);
+                }
+            });
 
     @Nullable
     @Override
@@ -134,7 +147,7 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
     private void openCreateServer() {
         Log.d("ServerFragment", "创建服务器入口点击");
         Intent intent = new Intent(requireContext(), CreateServer.class);
-        startActivity(intent);
+        createServerLauncher.launch(intent);
     }
 
     private void adjustRecyclerBottomPadding() {

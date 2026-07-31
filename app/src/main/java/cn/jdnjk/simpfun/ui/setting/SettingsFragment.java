@@ -28,6 +28,8 @@ import com.google.android.material.slider.Slider;
 
 import org.json.JSONObject;
 
+import java.util.Locale;
+
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
@@ -51,6 +53,7 @@ public class SettingsFragment extends Fragment {
     private ServerCardStyleManager serverCardStyleManager;
     private FilePaneModeManager filePaneModeManager;
     private SftpTransferSettingsManager sftpTransferSettingsManager;
+    private TerminalFontSizeManager terminalFontSizeManager;
     private TextView tvThemeCurrent;
     private TextView tvTerminalThemeCurrent;
     private TextView tvQqCurrent;
@@ -58,6 +61,8 @@ public class SettingsFragment extends Fragment {
     private Slider sliderSftpThreadCount;
     private MaterialSwitch switchServerCardStyle;
     private MaterialSwitch switchFileDualPane;
+    private Slider sliderTerminalFontSize;
+    private TextView tvTerminalFontSize;
     private NestedScrollView scrollView;
     private ActivityResultLauncher<Intent> manageAllFilesLauncher;
     private ActivityResultLauncher<String> readStoragePermissionLauncher;
@@ -84,6 +89,7 @@ public class SettingsFragment extends Fragment {
         serverCardStyleManager = new ServerCardStyleManager(requireContext());
         filePaneModeManager = new FilePaneModeManager(requireContext());
         sftpTransferSettingsManager = new SftpTransferSettingsManager(requireContext());
+        terminalFontSizeManager = TerminalFontSizeManager.getInstance(requireContext());
     }
 
     @Nullable
@@ -100,6 +106,7 @@ public class SettingsFragment extends Fragment {
         updateThemeDisplay();
         loadUserInfo();
         updateSftpThreadCountDisplay();
+        updateTerminalFontSizeDisplay();
         bindSwitches();
 
         return root;
@@ -115,6 +122,7 @@ public class SettingsFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        SettingsSaveManager.getInstance(requireContext()).flush();
         bottomNavBinding.detach(scrollView);
         scrollView = null;
         super.onDestroyView();
@@ -128,6 +136,8 @@ public class SettingsFragment extends Fragment {
         sliderSftpThreadCount = root.findViewById(R.id.slider_sftp_thread_count);
         switchServerCardStyle = root.findViewById(R.id.switch_server_card_style);
         switchFileDualPane = root.findViewById(R.id.switch_file_dual_pane);
+        sliderTerminalFontSize = root.findViewById(R.id.slider_terminal_font_size);
+        tvTerminalFontSize = root.findViewById(R.id.tv_terminal_font_size);
 
         TextView tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ")";
@@ -274,6 +284,22 @@ public class SettingsFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void updateTerminalFontSizeDisplay() {
+        float size = terminalFontSizeManager.getFontSize();
+        if (tvTerminalFontSize != null) {
+            tvTerminalFontSize.setText(String.format(Locale.getDefault(), "%.0fsp", size));
+        }
+        if (sliderTerminalFontSize != null) {
+            sliderTerminalFontSize.setValue(size);
+            sliderTerminalFontSize.addOnChangeListener((slider, value, fromUser) -> {
+                if (fromUser) {
+                    terminalFontSizeManager.setFontSize(value);
+                    tvTerminalFontSize.setText(String.format(Locale.getDefault(), "%.0fsp", value));
+                }
+            });
+        }
     }
 
     private void updateThemeDisplay() {

@@ -280,6 +280,10 @@ public class TerminalWebSocketManager {
                         "[33m[1m[简幻欢]:[39m 正在拉取Docker镜像，请稍等...[0m")
                 .replace("[33m[1m[Pterodactyl Daemon]:[39m Finished pulling Docker container image[0m",
                         "[33m[1m[简幻欢]:[39m 已完成Docker镜像拉取！[0m")
+                .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Server is outputting console data too quickly -- throttling...\u001B[0m",
+                        "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 服务器输出控制台数据过快 -- 限流中...\u001B[0m")
+                .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Aborting automatic restart, crash detection is disabled for this instance.\u001B[0m",
+                        "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 服务器已停止运行，请检查启动脚本和服务端配置文件\u001B[0m")
                 .replaceAll("\\[\\?1[hl][=>]", "")
                 .replaceAll("\\[\\?2004[hl]", "")
                 .replaceAll("\\[[0-9;?]*[JK]", "");

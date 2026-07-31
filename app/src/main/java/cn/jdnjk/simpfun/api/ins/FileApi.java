@@ -25,6 +25,7 @@ public class FileApi {
     private final FileTransferApi fileTransferApi = new FileTransferApi();
     private final FileCompressApi fileCompressApi = new FileCompressApi();
     private final FileToolboxApi fileToolboxApi = new FileToolboxApi();
+    private final FilesEditorApi filesEditorApi = new FilesEditorApi();
     
     /**
      * 获取指定目录下的文件列表
@@ -259,6 +260,49 @@ public class FileApi {
      */
     public void renameFile(Context context, int serverId, String origin, String target, Callback callback) {
         fileManageApi.renameFile(context, serverId, origin, target, new FileCallback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                callback.onSuccess(data);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                callback.onFailure(errorMsg);
+            }
+        });
+    }
+
+    /**
+     * 获取文件内容（在线编辑）
+     * @param context Context
+     * @param serverId 服务器ID
+     * @param path 文件路径，例如 "/start.sh"
+     * @param callback 回调，成功时 data 包含 "content" 字段
+     */
+    public void fetchFileContent(Context context, int serverId, String path, FileCallback callback) {
+        filesEditorApi.fetchFileContent(context, serverId, path, new FileCallback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                callback.onSuccess(data);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                callback.onFailure(errorMsg);
+            }
+        });
+    }
+
+    /**
+     * 保存文件内容（在线编辑）
+     * @param context Context
+     * @param serverId 服务器ID
+     * @param path 文件路径，例如 "/start.sh"
+     * @param content 文件内容
+     * @param callback 回调
+     */
+    public void saveFileContent(Context context, int serverId, String path, String content, FileCallback callback) {
+        filesEditorApi.saveFileContent(context, serverId, path, content, new FileCallback() {
             @Override
             public void onSuccess(JSONObject data) {
                 callback.onSuccess(data);

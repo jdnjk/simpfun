@@ -11,12 +11,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import cn.jdnjk.simpfun.utils.Feedback;
-import org.json.JSONArray;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import androidx.activity.OnBackPressedCallback;
@@ -29,7 +26,6 @@ import androidx.lifecycle.Lifecycle;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ServerManages;
-import cn.jdnjk.simpfun.api.ins.FileApi;
 import cn.jdnjk.simpfun.model.FileItem;
 
 public class DualFilePaneFragment extends Fragment {
@@ -219,28 +215,7 @@ public class DualFilePaneFragment extends Fragment {
             Feedback.error(getView(), getString(R.string.invalid_device_id));
             return;
         }
-        if (move) {
-            List<String> paths = new ArrayList<>();
-            for (FileItem item : items) {
-                paths.add(source.getItemPathForHost(item));
-            }
-            new FileApi().moveFileOrFolder(context, deviceId, new JSONArray(paths).toString(), target.getCurrentPathForHost(), new FileApi.Callback() {
-                @Override
-                public void onSuccess(org.json.JSONObject data) {
-                    if (!isAdded()) return;
-                    Toast.makeText(requireContext(), "移动成功", Toast.LENGTH_SHORT).show();
-                    source.reloadForHost();
-                    target.reloadForHost();
-                }
-
-                @Override
-                public void onFailure(String errorMsg) {
-                    if (isAdded()) Toast.makeText(requireContext(), "移动失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-                }
-            });
-            return;
-        }
-        transferCoordinator.copyServerToServer(source, target, items);
+        transferCoordinator.copyServerToServer(source, target, items, move);
     }
 
     boolean canTransferToOppositePane(Fragment sourceFragment) {

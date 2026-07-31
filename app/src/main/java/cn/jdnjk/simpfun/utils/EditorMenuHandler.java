@@ -214,34 +214,35 @@ public class EditorMenuHandler {
     }
 
     private void showSyntaxDialog() {
-        String[] displayNames = {
-            "Auto Detect", "Java", "Python", "JavaScript", "HTML", "JSON",
-            "XML", "YAML", "Markdown", "Shell Script"
+        String[][] syntaxes = {
+            {"Auto Detect", null},
+            {"Batch", "source.batchfile"},
+            {"HTML", "text.html.basic"},
+            {"INI", "source.ini"},
+            {"Java", "source.java"},
+            {"JavaScript", "source.js"},
+            {"JSON", "source.json"},
+            {"Log", "text.log"},
+            {"Markdown", "text.html.markdown"},
+            {"Python", "source.python"},
+            {"Shell Script", "source.shell"},
+            {"XML", "text.xml"},
+            {"YAML", "source.yaml"}
         };
-        // 对应的 scope 值，需要与 displayNames 一一对应
-        String[] scopes = {
-            null, // Auto
-            "source.java", // Java
-            "source.python", // Python
-            "source.js", // JS
-            "text.html.basic", // HTML
-            "source.json", // JSON
-            "text.xml", // XML
-            "source.yaml", // YAML
-            "text.html.markdown", // Markdown
-            "source.shell" // Shell
-        };
+
+        String[] displayNames = new String[syntaxes.length];
+        for (int i = 0; i < syntaxes.length; i++) {
+            displayNames[i] = syntaxes[i][0];
+        }
 
         new MaterialAlertDialogBuilder(activity)
                 .setTitle("选择语法")
                 .setItems(displayNames, (dialog, which) -> {
-                    String scope = scopes[which];
-                    if (scope == null) {
-                        if (activity instanceof cn.jdnjk.simpfun.FileEditorActivity) {
-                             ((cn.jdnjk.simpfun.FileEditorActivity) activity).applyLanguageAuto();
-                        }
-                    } else {
-                        if (activity instanceof cn.jdnjk.simpfun.FileEditorActivity) {
+                    String scope = syntaxes[which][1];
+                    if (activity instanceof cn.jdnjk.simpfun.FileEditorActivity) {
+                        if (scope == null) {
+                            ((cn.jdnjk.simpfun.FileEditorActivity) activity).applyLanguageAuto();
+                        } else {
                             ((cn.jdnjk.simpfun.FileEditorActivity) activity).setLanguage(scope);
                         }
                     }
@@ -407,6 +408,8 @@ public class EditorMenuHandler {
             String comment = matcher.group();
             // 过滤掉纯符号的注释，减少翻译量
             if (comment.replaceAll("[/*#\\s]", "").isEmpty()) continue;
+            // 跳过 shebang 行 (#!/bin/bash 等)
+            if (comment.matches("#!.*")) continue;
 
             commentsToTranslate.add(comment);
             starts.add(matcher.start());

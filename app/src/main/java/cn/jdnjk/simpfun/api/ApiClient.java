@@ -9,6 +9,7 @@ import okio.Buffer;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 public class ApiClient {
     public static final String BASE_URL = "https://api.simpfun.cn/api";
@@ -20,6 +21,10 @@ public class ApiClient {
 
     private ApiClient() {
         OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(120, TimeUnit.SECONDS)
                 .addInterceptor(new UserAgentInterceptor());
         if (BuildConfig.DEBUG) {
             builder.addInterceptor(new LoggingInterceptor());

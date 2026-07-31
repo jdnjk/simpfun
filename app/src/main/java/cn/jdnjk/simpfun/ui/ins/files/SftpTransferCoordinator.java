@@ -30,15 +30,18 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.api.ins.FileApi;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.model.FileItem;
 import cn.jdnjk.simpfun.ui.setting.SftpTransferSettingsManager;
@@ -95,12 +98,12 @@ class SftpTransferCoordinator {
         fetchCredentials(credentials -> startLocalToServerTransfer(credentials, localPane, serverPane, items, move, true));
     }
 
-    void copyServerToServer(FilePaneFragment sourcePane, FilePaneFragment targetPane, List<FileItem> items) {
+    void copyServerToServer(FilePaneFragment sourcePane, FilePaneFragment targetPane, List<FileItem> items, boolean move) {
         if (items == null || items.isEmpty()) {
             toast("没有可传输的文件");
             return;
         }
-        fetchCredentials(credentials -> startServerToServerTransfer(credentials, sourcePane, targetPane, items, true));
+        fetchCredentials(credentials -> startServerToServerTransfer(credentials, sourcePane, targetPane, items, move, true));
     }
 
     private void startServerToLocalTransfer(SftpCredentials credentials, FilePaneFragment serverPane, LocalFilePaneFragment localPane, List<FileItem> items, boolean move, boolean allowRetry) {
@@ -127,13 +130,13 @@ class SftpTransferCoordinator {
         }
     }
 
-    private void startServerToServerTransfer(SftpCredentials credentials, FilePaneFragment sourcePane, FilePaneFragment targetPane, List<FileItem> items, boolean allowRetry) {
+    private void startServerToServerTransfer(SftpCredentials credentials, FilePaneFragment sourcePane, FilePaneFragment targetPane, List<FileItem> items, boolean move, boolean allowRetry) {
         try {
-            startProgressDialog("复制 " + describeItems(items));
-            runTransfer(() -> transferServerToServer(credentials, sourcePane, targetPane, items, () -> {
+            startProgressDialog((move ? "移动 " : "复制 ") + describeItems(items));
+            runTransfer(() -> transferServerToServer(credentials, sourcePane, targetPane, items, move, () -> {
                 sourcePane.reloadForHost();
                 targetPane.reloadForHost();
-            }), allowRetry ? () -> retryWithFreshCredentials(fresh -> startServerToServerTransfer(fresh, sourcePane, targetPane, items, false)) : null);
+            }), allowRetry ? () -> retryWithFreshCredentials(fresh -> startServerToServerTransfer(fresh, sourcePane, targetPane, items, move, false)) : null);
         } catch (Exception e) {
             toast(e.getMessage() == null ? "准备传输失败" : e.getMessage());
         }
@@ -171,11 +174,24 @@ class SftpTransferCoordinator {
 
     private void transferServerToLocal(SftpCredentials credentials, FilePaneFragment serverPane, LocalFilePaneFragment localPane, List<FileItem> items, boolean move, Runnable onSuccess) throws Exception {
         List<TransferTask> tasks = new ArrayList<>();
+        FileConflictDialog.ConflictAction cachedAction = null;
         try (SftpSession session = openSession(credentials)) {
             for (FileItem item : items) {
                 File localTarget = localPane.resolveChildInCurrentPathForHost(item.getName());
                 if (localTarget.exists()) {
-                    throw new IOException("目标已存在：" + item.getName());
+                    FileConflictDialog.ResolvedAction resolved = resolveConflict(
+                            item.getName(), item.getSize(), item.getModifiedAt(),
+                            localTarget.length(), FileConflictDialog.formatFileTime(localTarget.lastModified()),
+                            items.size() > 1, cachedAction);
+                    if (resolved.cachedAction != null) {
+                        cachedAction = resolved.cachedAction;
+                    }
+                    if (resolved.action == FileConflictDialog.ConflictAction.SKIP) {
+                        continue;
+                    } else if (resolved.action == FileConflictDialog.ConflictAction.KEEP_BOTH) {
+                        localTarget = buildUniqueLocalTarget(localTarget);
+                    }
+                    // REPLACE: 继续使用原 target，后面下载会覆盖
                 }
                 String remoteSource = serverPane.getItemPathForHost(item);
                 if (item.isFile()) {
@@ -206,10 +222,26 @@ class SftpTransferCoordinator {
         List<TransferTask> tasks = new ArrayList<>();
         List<String> remoteDirectories = new ArrayList<>();
         List<File> localSources = new ArrayList<>();
+        FileConflictDialog.ConflictAction cachedAction = null;
         try (SftpSession session = openSession(credentials)) {
             for (FileItem item : items) {
                 File source = localPane.resolveLocalPathForHost(localPane.getItemPathForHost(item));
                 String remoteTarget = FilePathUtils.appendPath(serverPane.getCurrentPathForHost(), item.getName());
+                if (remoteExists(session.sftp, remoteTarget)) {
+                    FileConflictDialog.ResolvedAction resolved = resolveConflict(
+                            item.getName(), item.getSize(), item.getModifiedAt(),
+                            -1, "-",
+                            items.size() > 1, cachedAction);
+                    if (resolved.cachedAction != null) {
+                        cachedAction = resolved.cachedAction;
+                    }
+                    if (resolved.action == FileConflictDialog.ConflictAction.SKIP) {
+                        continue;
+                    } else if (resolved.action == FileConflictDialog.ConflictAction.KEEP_BOTH) {
+                        remoteTarget = buildUniqueRemoteTarget(session.sftp, remoteTarget);
+                    }
+                    // REPLACE: 上传会覆盖
+                }
                 localSources.add(source);
                 collectLocalUploads(source, remoteTarget, tasks, remoteDirectories);
             }
@@ -230,29 +262,595 @@ class SftpTransferCoordinator {
         mainHandler.post(() -> toast(move ? "移动完成" : "复制完成"));
     }
 
-    private void transferServerToServer(SftpCredentials credentials, FilePaneFragment sourcePane, FilePaneFragment targetPane, List<FileItem> items, Runnable onSuccess) throws Exception {
-        List<RemoteCopyTask> tasks = new ArrayList<>();
+    private void transferServerToServer(SftpCredentials credentials, FilePaneFragment sourcePane, FilePaneFragment targetPane, List<FileItem> items, boolean move, Runnable onSuccess) throws Exception {
+        android.util.Log.d("SftpTransfer", "transferServerToServer: items=" + items.size() + ", move=" + move);
+        FileConflictDialog.ConflictAction cachedAction = null;
+        List<ServerTransferAction> actions = new ArrayList<>();
+
+        // 预扫描冲突并构建操作列表
         try (SftpSession session = openSession(credentials)) {
             for (FileItem item : items) {
                 String remoteSource = sourcePane.getItemPathForHost(item);
                 String remoteTarget = FilePathUtils.appendPath(targetPane.getCurrentPathForHost(), item.getName());
-                if (remoteExists(session.sftp, remoteTarget)) {
-                    throw new IOException("目标已存在：" + item.getName());
-                }
-                if (item.isFile()) {
-                    tasks.add(new RemoteCopyTask(remoteSource, remoteTarget, safeRemoteSize(session.sftp, remoteSource)));
+                boolean conflict = remoteExists(session.sftp, remoteTarget);
+                android.util.Log.d("SftpTransfer", "检查: " + item.getName() + " -> " + remoteTarget + ", 冲突=" + conflict);
+
+                if (conflict) {
+                    FileConflictDialog.ResolvedAction resolved = resolveConflict(
+                            item.getName(), item.getSize(), item.getModifiedAt(),
+                            -1, "-",
+                            items.size() > 1, cachedAction);
+                    if (resolved.cachedAction != null) {
+                        cachedAction = resolved.cachedAction;
+                    }
+                    if (resolved.action == FileConflictDialog.ConflictAction.SKIP) {
+                        android.util.Log.d("SftpTransfer", "跳过: " + item.getName());
+                        continue;
+                    }
+                    actions.add(new ServerTransferAction(remoteSource, remoteTarget, item.isFile(),
+                            resolved.action == FileConflictDialog.ConflictAction.REPLACE));
                 } else {
-                    ensureRemoteDirectory(session.sftp, remoteTarget);
-                    collectRemoteCopies(session.sftp, remoteSource, remoteTarget, tasks);
+                    actions.add(new ServerTransferAction(remoteSource, remoteTarget, item.isFile(), false));
                 }
             }
         }
-        runRemoteCopyTasks(credentials, tasks);
-        if (cancelled.get()) {
+
+        android.util.Log.d("SftpTransfer", "操作数量: " + actions.size() + ", cancelled=" + cancelled.get());
+        if (actions.isEmpty() || cancelled.get()) {
             return;
         }
+
+        Context context = activity;
+        int deviceId = sourcePane.getDeviceIdForHost(context);
+        int threadCount = Math.min(settingsManager.getThreadCount(), actions.size());
+        android.util.Log.d("SftpTransfer", "deviceId=" + deviceId + ", 操作数=" + actions.size() + ", 线程数=" + threadCount);
+
+        // 预统计总文件数（用于进度显示）
+        int totalFileCount = 0;
+        try (SftpSession session = openSession(credentials)) {
+            for (ServerTransferAction action : actions) {
+                if (action.isFile) {
+                    totalFileCount++;
+                } else {
+                    totalFileCount += countRemoteFiles(session.sftp, action.source);
+                }
+            }
+        }
+        final int totalFiles = Math.max(totalFileCount, 1);
+        updateProgress(0, totalFiles, 0, 0, 0);
+
+        // 分离文件操作和文件夹操作
+        List<ServerTransferAction> fileActions = new ArrayList<>();
+        List<ServerTransferAction> folderActions = new ArrayList<>();
+        for (ServerTransferAction action : actions) {
+            if (action.isFile || move) {
+                fileActions.add(action);
+            } else {
+                folderActions.add(action);
+            }
+        }
+
+        final AtomicInteger completedFiles = new AtomicInteger(0);
+        final long startedAt = System.currentTimeMillis();
+        final AtomicReference<String> firstError = new AtomicReference<>();
+        final AtomicBoolean hasError = new AtomicBoolean(false);
+
+        // 文件操作：多线程并发
+        if (!fileActions.isEmpty() && !cancelled.get()) {
+            ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+            List<Future<?>> futures = new ArrayList<>();
+            for (ServerTransferAction action : fileActions) {
+                if (cancelled.get()) break;
+                futures.add(executor.submit(() -> {
+                    if (cancelled.get() || hasError.get()) return;
+                    try {
+                        String itemName = action.source.substring(action.source.lastIndexOf('/') + 1);
+                        android.util.Log.d("SftpTransfer", "执行: " + (move ? "移动" : "复制") + " " + itemName);
+
+                        if (move) {
+                            if (action.replace) apiDeleteSync(context, deviceId, action.target);
+                            apiMoveSync(context, deviceId, action.source, action.target);
+                        } else {
+                            if (action.replace) apiDeleteSync(context, deviceId, action.target);
+                            apiCopyFileSync(context, deviceId, action.source, action.target);
+                        }
+                        int completed = completedFiles.incrementAndGet();
+                        updateProgress(completed, totalFiles, completed, totalFiles,
+                                System.currentTimeMillis() - startedAt);
+                    } catch (Exception e) {
+                        firstError.compareAndSet(null, e.getMessage());
+                        hasError.set(true);
+                        cancelled.set(true);
+                    }
+                }));
+            }
+            executor.shutdown();
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // 文件夹操作：逐个执行（内部已有多线程文件复制）
+        if (!folderActions.isEmpty() && !cancelled.get() && !hasError.get()) {
+            try (SftpSession session = openSession(credentials)) {
+                for (ServerTransferAction action : folderActions) {
+                    if (cancelled.get() || hasError.get()) break;
+                    try {
+                        String itemName = action.source.substring(action.source.lastIndexOf('/') + 1);
+                        android.util.Log.d("SftpTransfer", "执行文件夹复制: " + itemName);
+                        if (action.replace) apiDeleteSync(context, deviceId, action.target);
+                        apiCopyFolderWithProgress(context, deviceId, session.sftp, action.source, action.target,
+                                totalFiles, completedFiles, startedAt);
+                    } catch (Exception e) {
+                        firstError.compareAndSet(null, e.getMessage());
+                        hasError.set(true);
+                    }
+                }
+            }
+        }
+
+        String error = firstError.get();
+        if (error != null) throw new IOException(error);
+        if (cancelled.get()) return;
         mainHandler.post(onSuccess);
-        mainHandler.post(() -> toast("复制完成"));
+        mainHandler.post(() -> toast(move ? "移动完成" : "复制完成"));
+    }
+
+    private void apiMove(Context context, int deviceId, ServerTransferAction action,
+                         CountDownLatch latch, AtomicReference<String> firstError) {
+        new FileApi().moveFileOrFolder(context, deviceId,
+                new org.json.JSONArray(java.util.Collections.singletonList(action.source)).toString(),
+                parentPath(action.target),
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        firstError.compareAndSet(null, "移动失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+    }
+
+    private void apiDeleteThenMove(Context context, int deviceId, ServerTransferAction action,
+                                   CountDownLatch latch, AtomicReference<String> firstError) {
+        new FileApi().deleteFileOrFolderBatch(context, deviceId,
+                java.util.Collections.singletonList(action.target),
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        apiMove(context, deviceId, action, latch, firstError);
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        firstError.compareAndSet(null, "删除目标失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+    }
+
+    private void apiCopy(Context context, int deviceId, ServerTransferAction action,
+                         CountDownLatch latch, AtomicReference<String> firstError) {
+        // 1. 创建副本 (start.sh → start copy.sh)
+        new FileApi().copyFileOrFolder(context, deviceId, action.source,
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        // 副本名称：文件 → "name copy.ext"，隐藏文件 → "copy.name"
+                        String sourceName = action.source.substring(action.source.lastIndexOf('/') + 1);
+                        String copyName = buildApiCopyName(sourceName);
+                        String copyPath = parentPath(action.source) + "/" + copyName;
+
+                        if (action.target.equals(copyPath)) {
+                            // 目标就是副本名称（KEEP_BOTH），完成
+                            latch.countDown();
+                            return;
+                        }
+
+                        if (action.replace) {
+                            // REPLACE: 删除目标，然后移动副本到目标
+                            apiDeleteThenRename(context, deviceId, copyPath, action.target, latch, firstError);
+                        } else {
+                            // 普通复制：移动副本到目标目录并重命名
+                            apiRename(context, deviceId, copyPath, action.target, latch, firstError);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        firstError.compareAndSet(null, "复制失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+    }
+
+    private void apiDeleteThenRename(Context context, int deviceId, String source, String target,
+                                     CountDownLatch latch, AtomicReference<String> firstError) {
+        new FileApi().deleteFileOrFolderBatch(context, deviceId,
+                java.util.Collections.singletonList(target),
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        apiRename(context, deviceId, source, target, latch, firstError);
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        firstError.compareAndSet(null, "删除目标失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+    }
+
+    private void apiRename(Context context, int deviceId, String origin, String target,
+                           CountDownLatch latch, AtomicReference<String> firstError) {
+        new FileApi().renameFile(context, deviceId, origin, target,
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        firstError.compareAndSet(null, "重命名失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+    }
+
+    // ===== 同步版本的 API 方法（逐个等待完成） =====
+
+    private static final long API_TIMEOUT_SECONDS = 60;
+
+    /**
+     * 等待 CountDownLatch，超时后弹出 MD3 对话框询问跳过还是继续等待。
+     * @return true 如果正常完成，false 如果用户选择跳过
+     */
+    private boolean awaitLatchWithTimeoutDialog(CountDownLatch latch, String operationName) throws InterruptedException {
+        while (true) {
+            boolean completed = latch.await(API_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (completed) {
+                return true; // 正常完成
+            }
+            // 超时，弹出对话框询问用户
+            android.util.Log.w("SftpTransfer", "API 超时: " + operationName);
+            AtomicReference<Boolean> userChoice = new AtomicReference<>(null);
+            CountDownLatch dialogLatch = new CountDownLatch(1);
+            mainHandler.post(() -> {
+                if (activity.isFinishing() || activity.isDestroyed()) {
+                    userChoice.set(false);
+                    dialogLatch.countDown();
+                    return;
+                }
+                new MaterialAlertDialogBuilder(activity)
+                        .setTitle("请求超时")
+                        .setMessage(operationName + " 已超过 " + API_TIMEOUT_SECONDS + " 秒未响应")
+                        .setPositiveButton("继续等待", (d, w) -> {
+                            userChoice.set(true);
+                            dialogLatch.countDown();
+                        })
+                        .setNegativeButton("跳过", (d, w) -> {
+                            userChoice.set(false);
+                            dialogLatch.countDown();
+                        })
+                        .setCancelable(false)
+                        .show();
+            });
+            dialogLatch.await();
+            if (!userChoice.get()) {
+                return false; // 用户选择跳过
+            }
+            // 用户选择继续等待，循环再等 60 秒
+        }
+    }
+
+    private void apiDeleteSync(Context context, int deviceId, String target) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<String> error = new AtomicReference<>();
+        new FileApi().deleteFileOrFolderBatch(context, deviceId,
+                java.util.Collections.singletonList(target),
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        android.util.Log.d("SftpTransfer", "删除成功: " + target);
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        android.util.Log.e("SftpTransfer", "删除失败: " + target + " - " + errorMsg);
+                        error.compareAndSet(null, "删除失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+        if (!awaitLatchWithTimeoutDialog(latch, "删除 " + target)) {
+            return; // 用户跳过
+        }
+        if (error.get() != null) throw new IOException(error.get());
+    }
+
+    private void apiMoveSync(Context context, int deviceId, String source, String target) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<String> error = new AtomicReference<>();
+        new FileApi().moveFileOrFolder(context, deviceId,
+                new org.json.JSONArray(java.util.Collections.singletonList(source)).toString(),
+                parentPath(target),
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        android.util.Log.d("SftpTransfer", "移动成功: " + source + " -> " + target);
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        android.util.Log.e("SftpTransfer", "移动失败: " + source + " - " + errorMsg);
+                        error.compareAndSet(null, "移动失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+        if (!awaitLatchWithTimeoutDialog(latch, "移动 " + source)) {
+            return;
+        }
+        if (error.get() != null) throw new IOException(error.get());
+    }
+
+    private void apiCopyFileSync(Context context, int deviceId, String source, String target) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<String> error = new AtomicReference<>();
+
+        new FileApi().copyFileOrFolder(context, deviceId, source,
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        String sourceName = source.substring(source.lastIndexOf('/') + 1);
+                        String copyName = buildApiCopyName(sourceName);
+                        String copyPath = parentPath(source) + "/" + copyName;
+                        android.util.Log.d("SftpTransfer", "副本创建成功: " + copyPath);
+
+                        // rename 副本到目标位置
+                        new FileApi().renameFile(context, deviceId, copyPath, target,
+                                new FileApi.Callback() {
+                                    @Override
+                                    public void onSuccess(JSONObject data) {
+                                        android.util.Log.d("SftpTransfer", "重命名成功: " + copyPath + " -> " + target);
+                                        latch.countDown();
+                                    }
+
+                                    @Override
+                                    public void onFailure(String errorMsg) {
+                                        android.util.Log.e("SftpTransfer", "重命名失败: " + copyPath + " - " + errorMsg);
+                                        error.compareAndSet(null, "重命名失败: " + errorMsg);
+                                        latch.countDown();
+                                    }
+                                });
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        android.util.Log.e("SftpTransfer", "复制失败: " + source + " - " + errorMsg);
+                        error.compareAndSet(null, "复制失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+
+        if (!awaitLatchWithTimeoutDialog(latch, "复制 " + source)) {
+            return;
+        }
+        if (error.get() != null) throw new IOException(error.get());
+    }
+
+    /**
+     * 通过 API 复制文件夹：遍历文件，逐个 copyFileOrFolder + rename。
+     * 使用 CountDownLatch 逐个同步，避免并发问题。
+     */
+    private void apiCopyFolder(Context context, int deviceId, SFTPClient sftp,
+                               String sourceDir, String targetDir) throws Exception {
+        // 1. 收集所有文件和目录
+        List<String> directories = new ArrayList<>();
+        List<String[]> files = new ArrayList<>(); // [sourcePath, targetPath]
+        collectFolderStructure(sftp, sourceDir, targetDir, directories, files);
+
+        // 2. 创建目标目录结构（同步等待）
+        for (String dir : directories) {
+            if (cancelled.get()) return;
+            String dirName = dir.substring(dir.lastIndexOf('/') + 1);
+            String dirParent = parentPath(dir);
+            CountDownLatch dirLatch = new CountDownLatch(1);
+            new FileApi().createFileOrFolder(context, deviceId, "folder", dirParent, dirName,
+                    new FileApi.Callback() {
+                        @Override
+                        public void onSuccess(JSONObject data) {
+                            dirLatch.countDown();
+                        }
+
+                        @Override
+                        public void onFailure(String errorMsg) {
+                            // 目录可能已存在，忽略
+                            dirLatch.countDown();
+                        }
+                    });
+            if (!awaitLatchWithTimeoutDialog(dirLatch, "创建目录 " + dirName)) {
+                return; // 用户跳过
+            }
+        }
+
+        // 3. 逐个复制文件
+        for (String[] filePair : files) {
+            if (cancelled.get()) return;
+            String sourcePath = filePair[0];
+            String targetPath = filePair[1];
+            apiCopyFileToTarget(context, deviceId, sourcePath, targetPath);
+        }
+    }
+
+    /**
+     * 带进度回调的文件夹复制。
+     */
+    private void apiCopyFolderWithProgress(Context context, int deviceId, SFTPClient sftp,
+                                           String sourceDir, String targetDir,
+                                           int totalFiles, AtomicInteger completedFiles, long startedAt) throws Exception {
+        List<String> directories = new ArrayList<>();
+        List<String[]> files = new ArrayList<>();
+        collectFolderStructure(sftp, sourceDir, targetDir, directories, files);
+
+        // 创建目标目录结构
+        for (String dir : directories) {
+            if (cancelled.get()) return;
+            String dirName = dir.substring(dir.lastIndexOf('/') + 1);
+            String dirParent = parentPath(dir);
+            CountDownLatch dirLatch = new CountDownLatch(1);
+            new FileApi().createFileOrFolder(context, deviceId, "folder", dirParent, dirName,
+                    new FileApi.Callback() {
+                        @Override
+                        public void onSuccess(JSONObject data) {
+                            dirLatch.countDown();
+                        }
+
+                        @Override
+                        public void onFailure(String errorMsg) {
+                            dirLatch.countDown();
+                        }
+                    });
+            if (!awaitLatchWithTimeoutDialog(dirLatch, "创建目录 " + dirName)) {
+                return; // 用户跳过
+            }
+        }
+
+        // 逐个复制文件，更新进度
+        for (String[] filePair : files) {
+            if (cancelled.get()) return;
+            apiCopyFileToTarget(context, deviceId, filePair[0], filePair[1]);
+            int completed = completedFiles.incrementAndGet();
+            updateProgress(completed, totalFiles, completed, totalFiles,
+                    System.currentTimeMillis() - startedAt);
+        }
+    }
+
+    /**
+     * 统计远程目录中的文件数量（递归）。
+     */
+    private int countRemoteFiles(SFTPClient sftp, String remoteDir) throws IOException {
+        int count = 0;
+        for (RemoteResourceInfo info : sftp.ls(remoteDir)) {
+            String name = info.getName();
+            if (".".equals(name) || "..".equals(name)) continue;
+            if (info.isDirectory()) {
+                count += countRemoteFiles(sftp, FilePathUtils.appendPath(remoteDir, name));
+            } else {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 通过 API 复制单个文件到目标位置：copyFileOrFolder 产生副本 → rename 到目标。
+     */
+    private void apiCopyFileToTarget(Context context, int deviceId,
+                                     String sourcePath, String targetPath) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<String> error = new AtomicReference<>();
+
+        new FileApi().copyFileOrFolder(context, deviceId, sourcePath,
+                new FileApi.Callback() {
+                    @Override
+                    public void onSuccess(JSONObject data) {
+                        String sourceName = sourcePath.substring(sourcePath.lastIndexOf('/') + 1);
+                        String copyName = buildApiCopyName(sourceName);
+                        String copyPath = parentPath(sourcePath) + "/" + copyName;
+
+                        // rename 副本到目标位置
+                        new FileApi().renameFile(context, deviceId, copyPath, targetPath,
+                                new FileApi.Callback() {
+                                    @Override
+                                    public void onSuccess(JSONObject data) {
+                                        latch.countDown();
+                                    }
+
+                                    @Override
+                                    public void onFailure(String errorMsg) {
+                                        error.compareAndSet(null, "重命名失败: " + errorMsg);
+                                        latch.countDown();
+                                    }
+                                });
+                    }
+
+                    @Override
+                    public void onFailure(String errorMsg) {
+                        error.compareAndSet(null, "复制失败: " + errorMsg);
+                        latch.countDown();
+                    }
+                });
+
+        if (!awaitLatchWithTimeoutDialog(latch, "复制 " + sourcePath.substring(sourcePath.lastIndexOf('/') + 1))) {
+            return;
+        }
+        String err = error.get();
+        if (err != null) throw new IOException(err);
+    }
+
+    /**
+     * 递归收集文件夹结构。
+     */
+    private void collectFolderStructure(SFTPClient sftp, String sourceDir, String targetDir,
+                                        List<String> directories, List<String[]> files) throws IOException {
+        if (cancelled.get()) return;
+        directories.add(targetDir);
+        for (RemoteResourceInfo info : sftp.ls(sourceDir)) {
+            if (cancelled.get()) return;
+            String name = info.getName();
+            if (".".equals(name) || "..".equals(name)) continue;
+            String sourceChild = FilePathUtils.appendPath(sourceDir, name);
+            String targetChild = FilePathUtils.appendPath(targetDir, name);
+            if (info.isDirectory()) {
+                collectFolderStructure(sftp, sourceChild, targetChild, directories, files);
+            } else {
+                files.add(new String[]{sourceChild, targetChild});
+            }
+        }
+    }
+
+    /**
+     * 根据 API 副本命名规则生成副本文件名。
+     * 文件: start.sh → start copy.sh, .bashrc → " copy.bashrc"（前导空格）
+     */
+    private static String buildApiCopyName(String name) {
+        if (name.startsWith(".")) {
+            // 隐藏文件: .bashrc → " copy.bashrc"（前导空格）
+            return " copy." + name.substring(1);
+        }
+        int dot = name.lastIndexOf('.');
+        if (dot > 0) {
+            return name.substring(0, dot) + " copy" + name.substring(dot);
+        }
+        return name + " copy";
+    }
+
+    private static String parentPath(String path) {
+        int lastSlash = path.lastIndexOf('/');
+        return lastSlash > 0 ? path.substring(0, lastSlash) : "/";
+    }
+
+    private static class ServerTransferAction {
+        final String source;
+        final String target;
+        final boolean isFile;
+        final boolean replace;
+
+        ServerTransferAction(String source, String target, boolean isFile, boolean replace) {
+            this.source = source;
+            this.target = target;
+            this.isFile = isFile;
+            this.replace = replace;
+        }
     }
 
     private String describeItems(List<FileItem> items) {
@@ -260,6 +858,68 @@ class SftpTransferCoordinator {
             return "";
         }
         return items.size() == 1 ? items.get(0).getName() : items.size() + " 项";
+    }
+
+    /**
+     * 解析文件冲突，使用阻塞对话框等待用户选择。
+     * @param cachedAction 如果非 null，直接使用此决策而不弹窗
+     * @return 解析结果，包含动作和（可能更新的）缓存动作
+     */
+    private FileConflictDialog.ResolvedAction resolveConflict(String fileName, long incomingSize, String incomingTime,
+                                                               long existingSize, String existingTime,
+                                                               boolean showApplyAll,
+                                                               FileConflictDialog.ConflictAction cachedAction) {
+        if (cachedAction != null) {
+            return new FileConflictDialog.ResolvedAction(cachedAction, cachedAction);
+        }
+        FileConflictDialog dialog = new FileConflictDialog(activity);
+        FileConflictDialog.ConflictResult result = dialog.showBlocking(
+                fileName, incomingSize, incomingTime, existingSize, existingTime, showApplyAll);
+        FileConflictDialog.ConflictAction newCache = result.applyToAll ? result.action : null;
+        return new FileConflictDialog.ResolvedAction(result.action, newCache);
+    }
+
+    private File buildUniqueLocalTarget(File target) {
+        String name = target.getName();
+        String base = name;
+        String extension = "";
+        if (target.isFile()) {
+            int dot = name.lastIndexOf('.');
+            if (dot > 0) {
+                base = name.substring(0, dot);
+                extension = name.substring(dot);
+            }
+        }
+        File parent = target.getParentFile();
+        for (int i = 1; i < 1000; i++) {
+            String suffix = i == 1 ? " - 副本" : " - 副本 (" + i + ")";
+            File candidate = new File(parent, base + suffix + extension);
+            if (!candidate.exists()) {
+                return candidate;
+            }
+        }
+        return target;
+    }
+
+    private String buildUniqueRemoteTarget(SFTPClient sftp, String remoteTarget) throws IOException {
+        int lastSlash = remoteTarget.lastIndexOf('/');
+        String parent = lastSlash > 0 ? remoteTarget.substring(0, lastSlash) : "/";
+        String name = lastSlash >= 0 ? remoteTarget.substring(lastSlash + 1) : remoteTarget;
+        String base = name;
+        String extension = "";
+        int dot = name.lastIndexOf('.');
+        if (dot > 0) {
+            base = name.substring(0, dot);
+            extension = name.substring(dot);
+        }
+        for (int i = 1; i < 1000; i++) {
+            String suffix = i == 1 ? " - 副本" : " - 副本 (" + i + ")";
+            String candidate = parent + "/" + base + suffix + extension;
+            if (!remoteExists(sftp, candidate)) {
+                return candidate;
+            }
+        }
+        return remoteTarget;
     }
 
     private void runFileTasks(SftpCredentials credentials, List<TransferTask> tasks) throws Exception {
@@ -400,7 +1060,9 @@ class SftpTransferCoordinator {
                 }
                 target.write(offset, buffer, 0, read);
                 offset += read;
-                progress.reportRemoteFileProgress(task, offset);
+                if (progress != null) {
+                    progress.reportRemoteFileProgress(task, offset);
+                }
             }
         }
     }

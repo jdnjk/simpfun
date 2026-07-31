@@ -674,8 +674,16 @@ public class ManageFragment extends Fragment {
                 if (!isAdded()) return;
                 Toast.makeText(requireContext(), response.optString("msg", "结束支持成功"), Toast.LENGTH_SHORT).show();
                 cachedSupport = null;
-                fetchSupport(() -> supportActionRunning = false);
-                fetchSftp(true);
+
+                boolean isDev = cachedDetail != null && cachedDetail.optBoolean("dev", false);
+                if (isDev) {
+                    String instanceId = String.valueOf(activity.getDeviceId());
+                    SftpCredentialStore.get(requireContext()).delete(instanceId);
+                    returnToServerListAndRefresh();
+                } else {
+                    fetchSupport(() -> supportActionRunning = false);
+                    fetchSftp(true);
+                }
             }
 
             @Override

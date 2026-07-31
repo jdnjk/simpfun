@@ -658,12 +658,91 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         if (paths.isEmpty()) {
             return;
         }
+        // 预扫描冲突
+        try {
+            File targetDirectory = requireLocalFile(state.getCurrentPath());
+            java.util.Map<String, File> conflictFiles = new java.util.LinkedHashMap<>();
+            for (String path : paths) {
+                File source = requireLocalFile(path);
+                File target = new File(targetDirectory, source.getName());
+                if (target.exists()) {
+                    conflictFiles.put(path, target);
+                }
+            }
+            if (conflictFiles.isEmpty()) {
+                executeLocalMove(paths, null);
+            } else {
+                // 显示第一个冲突的对话框
+                showMoveConflictDialog(paths, conflictFiles, new java.util.ArrayList<>(conflictFiles.keySet()), 0, null, null);
+            }
+        } catch (Exception e) {
+            toast(e.getMessage() == null ? "移动失败" : e.getMessage(), Toast.LENGTH_LONG);
+        }
+    }
+
+    private void showMoveConflictDialog(List<String> allPaths, java.util.Map<String, File> conflictFiles,
+                                        List<String> conflictKeys, int index,
+                                        java.util.Map<String, FileConflictDialog.ConflictAction> resolutions,
+                                        FileConflictDialog.ConflictAction cachedAction) {
+        if (cachedAction != null) {
+            // 已有批量决策，填充剩余冲突的决策并执行
+            java.util.Map<String, FileConflictDialog.ConflictAction> allResolutions =
+                    resolutions != null ? new java.util.LinkedHashMap<>(resolutions) : new java.util.LinkedHashMap<>();
+            for (int i = index; i < conflictKeys.size(); i++) {
+                allResolutions.put(conflictKeys.get(i), cachedAction);
+            }
+            executeLocalMove(allPaths, allResolutions);
+            return;
+        }
+        if (index >= conflictKeys.size()) {
+            // 所有冲突已解决
+            executeLocalMove(allPaths, resolutions);
+            return;
+        }
+        String conflictPath = conflictKeys.get(index);
+        File existingFile = conflictFiles.get(conflictPath);
+        try {
+            File source = requireLocalFile(conflictPath);
+            boolean showApplyAll = (conflictKeys.size() - index) > 1;
+            new FileConflictDialog(requireActivity()).showForLocalFile(
+                    existingFile.getName(), existingFile, source, showApplyAll,
+                    (action, applyToAll) -> {
+                        // 记录当前冲突的决策
+                        java.util.Map<String, FileConflictDialog.ConflictAction> newResolutions =
+                                resolutions != null ? new java.util.LinkedHashMap<>(resolutions) : new java.util.LinkedHashMap<>();
+                        newResolutions.put(conflictPath, action);
+                        FileConflictDialog.ConflictAction nextCached = applyToAll ? action : null;
+                        showMoveConflictDialog(allPaths, conflictFiles, conflictKeys, index + 1, newResolutions, nextCached);
+                    });
+        } catch (Exception e) {
+            toast(e.getMessage(), Toast.LENGTH_LONG);
+        }
+    }
+
+    private java.util.Map<String, FileConflictDialog.ConflictAction> buildResolutionMap(
+            List<String> conflictKeys, FileConflictDialog.ConflictAction action) {
+        java.util.Map<String, FileConflictDialog.ConflictAction> map = new java.util.LinkedHashMap<>();
+        for (String key : conflictKeys) {
+            map.put(key, action);
+        }
+        return map;
+    }
+
+    private void executeLocalMove(List<String> paths, java.util.Map<String, FileConflictDialog.ConflictAction> resolutions) {
         runLocalOperation("移动完成", () -> {
             File targetDirectory = requireLocalFile(state.getCurrentPath());
             for (String path : paths) {
                 File source = requireLocalFile(path);
                 File target = new File(targetDirectory, source.getName());
-                ensureTargetAvailable(target);
+                if (target.exists()) {
+                    FileConflictDialog.ConflictAction action = resolutions != null ? resolutions.get(path) : null;
+                    if (action == null || action == FileConflictDialog.ConflictAction.SKIP) {
+                        continue;
+                    } else if (action == FileConflictDialog.ConflictAction.KEEP_BOTH) {
+                        target = buildCopyTarget(target);
+                    }
+                    // REPLACE: 直接覆盖
+                }
                 if (!source.renameTo(target)) {
                     copyRecursively(source, target);
                     deleteRecursively(source);

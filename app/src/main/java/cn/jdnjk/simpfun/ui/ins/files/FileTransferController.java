@@ -128,7 +128,18 @@ class FileTransferController {
             }
             return;
         }
-        downloadFile(item, true);
+        // 直接通过 API 在线编辑，无需先下载
+        Context context = host.getContextOrNull();
+        if (context == null) {
+            return;
+        }
+        int deviceId = host.getDeviceId(context);
+        if (deviceId <= 0) {
+            host.toast(context.getString(R.string.invalid_device_id), Toast.LENGTH_SHORT);
+            return;
+        }
+        String remotePath = FilePathUtils.appendPath(state.getCurrentPath(), item.getName());
+        openInternalEditor(remotePath, deviceId, item.getName());
     }
 
     void downloadFileOnly(FileItem item) {
@@ -237,29 +248,10 @@ class FileTransferController {
     }
 
     private void handleEditorResult(@NonNull Intent data) {
-        Context context = host.getContextOrNull();
-        if (context == null) {
-            return;
+        // 文件已通过 API 直接保存到服务器，刷新文件列表即可
+        if (host.isActive()) {
+            host.reloadFileList();
         }
-        String localPath = data.getStringExtra("local_path");
-        String remotePath = data.getStringExtra("remote_path");
-        int serverId = data.getIntExtra("server_id", -1);
-        if (localPath == null || remotePath == null || serverId <= 0) {
-            host.toast("保存结果无上传配置", Toast.LENGTH_SHORT);
-            return;
-        }
-        if (preparingUpload || currentUploadHandle != null) {
-            host.toast("已有上传任务正在进行", Toast.LENGTH_SHORT);
-            return;
-        }
-        File file = new File(localPath);
-        if (!file.exists()) {
-            host.toast("本地文件不存在", Toast.LENGTH_SHORT);
-            return;
-        }
-        String remoteDir = FilePathUtils.getParentPath(remotePath);
-        startUpload(context.getApplicationContext(), serverId, remoteDir, file, false,
-                FilePathUtils.sanitizeFileName(data.getStringExtra("file_name"), file.getName()));
     }
 
     private void startUpload(Context appContext, int serverId, String remoteDir, File file,
@@ -590,7 +582,7 @@ class FileTransferController {
                     return;
                 }
                 if (openEditor) {
-                    openInternalEditor(file, remotePath, deviceId, item.getName());
+                    openInternalEditor(remotePath, deviceId, item.getName());
                 } else {
                     host.toast("下载完成: " + file.getAbsolutePath(), Toast.LENGTH_LONG);
                 }
@@ -626,14 +618,13 @@ class FileTransferController {
         }
     }
 
-    private void openInternalEditor(File file, String remotePath, int deviceId, String displayName) {
+    private void openInternalEditor(String remotePath, int deviceId, String displayName) {
         try {
             Context context = host.getContextOrNull();
             if (context == null) {
                 return;
             }
             Intent intent = new Intent(context, FileEditorActivity.class);
-            intent.putExtra("local_path", file.getAbsolutePath());
             intent.putExtra("remote_path", remotePath);
             intent.putExtra("file_name", displayName);
             intent.putExtra("server_id", deviceId);

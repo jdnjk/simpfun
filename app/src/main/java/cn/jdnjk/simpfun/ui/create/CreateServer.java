@@ -48,6 +48,7 @@ public class CreateServer extends AppCompatActivity {
     public static final String EXTRA_SERVER_ID = "extra_server_id";
     public static final String EXTRA_RESULT_NEW_ID = "extra_result_new_id";
     public static final String EXTRA_RESULT_CHANGE_CONFIG = "extra_result_change_config";
+    public static final String EXTRA_RESULT_CREATED = "extra_result_created";
     public static final String EXTRA_CURRENT_GAME_NAME = "extra_current_game_name";
     public static final String EXTRA_CURRENT_KIND_NAME = "extra_current_kind_name";
     public static final String EXTRA_CURRENT_IMAGE_NAME = "extra_current_image_name";
@@ -978,6 +979,9 @@ public class CreateServer extends AppCompatActivity {
                         JSONObject o = new JSONObject(body);
                         if (o.optInt("code") == 200) {
                             Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show();
+                            Intent result = new Intent();
+                            result.putExtra(EXTRA_RESULT_CREATED, true);
+                            setResult(RESULT_OK, result);
                             finish();
                         } else {
                             Feedback.error(CreateServer.this, o.optString("msg", "创建失败"));

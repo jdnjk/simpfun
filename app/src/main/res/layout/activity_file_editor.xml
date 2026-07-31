@@ -104,6 +104,14 @@
 
     </LinearLayout>
 
+    <ProgressBar
+        android:id="@+id/loading_indicator"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
     <io.github.rosemoe.sora.widget.CodeEditor
         android:id="@+id/code_editor"
         android:layout_width="match_parent"
