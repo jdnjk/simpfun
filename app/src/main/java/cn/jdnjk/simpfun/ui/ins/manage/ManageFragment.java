@@ -116,7 +116,6 @@ public class ManageFragment extends Fragment {
             });
 
     private AutoCompleteTextView tvPlanFilter;
-    private RecyclerView rvDiamondPlans;
     private MaterialButton btnApplyDiamondPlan;
     private DiamondPlanAdapter diamondPlanAdapter;
     private JSONArray allDiamondPlans;
@@ -169,11 +168,6 @@ public class ManageFragment extends Fragment {
     public void onStop() {
         clearScreenshotProtection();
         super.onStop();
-    }
-
-    @Nullable
-    public JSONObject getCachedDetail() {
-        return cachedDetail;
     }
 
     private void applyScreenshotProtection() {
@@ -246,7 +240,7 @@ public class ManageFragment extends Fragment {
         });
 
         tvPlanFilter = root.findViewById(R.id.tv_plan_filter);
-        rvDiamondPlans = root.findViewById(R.id.rv_diamond_plans);
+        RecyclerView rvDiamondPlans = root.findViewById(R.id.rv_diamond_plans);
         btnApplyDiamondPlan = root.findViewById(R.id.btn_apply_diamond_plan);
 
         String[] filterOptions = {"当前实例类型", "所有实例类型"};

@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
@@ -38,7 +39,7 @@ import cn.jdnjk.simpfun.utils.FilePathUtils;
 import cn.jdnjk.simpfun.utils.StoragePermissionHelper;
 
 public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Callbacks, LocalFileListController.Host {
-    private static final String LOCAL_ROOT = "/sdcard";
+    private static final String LOCAL_ROOT = Environment.getExternalStorageDirectory().getPath();
     private static final String ARG_INITIAL_PATH = "initial_path";
 
     static LocalFilePaneFragment newInstance(String initialPath) {
@@ -355,10 +356,6 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         showEditPathDialog();
     }
 
-    void deleteLocalPathForHost(String virtualPath) throws Exception {
-        deleteRecursively(requireLocalFile(virtualPath));
-    }
-
     private void showToolbarNewEntryDialog() {
         Context context = getContext();
         if (context == null) {
@@ -403,7 +400,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
             } else if (!target.mkdirs() && !target.isDirectory()) {
                 throw new IOException("创建文件夹失败");
             }
-        }, true, false);
+        }, false);
     }
 
     private void showDualLocalPopup(FileItem item, View anchor) {
@@ -427,7 +424,13 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                     return true;
                 });
         popupMenu.getMenu().add(R.string.file_action_delete).setOnMenuItemClickListener(menuItem -> {
-            showDeleteConfirmDialog(state.singlePathList(item), item.getName());
+            // 处于多选状态且长按的是已选文件时，删除整个选中集；否则只删除当前文件
+            if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+                List<String> selected = state.copySelectedPaths();
+                showDeleteConfirmDialog(selected, selected.size() + " 项");
+            } else {
+                showDeleteConfirmDialog(state.singlePathList(item), item.getName());
+            }
             return true;
         });
         popupMenu.getMenu().add(R.string.file_action_rename).setOnMenuItemClickListener(menuItem -> {
@@ -616,7 +619,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
             if (!source.renameTo(target)) {
                 throw new IOException("重命名失败");
             }
-        }, true, false);
+        }, false);
     }
 
     private void copyAsSibling(FileItem item) {
@@ -624,7 +627,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
             File source = requireLocalFile(state.getItemPath(item));
             File target = buildCopyTarget(source);
             copyRecursively(source, target);
-        }, true, false);
+        }, false);
     }
 
     private void copyPaths(List<FileItem> items) {
@@ -637,7 +640,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                 File target = buildCopyTarget(source);
                 copyRecursively(source, target);
             }
-        }, true, true);
+        }, true);
     }
 
     private void deletePaths(List<String> paths) {
@@ -645,7 +648,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
             for (String path : paths) {
                 deleteRecursively(requireLocalFile(path));
             }
-        }, true, true);
+        }, true);
     }
 
     private void movePendingToCurrentPath() {
@@ -704,28 +707,21 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         try {
             File source = requireLocalFile(conflictPath);
             boolean showApplyAll = (conflictKeys.size() - index) > 1;
-            new FileConflictDialog(requireActivity()).showForLocalFile(
-                    existingFile.getName(), existingFile, source, showApplyAll,
-                    (action, applyToAll) -> {
-                        // 记录当前冲突的决策
-                        java.util.Map<String, FileConflictDialog.ConflictAction> newResolutions =
-                                resolutions != null ? new java.util.LinkedHashMap<>(resolutions) : new java.util.LinkedHashMap<>();
-                        newResolutions.put(conflictPath, action);
-                        FileConflictDialog.ConflictAction nextCached = applyToAll ? action : null;
-                        showMoveConflictDialog(allPaths, conflictFiles, conflictKeys, index + 1, newResolutions, nextCached);
-                    });
+            if (existingFile != null) {
+                new FileConflictDialog(requireActivity()).showForLocalFile(
+                        existingFile.getName(), existingFile, source, showApplyAll,
+                        (action, applyToAll) -> {
+                            // 记录当前冲突的决策
+                            java.util.Map<String, FileConflictDialog.ConflictAction> newResolutions =
+                                    resolutions != null ? new java.util.LinkedHashMap<>(resolutions) : new java.util.LinkedHashMap<>();
+                            newResolutions.put(conflictPath, action);
+                            FileConflictDialog.ConflictAction nextCached = applyToAll ? action : null;
+                            showMoveConflictDialog(allPaths, conflictFiles, conflictKeys, index + 1, newResolutions, nextCached);
+                        });
+            }
         } catch (Exception e) {
             toast(e.getMessage(), Toast.LENGTH_LONG);
         }
-    }
-
-    private java.util.Map<String, FileConflictDialog.ConflictAction> buildResolutionMap(
-            List<String> conflictKeys, FileConflictDialog.ConflictAction action) {
-        java.util.Map<String, FileConflictDialog.ConflictAction> map = new java.util.LinkedHashMap<>();
-        for (String key : conflictKeys) {
-            map.put(key, action);
-        }
-        return map;
     }
 
     private void executeLocalMove(List<String> paths, java.util.Map<String, FileConflictDialog.ConflictAction> resolutions) {
@@ -748,10 +744,10 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                     deleteRecursively(source);
                 }
             }
-        }, true, true);
+        }, true);
     }
 
-    private void runLocalOperation(String successMessage, LocalOperation operation, boolean reload, boolean clearSelectionAndMove) {
+    private void runLocalOperation(String successMessage, LocalOperation operation, boolean clearSelectionAndMove) {
         operationExecutor.execute(() -> {
             try {
                 operation.run();
@@ -763,7 +759,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                         state.clearSelection();
                         state.clearPendingMove();
                     }
-                    if (reload) {
+                    if (true) {
                         renderNavigationState();
                         loadFileList();
                     }

@@ -236,7 +236,7 @@
                 android:layout_height="28dp"
                 android:layout_marginEnd="18dp"
                 android:src="@drawable/ic_refresh"
-                android:contentDescription="当���版本"
+                android:contentDescription="当前版本"
                 app:tint="?attr/colorOnSurfaceVariant" />
 
             <LinearLayout

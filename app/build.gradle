@@ -18,13 +18,13 @@ android {
     compileSdkVersion 36
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.1.4.8\""
-        buildConfigField 'int', 'VERSION_CODE', "11480"
+        buildConfigField "String", "VERSION_NAME", "\"1.1.4.9\""
+        buildConfigField 'int', 'VERSION_CODE', "11491"
         applicationId "cn.jdnjk.simpfun"
         minSdkVersion 23
         targetSdkVersion 35
-        versionCode 11480
-        versionName "1.1.4.8"
+        versionCode 11491
+        versionName "1.1.4.9"
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }
@@ -104,6 +104,7 @@ dependencies {
 
     implementation 'io.github.rosemoe:editor:0.24.6'
     implementation 'io.github.rosemoe:language-textmate:0.24.6'
+    implementation 'io.github.rosemoe:oniguruma-native:0.24.6'
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     api 'com.alipay.sdk:alipaysdk-android:15.8.42'

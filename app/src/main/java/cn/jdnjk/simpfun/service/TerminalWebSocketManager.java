@@ -56,10 +56,6 @@ public class TerminalWebSocketManager {
         return instance;
     }
 
-    public void addListener(TerminalWebSocketListener listener) {
-        addListener(listener, currentDeviceId);
-    }
-
     public void addListener(TerminalWebSocketListener listener, int deviceId) {
         listenerDeviceIds.put(listener, deviceId);
         if (!listeners.contains(listener)) {
@@ -78,10 +74,6 @@ public class TerminalWebSocketManager {
     public void removeListener(TerminalWebSocketListener listener) {
         listeners.remove(listener);
         listenerDeviceIds.remove(listener);
-    }
-
-    public void connect(Context context, int deviceId) {
-        connect(context, deviceId, false);
     }
 
     public void connect(Context context, int deviceId, boolean requestLogs) {
@@ -325,10 +317,6 @@ public class TerminalWebSocketManager {
         });
     }
 
-    public boolean sendCommand(String command) {
-        return sendCommand(currentDeviceId, command);
-    }
-
     public boolean sendCommand(int deviceId, String command) {
         if (deviceId != currentDeviceId || command == null || command.trim().isEmpty() || webSocket == null || !isSocketOpen) return false;
         try {
@@ -369,10 +357,6 @@ public class TerminalWebSocketManager {
         } catch (Exception ignored) {}
     }
 
-    public void requestLogs() {
-        requestLogs(false);
-    }
-
     public void requestLogs(boolean clearExisting) {
         isLogsRequested = true;
         if (clearExisting) {
@@ -390,17 +374,6 @@ public class TerminalWebSocketManager {
                 logBuffer.remove(0);
             }
         }
-    }
-
-    public void disconnect() {
-        connectionGeneration++;
-        isManualClose = true;
-        isConnecting = false;
-        isLogsRequested = false;
-        isSocketOpen = false;
-        closeCurrentSocket();
-        currentDeviceId = -1;
-        clearBuffer();
     }
 
     private void closeCurrentSocket() {

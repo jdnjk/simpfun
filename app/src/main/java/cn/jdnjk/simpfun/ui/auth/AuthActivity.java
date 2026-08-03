@@ -29,6 +29,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.GetToken;
+import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.SplashActivity;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
@@ -221,7 +222,7 @@ public class AuthActivity extends AppCompatActivity {
             public void onSuccess(String token) {
                 // 竟然成功了？说明密码刚好是00000000
                 showLoading(false);
-                onAuthSuccess("登录成功");
+                onAuthSuccess(token);
             }
 
             @Override
@@ -322,7 +323,7 @@ public class AuthActivity extends AppCompatActivity {
             public void onSuccess(String token) {
                 if (!isAlive()) return;
                 showLoading(false);
-                onAuthSuccess("登录成功");
+                onAuthSuccess(token);
             }
 
             @Override
@@ -340,8 +341,37 @@ public class AuthActivity extends AppCompatActivity {
         });
     }
 
-    private void onAuthSuccess(String msg) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    private void onAuthSuccess(String token) {
+        Toast.makeText(this, "登录成功", Toast.LENGTH_SHORT).show();
+        fetchUserInfoThenNavigate(token);
+    }
+
+    /**
+     * 登录成功后立即拉取并缓存用户信息（写入 user_info 偏好），
+     * 避免首次登录个人主页显示默认数据。拉取失败不阻塞进入主页，
+     * 数据可通过下拉刷新或下次启动补齐。
+     */
+    private void fetchUserInfoThenNavigate(String token) {
+        if (token == null || token.isEmpty()) {
+            navigateAfterAuth();
+            return;
+        }
+        new UserApi(this).UserInfo(token, new UserApi.AuthCallback() {
+            @Override
+            public void onSuccess() {
+                if (!isAlive()) return;
+                navigateAfterAuth();
+            }
+
+            @Override
+            public void onFailure() {
+                if (!isAlive()) return;
+                navigateAfterAuth();
+            }
+        });
+    }
+
+    private void navigateAfterAuth() {
         Intent intent;
         if (pendingServerId != -1) {
             intent = new Intent(this, ServerManages.class);

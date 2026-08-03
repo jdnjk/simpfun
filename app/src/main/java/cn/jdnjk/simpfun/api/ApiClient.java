@@ -90,7 +90,7 @@ public class ApiClient {
 
             ResponseBody responseBody = response.body();
             if (BuildConfig.DEBUG) {
-                if (responseBody != null && isPlainText(responseBody.contentType())) {
+                if (isPlainText(responseBody.contentType())) {
                     try {
                         ResponseBody peekBody = response.peekBody(MAX_LOG_BYTES);
                         String content = peekBody.string();
@@ -101,7 +101,7 @@ public class ApiClient {
                     } catch (Exception e) {
                         Log.d("ApiClient", "Could not log response body: " + e.getMessage());
                     }
-                } else if (responseBody != null) {
+                } else {
                     Log.d("ApiClient", "Response: <binary or unsupported content omitted>");
                 }
             }

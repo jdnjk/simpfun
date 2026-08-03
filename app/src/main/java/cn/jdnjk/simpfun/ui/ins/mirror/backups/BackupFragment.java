@@ -14,7 +14,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.PopupMenu;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -84,7 +83,7 @@ public class BackupFragment extends Fragment {
     }
 
     private boolean isViewAlive() {
-        return isAdded() && getView() != null && getContext() != null;
+        return !isAdded() || getView() == null || getContext() == null;
     }
 
     @Override
@@ -122,7 +121,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void showSelectionMenu() {
-        if (!isViewAlive() || btnToggleMulti == null) return;
+        if (isViewAlive() || btnToggleMulti == null) return;
         PopupMenu popupMenu = new PopupMenu(requireContext(), btnToggleMulti);
         popupMenu.getMenu().add("删除所选");
         popupMenu.getMenu().add("完成选择");
@@ -142,7 +141,7 @@ public class BackupFragment extends Fragment {
         if (isLoading) {
             return;
         }
-        if (!isViewAlive()) {
+        if (isViewAlive()) {
             return;
         }
         isLoading = true;
@@ -207,7 +206,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void showBackupActionMenu(BackupItem item, View anchor) {
-        if (!isViewAlive()) return;
+        if (isViewAlive()) return;
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         popupMenu.getMenu().add("还原");
         popupMenu.getMenu().add("重命名");
@@ -230,7 +229,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void restoreBackup(BackupItem selected) {
-        if (!isViewAlive()) return;
+        if (isViewAlive()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认还原")
                 .setMessage("将还原到备份 #" + selected.getId() + "，确认继续？")
@@ -250,7 +249,7 @@ public class BackupFragment extends Fragment {
 
                         @Override
                         public void onFailure(String errorMsg) {
-                            if (!isViewAlive()) return;
+                            if (isViewAlive()) return;
                             Feedback.error(getView(), "还原失败: " + errorMsg,
                                     "重试", () -> restoreBackup(selected));
                         }
@@ -261,7 +260,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void renameBackup(BackupItem selected) {
-        if (!isViewAlive()) return;
+        if (isViewAlive()) return;
         final EditText input = new EditText(requireContext());
         input.setText(selected.getTag());
         input.setSelection(input.getText().length());
@@ -286,7 +285,7 @@ public class BackupFragment extends Fragment {
                     new MirrorApi(requireContext()).renameBackup(token, deviceId, selected.getId(), newTag, new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
-                            if (!isViewAlive()) return;
+                            if (isViewAlive()) return;
                             showMessage("重命名成功", false);
                             loadBackups(false);
                         }
@@ -312,7 +311,7 @@ public class BackupFragment extends Fragment {
         new MirrorApi(requireContext()).getDownloadKey(token, deviceId, selected.getId(), new MirrorApi.Callback() {
             @Override
             public void onSuccess(JSONObject response) {
-                if (!isViewAlive()) return;
+                if (isViewAlive()) return;
                 String uuid = response.optString("uuid", "");
                 if (uuid.isEmpty()) {
                     showMessage("下载密钥为空", true);
@@ -323,7 +322,7 @@ public class BackupFragment extends Fragment {
 
             @Override
             public void onFailure(String errorMsg) {
-                if (!isViewAlive()) return;
+                if (isViewAlive()) return;
                 Feedback.error(getView(), "获取下载密钥失败: " + errorMsg,
                         "重试", () -> downloadBackup(selected));
             }
@@ -331,7 +330,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void enqueueSystemDownload(BackupItem item, String uuid) {
-        if (!isViewAlive()) return;
+        if (isViewAlive()) return;
         try {
             DownloadManager downloadManager = (DownloadManager) requireContext().getSystemService(Context.DOWNLOAD_SERVICE);
             if (downloadManager == null) {
@@ -367,7 +366,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void confirmDeleteSingleBackup(BackupItem item) {
-        if (!isViewAlive()) return;
+        if (isViewAlive()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定删除备份 “" + getBackupDisplayName(item) + "” 吗？")
@@ -381,7 +380,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void deleteSelectedBackups() {
-        if (!isViewAlive() || adapter == null) return;
+        if (isViewAlive() || adapter == null) return;
         List<BackupItem> selected = adapter.getSelectedItems();
         if (selected.isEmpty()) {
             showMessage("请先选择备份", true);
@@ -397,7 +396,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void deleteBackupsConcurrent(List<BackupItem> selected) {
-        if (!isViewAlive()) return;
+        if (isViewAlive()) return;
         String token = getToken();
         int deviceId = getDeviceId();
         if (token == null || deviceId <= 0) {
@@ -417,7 +416,7 @@ public class BackupFragment extends Fragment {
                 public void onSuccess(JSONObject response) {
                     success.incrementAndGet();
                     if (finished.incrementAndGet() == total) {
-                        if (!isViewAlive()) return;
+                        if (isViewAlive()) return;
                         showMessage("删除完成: 成功" + success.get() + "，失败" + failed.get(), false);
                         loadBackups(false);
                     }
@@ -427,7 +426,7 @@ public class BackupFragment extends Fragment {
                 public void onFailure(String errorMsg) {
                     failed.incrementAndGet();
                     if (finished.incrementAndGet() == total) {
-                        if (!isViewAlive()) return;
+                        if (isViewAlive()) return;
                         showMessage("删除完成: 成功" + success.get() + "，失败" + failed.get(), false);
                         loadBackups(false);
                     }
@@ -460,7 +459,7 @@ public class BackupFragment extends Fragment {
                     new MirrorApi(requireContext()).createBackup(token, deviceId, tag, new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
-                            if (!isViewAlive()) return;
+                            if (isViewAlive()) return;
                             String msg = response.optString("msg", "备份任务创建成功");
                             showMessage(msg, false);
                             loadBackups(false);
@@ -521,7 +520,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void showMessage(String msg, boolean isError) {
-        if (!isViewAlive()) {
+        if (isViewAlive()) {
             return;
         }
         if (isError) {

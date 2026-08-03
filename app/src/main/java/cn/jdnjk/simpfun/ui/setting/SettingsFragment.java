@@ -121,6 +121,13 @@ public class SettingsFragment extends Fragment {
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+        // 切后台或离开页面时立即落盘，防止进程被杀导致最近一次修改丢失
+        SettingsSaveManager.getInstance(requireContext()).flush();
+    }
+
+    @Override
     public void onDestroyView() {
         SettingsSaveManager.getInstance(requireContext()).flush();
         bottomNavBinding.detach(scrollView);

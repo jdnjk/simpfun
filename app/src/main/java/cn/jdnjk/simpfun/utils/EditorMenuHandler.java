@@ -1,6 +1,7 @@
 package cn.jdnjk.simpfun.utils;
 
 import android.app.Activity;
+import android.os.Build;
 import android.view.View;
 import android.widget.PopupMenu;
 import android.widget.Toast;
@@ -29,6 +30,7 @@ import okhttp3.*;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jspecify.annotations.NonNull;
 
 public class EditorMenuHandler {
 
@@ -43,10 +45,6 @@ public class EditorMenuHandler {
     private Charset currentEncoding = StandardCharsets.UTF_8;
     private boolean wordWrapEnabled;
     private static final String MS_TRANSLATOR_REGION = "global";
-
-    public EditorMenuHandler(Activity activity, CodeEditor codeEditor, String localPath) {
-        this(activity, codeEditor, localPath, true, null);
-    }
 
     public EditorMenuHandler(Activity activity, CodeEditor codeEditor, String localPath, boolean wordWrapEnabled,
             WordWrapChangeListener wordWrapChangeListener) {
@@ -70,8 +68,14 @@ public class EditorMenuHandler {
             java.lang.reflect.Field field = popup.getClass().getDeclaredField("mPopup");
             field.setAccessible(true);
             Object menuPopupHelper = field.get(popup);
-            Class<?> classPopupHelper = Class.forName(menuPopupHelper.getClass().getName());
-            java.lang.reflect.Method setForceShowIcon = classPopupHelper.getMethod("setForceShowIcon", boolean.class);
+            Class<?> classPopupHelper = null;
+            if (menuPopupHelper != null) {
+                classPopupHelper = Class.forName(menuPopupHelper.getClass().getName());
+            }
+            java.lang.reflect.Method setForceShowIcon = null;
+            if (classPopupHelper != null) {
+                setForceShowIcon = classPopupHelper.getMethod("setForceShowIcon", boolean.class);
+            }
             setForceShowIcon.invoke(menuPopupHelper, true);
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,15 +221,19 @@ public class EditorMenuHandler {
         String[][] syntaxes = {
             {"Auto Detect", null},
             {"Batch", "source.batchfile"},
+            {"C", "source.c"},
+            {"C++", "source.cpp"},
             {"HTML", "text.html.basic"},
             {"INI", "source.ini"},
             {"Java", "source.java"},
             {"JavaScript", "source.js"},
             {"JSON", "source.json"},
+            {"Kotlin", "source.kotlin"},
             {"Log", "text.log"},
             {"Markdown", "text.html.markdown"},
             {"Python", "source.python"},
             {"Shell Script", "source.shell"},
+            {"TOML", "source.toml"},
             {"XML", "text.xml"},
             {"YAML", "source.yaml"}
         };
@@ -255,7 +263,7 @@ public class EditorMenuHandler {
             View searchPanel = activity.findViewById(R.id.editor_search_panel);
             searchPanel.setVisibility(View.VISIBLE);
 
-            final View replaceLayout = searchPanel.findViewById(R.id.layout_replace);
+            searchPanel.findViewById(R.id.layout_replace);
             final android.widget.EditText etSearch = searchPanel.findViewById(R.id.et_search_text);
             final android.widget.EditText etReplace = searchPanel.findViewById(R.id.et_replace_text);
             final android.widget.TextView tvResult = searchPanel.findViewById(R.id.tv_search_result);
@@ -334,7 +342,7 @@ public class EditorMenuHandler {
                 if (query.isEmpty()) return;
                 try {
                     codeEditor.getSearcher().gotoPrevious();
-                } catch (Exception e) {}
+                } catch (Exception ignored) {}
             });
 
             searchPanel.findViewById(R.id.btn_next).setOnClickListener(v -> {
@@ -342,12 +350,12 @@ public class EditorMenuHandler {
                 if (query.isEmpty()) return;
                 try {
                     codeEditor.getSearcher().gotoNext();
-                } catch (Exception e) {}
+                } catch (Exception ignored) {}
             });
 
             searchPanel.findViewById(R.id.btn_replace).setOnClickListener(v -> {
                 try {
-                    if (etSearch.getText().length() > 0) {
+                    if (!etSearch.getText().toString().isEmpty()) {
                         codeEditor.getSearcher().replaceCurrentMatch(etReplace.getText().toString());
                     }
                 } catch (Exception e) {
@@ -357,8 +365,10 @@ public class EditorMenuHandler {
 
             searchPanel.findViewById(R.id.btn_replace_all).setOnClickListener(v -> {
                try {
-                   if (etSearch.getText().length() > 0) {
-                       codeEditor.getSearcher().replaceAll(etReplace.getText().toString());
+                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                       if (!etSearch.getText().isEmpty()) {
+                           codeEditor.getSearcher().replaceAll(etReplace.getText().toString());
+                       }
                    }
                } catch (Exception e) {
                    Toast.makeText(activity, "替换全部失败", Toast.LENGTH_SHORT).show();
@@ -425,13 +435,13 @@ public class EditorMenuHandler {
 
         translateBatch(commentsToTranslate, new Callback() {
             @Override
-            public void onFailure(Call call, IOException e) {
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
                 final String message = e.getMessage();
                 postToUi(() -> Toast.makeText(activity, "翻译请求失败: " + message, Toast.LENGTH_SHORT).show());
             }
 
             @Override
-            public void onResponse(Call call, Response response) {
+            public void onResponse(@NonNull Call call, @NonNull Response response) {
                 // 本回调运行在 OkHttp 的后台线程，body 读取与文本替换都在这里完成，主线程只负责 setText
                 try (Response resp = response) {
                     if (!resp.isSuccessful()) {
@@ -501,7 +511,7 @@ public class EditorMenuHandler {
             JSONObject obj = new JSONObject();
             try {
                 obj.put("Text", cleanText);
-            } catch (Exception e) {}
+            } catch (Exception ignored) {}
             jsonBody.put(obj);
         }
 
@@ -515,9 +525,7 @@ public class EditorMenuHandler {
                 .addHeader("Ocp-Apim-Subscription-Key", BuildConfig.mst_ID)
                 .addHeader("Content-Type", "application/json");
 
-        if (!MS_TRANSLATOR_REGION.isEmpty()) {
-            builder.addHeader("Ocp-Apim-Subscription-Region", MS_TRANSLATOR_REGION);
-        }
+        builder.addHeader("Ocp-Apim-Subscription-Region", MS_TRANSLATOR_REGION);
 
         client.newCall(builder.build()).enqueue(callback);
     }

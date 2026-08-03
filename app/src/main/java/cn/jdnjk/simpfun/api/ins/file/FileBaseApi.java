@@ -31,7 +31,13 @@ public class FileBaseApi {
                         String responseBody = response.body().string();
 
                         if (!response.isSuccessful()) {
-                            invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
+                            // 服务端可能返回 HTML 错误页（如非文本文件 fetch 返回 500），给出更明确的提示
+                            String hint = "";
+                            String trimmed = responseBody.trim().toLowerCase();
+                            if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")) {
+                                hint = "（服务器返回错误页面，文件可能不是文本文件）";
+                            }
+                            invokeCallback(callback, null, false, "HTTP 错误: " + response.code() + hint);
                             return;
                         }
 

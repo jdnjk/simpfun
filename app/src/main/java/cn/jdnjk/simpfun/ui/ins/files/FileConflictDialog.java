@@ -89,18 +89,6 @@ class FileConflictDialog {
         show(fileName, incomingSize, incomingTime, existingSize, existingTime, showApplyAll, callback);
     }
 
-    /**
-     * 从本地文件获取信息并显示对话框（同步阻塞方式）
-     */
-    ConflictResult showForLocalFileBlocking(String fileName, File existingFile, File incomingFile,
-                                            boolean showApplyAll) {
-        String existingTime = formatFileTime(existingFile.lastModified());
-        long existingSize = existingFile.length();
-        String incomingTime = incomingFile != null ? formatFileTime(incomingFile.lastModified()) : "-";
-        long incomingSize = incomingFile != null ? incomingFile.length() : 0;
-        return showBlocking(fileName, incomingSize, incomingTime, existingSize, existingTime, showApplyAll);
-    }
-
     private void showDialogOnMainThread(String fileName, long incomingSize, String incomingTime,
                                         long existingSize, String existingTime,
                                         boolean showApplyAll, Callback callback) {
@@ -116,7 +104,6 @@ class FileConflictDialog {
         TextView existingText = view.findViewById(R.id.text_existing_info);
         RadioGroup radioGroup = view.findViewById(R.id.radio_group_conflict);
         RadioButton radioReplace = view.findViewById(R.id.radio_replace);
-        RadioButton radioSkip = view.findViewById(R.id.radio_skip);
         MaterialCheckBox applyAllCheckbox = view.findViewById(R.id.checkbox_apply_all);
 
         filenameText.setText(fileName);

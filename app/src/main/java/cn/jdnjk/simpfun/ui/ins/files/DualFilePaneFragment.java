@@ -110,10 +110,6 @@ public class DualFilePaneFragment extends Fragment {
         }
     }
 
-    private boolean isViewAlive() {
-        return isAdded() && getView() != null && getContext() != null;
-    }
-
     @Override
     public void onDestroyView() {
         if (transferCoordinator != null) {
@@ -155,16 +151,8 @@ public class DualFilePaneFragment extends Fragment {
         swapPanes();
     }
 
-    void requestCrossCopy(Fragment fragment, cn.jdnjk.simpfun.model.FileItem item) {
-        startCrossTransfer(fragment, java.util.Collections.singletonList(item), false);
-    }
-
     void requestCrossCopy(Fragment fragment, java.util.List<cn.jdnjk.simpfun.model.FileItem> items) {
         startCrossTransfer(fragment, items, false);
-    }
-
-    void requestCrossMove(Fragment fragment, cn.jdnjk.simpfun.model.FileItem item) {
-        startCrossTransfer(fragment, java.util.Collections.singletonList(item), true);
     }
 
     void requestCrossMove(Fragment fragment, java.util.List<cn.jdnjk.simpfun.model.FileItem> items) {
@@ -416,14 +404,6 @@ public class DualFilePaneFragment extends Fragment {
             return null;
         }
         return slot == leftSlot ? rightSlot : leftSlot;
-    }
-
-    private String paneSideLabel(PaneSide side) {
-        return side == PaneSide.LEFT ? "左侧" : "右侧";
-    }
-
-    private String paneKindLabel(PaneKind kind) {
-        return kind == PaneKind.LOCAL ? "本地" : "服务器";
     }
 
     private Fragment getActiveFragment() {

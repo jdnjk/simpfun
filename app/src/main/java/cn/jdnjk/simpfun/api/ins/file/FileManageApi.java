@@ -42,6 +42,11 @@ public class FileManageApi extends FileBaseApi {
             invokeCallback(callback, null, false, "名称 (name) 不能为空");
             return;
         }
+        // 面板 API 约定 root 必须以 "/" 结尾，服务端按 root + name 直接拼接目标路径。
+        // 若 root 不带结尾斜杠，例如在 /example/ex 下创建 test 会被错误拼成 /example/extest。
+        if (!root.endsWith("/")) {
+            root = root + "/";
+        }
 
         String token = getToken(context);
         if (token == null || token.isEmpty()) {

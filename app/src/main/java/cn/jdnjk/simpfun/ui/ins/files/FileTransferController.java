@@ -34,7 +34,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -47,6 +50,10 @@ import cn.jdnjk.simpfun.notification.TaskQueueNotificationHelper;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
 
 class FileTransferController {
+    public Fragment getFragment() {
+        return fragment;
+    }
+
     interface Host {
         Context getContextOrNull();
         boolean isActive();
@@ -59,6 +66,25 @@ class FileTransferController {
     private static final String TAG = "FileTransferController";
     private static final long MAX_UPLOAD_SIZE_BYTES = 1000L * 1024L * 1024L;
     private static final long MAX_EDITOR_SIZE_BYTES = 5L * 1024L * 1024L;
+
+    /**
+     * 已知的二进制文件扩展名。这些文件无法在线编辑（服务端 /file/fetch 会返回 500），
+     * 点击时直接提示，避免进入编辑器后失败再弹回文件列表。
+     */
+    private static final Set<String> BINARY_EXTENSIONS = new HashSet<>(Arrays.asList(
+            // 压缩包
+            "jar", "zip", "7z", "rar", "gz", "tar", "bz2", "xz", "war", "ear", "apk", "aab",
+            // 图片 / 音视频
+            "png", "jpg", "jpeg", "gif", "webp", "bmp", "ico",
+            "mp3", "wav", "ogg", "flac", "aac", "m4a",
+            "mp4", "avi", "mov", "mkv", "webm", "flv", "wmv", "mpg", "mpeg",
+            // 可执行 / 库 / 数据
+            "exe", "dll", "so", "dylib", "class", "bin", "dat", "db", "sqlite", "sqlite3",
+            "mdb", "pdb", "wasm", "o", "obj", "lib", "a", "sys", "iso", "img",
+            // 文档 / 字体
+            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+            "ttf", "otf", "woff", "woff2", "eot"
+    ));
 
     private final Fragment fragment;
     private final FilePaneState state;
@@ -111,7 +137,7 @@ class FileTransferController {
         });
         editorLauncher = fragment.registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                handleEditorResult(result.getData());
+                handleEditorResult();
             }
         });
     }
@@ -125,6 +151,13 @@ class FileTransferController {
             Context context = host.getContextOrNull();
             if (context != null) {
                 host.toast(context.getString(R.string.file_too_large), Toast.LENGTH_SHORT);
+            }
+            return;
+        }
+        if (isKnownBinary(item.getName())) {
+            Context context = host.getContextOrNull();
+            if (context != null) {
+                host.toast(context.getString(R.string.binary_file_no_edit), Toast.LENGTH_SHORT);
             }
             return;
         }
@@ -142,8 +175,20 @@ class FileTransferController {
         openInternalEditor(remotePath, deviceId, item.getName());
     }
 
+    /** 判断文件名是否为已知的二进制类型（不可在线编辑）。 */
+    private static boolean isKnownBinary(String name) {
+        if (name == null) {
+            return false;
+        }
+        int i = name.lastIndexOf('.');
+        if (i < 0 || i == name.length() - 1) {
+            return false; // 无扩展名或扩展名为空，交给服务端判断
+        }
+        return BINARY_EXTENSIONS.contains(name.substring(i + 1).toLowerCase(Locale.ROOT));
+    }
+
     void downloadFileOnly(FileItem item) {
-        downloadFile(item, false);
+        downloadFile(item);
     }
 
     void onDestroyView() {
@@ -238,16 +283,16 @@ class FileTransferController {
                     host.toast("准备上传失败: " + finalCopyError.getMessage(), Toast.LENGTH_SHORT);
                     return;
                 }
-                if (finalTempFile == null || !finalTempFile.exists()) {
+                if (!finalTempFile.exists()) {
                     host.toast("准备上传失败: 文件不存在", Toast.LENGTH_SHORT);
                     return;
                 }
-                startUpload(appContext, serverId, targetPath, finalTempFile, true, fileName);
+                startUpload(appContext, serverId, targetPath, finalTempFile, fileName);
             });
         });
     }
 
-    private void handleEditorResult(@NonNull Intent data) {
+    private void handleEditorResult() {
         // 文件已通过 API 直接保存到服务器，刷新文件列表即可
         if (host.isActive()) {
             host.reloadFileList();
@@ -255,14 +300,14 @@ class FileTransferController {
     }
 
     private void startUpload(Context appContext, int serverId, String remoteDir, File file,
-            boolean deleteWhenDone, String displayName) {
+                             String displayName) {
         if (currentUploadHandle != null) {
             Toast.makeText(appContext, "已有上传任务正在进行", Toast.LENGTH_SHORT).show();
             return;
         }
 
         currentUploadTempFile = file;
-        currentUploadDeleteWhenDone = deleteWhenDone;
+        currentUploadDeleteWhenDone = true;
         currentUploadBackgrounded = false;
         currentUploadCancelled = false;
         currentUploadDeviceId = serverId;
@@ -281,7 +326,7 @@ class FileTransferController {
         currentUploadHandle = api.uploadFileWithProgress(appContext, serverId, remoteDir, file, new FileTransferApi.UploadCallback() {
             @Override
             public void onProgress(long uploadedBytes, long totalBytes) {
-                if (!isCurrentUpload(uploadId) || currentUploadCancelled) {
+                if (isCurrentUpload(uploadId) || currentUploadCancelled) {
                     return;
                 }
                 int progress = calculateProgress(uploadedBytes, totalBytes);
@@ -298,7 +343,7 @@ class FileTransferController {
 
             @Override
             public void onSuccess(JSONObject data) {
-                if (!isCurrentUpload(uploadId) || currentUploadCancelled) {
+                if (isCurrentUpload(uploadId) || currentUploadCancelled) {
                     return;
                 }
                 if (currentUploadBackgrounded) {
@@ -316,7 +361,7 @@ class FileTransferController {
 
             @Override
             public void onFailure(String errorMsg) {
-                if (!isCurrentUpload(uploadId) || currentUploadCancelled) {
+                if (isCurrentUpload(uploadId) || currentUploadCancelled) {
                     return;
                 }
                 if (currentUploadBackgrounded) {
@@ -420,7 +465,7 @@ class FileTransferController {
     }
 
     private boolean isCurrentUpload(long uploadId) {
-        return uploadId == uploadGeneration && currentUploadHandle != null;
+        return uploadId != uploadGeneration || currentUploadHandle == null;
     }
 
     private void cleanupCurrentUpload(boolean deleteFile) {
@@ -520,7 +565,7 @@ class FileTransferController {
         return result;
     }
 
-    private void downloadFile(FileItem item, boolean openEditor) {
+    private void downloadFile(FileItem item) {
         Context context = host.getContextOrNull();
         if (context == null) {
             return;
@@ -539,7 +584,7 @@ class FileTransferController {
         final LinearProgressIndicator progressIndicator = dialogView.findViewById(R.id.progress_download);
         final TextView textPercent = dialogView.findViewById(R.id.text_download_percent);
         final androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(context)
-                .setTitle(openEditor ? R.string.file_action_open : R.string.file_action_download)
+                .setTitle(false ? R.string.file_action_open : R.string.file_action_download)
                 .setView(dialogView)
                 .setCancelable(false)
                 .create();
@@ -581,7 +626,7 @@ class FileTransferController {
                 if (!host.isActive()) {
                     return;
                 }
-                if (openEditor) {
+                if (false) {
                     openInternalEditor(remotePath, deviceId, item.getName());
                 } else {
                     host.toast("下载完成: " + file.getAbsolutePath(), Toast.LENGTH_LONG);

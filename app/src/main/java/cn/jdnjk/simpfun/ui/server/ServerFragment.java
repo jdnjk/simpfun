@@ -87,7 +87,7 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                if (getActivity() instanceof cn.jdnjk.simpfun.MainActivity mainActivity) {
+                if (getActivity() instanceof MainActivity mainActivity) {
                     boolean atTop = !recyclerView.canScrollVertically(-1);
                     mainActivity.onPrimaryScroll(dy, atTop);
                 }
@@ -155,7 +155,7 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
         if (nav == null) return;
         nav.post(() -> {
             if (!isAdded() || recyclerView == null) return;
-            int bottomPadding = nav.getHeight() + dpSafe(16);
+            int bottomPadding = nav.getHeight() + dpSafe();
             recyclerView.setPadding(recyclerView.getPaddingLeft(), recyclerView.getPaddingTop(), recyclerView.getPaddingRight(), bottomPadding);
             recyclerView.setClipToPadding(false);
         });
@@ -220,27 +220,6 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
                 stopRefreshing();
             }
         });
-    }
-
-    public void updateInstanceList(@Nullable JSONArray list) {
-        if (list != null) {
-            renderInstanceList(list, null);
-            return;
-        }
-
-        String token = getToken();
-        if (token == null || token.trim().isEmpty()) {
-            renderInstanceList(null, null);
-            return;
-        }
-
-        PageDataStore.ServerData cachedData = PageDataStore.getInstance().getServerData(token);
-        if (cachedData != null) {
-            renderInstanceList(cachedData.getInstanceList(), cachedData.getSupportList());
-            return;
-        }
-
-        renderInstanceList(null, null);
     }
 
     private void renderInstanceList(@Nullable JSONArray list, @Nullable JSONArray supportList) {
@@ -401,9 +380,9 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
         return context != null && context.getSharedPreferences("user_info", Context.MODE_PRIVATE).getBoolean("dev", false);
     }
 
-    private int dpSafe(int v) {
+    private int dpSafe() {
         Resources res = isAdded() ? getResources() : Resources.getSystem();
-        return (int) (v * res.getDisplayMetrics().density + 0.5f);
+        return (int) (16 * res.getDisplayMetrics().density + 0.5f);
     }
 
     private void stopRefreshing() {

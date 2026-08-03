@@ -1,49 +1,78 @@
 {
   "languages": [
     {
+      "grammar": "editor/textmate/cpp/syntaxes/c.tmLanguage.json",
+      "name": "C",
+      "scopeName": "source.c",
+      "languageConfiguration": "editor/textmate/cpp/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/cpp/syntaxes/cpp.tmLanguage.json",
+      "name": "C++",
+      "scopeName": "source.cpp",
+      "languageConfiguration": "editor/textmate/cpp/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/toml/syntaxes/kotlin.tmLanguage.json",
+      "name": "Kotlin",
+      "scopeName": "source.kotlin",
+      "languageConfiguration": "editor/textmate/kotlin/language-configuration.json"
+    },
+    {
+      "grammar": "editor/textmate/toml/syntaxes/toml.tmLanguage.json",
+      "name": "TOML",
+      "scopeName": "source.toml"
+    },
+    {
+      "grammar": "editor/textmate/java/syntaxes/java.tmLanguage.json",
+      "name": "Java",
+      "scopeName": "source.java",
+      "languageConfiguration": "editor/textmate/java/language-configuration.json"
+    },
+    {
       "grammar": "editor/textmate/ini/syntaxes/ini.tmLanguage.json",
-      "name": "ini",
+      "name": "INI",
       "scopeName": "source.ini",
       "languageConfiguration": "editor/textmate/ini/language-configuration.json"
     },
     {
       "grammar": "editor/textmate/bat/syntaxes/batchfile.tmLanguage.json",
-      "name": "batch",
+      "name": "Batch",
       "scopeName": "source.batchfile",
       "languageConfiguration": "editor/textmate/bat/language-configuration.json"
     },
     {
       "grammar": "editor/textmate/shellscript/syntaxes/shell-unix-bash.tmLanguage.json",
-      "name": "shellscript",
+      "name": "Shell Script",
       "scopeName": "source.shell",
       "languageConfiguration": "editor/textmate/shellscript/language-configuration.json"
     },
     {
       "grammar": "editor/textmate/yaml/syntaxes/yaml.tmLanguage.json",
-      "name": "yaml",
+      "name": "YAML",
       "scopeName": "source.yaml",
       "languageConfiguration": "editor/textmate/yaml/language-configuration.json"
     },
     {
       "grammar": "editor/textmate/json/syntaxes/json.tmLanguage.json",
-      "name": "json",
+      "name": "JSON",
       "scopeName": "source.json",
       "languageConfiguration": "editor/textmate/json/language-configuration.json"
     },
     {
       "grammar": "editor/textmate/xml/syntaxes/xml.tmLanguage.json",
-      "name": "xml",
+      "name": "XML",
       "scopeName": "text.xml",
       "languageConfiguration": "editor/textmate/xml/language-configuration.json"
     },
     {
       "grammar": "editor/textmate/log/syntaxes/log.tmLanguage.json",
-      "name": "log",
+      "name": "Log",
       "scopeName": "text.log"
     },
     {
       "grammar": "editor/textmate/html/syntaxes/html.tmLanguage.json",
-      "name": "html",
+      "name": "HTML",
       "scopeName": "text.html.basic",
       "languageConfiguration": "editor/textmate/html/language-configuration.json",
       "embeddedLanguages": {
@@ -52,12 +81,12 @@
     },
     {
       "grammar": "editor/textmate/javascript/syntaxes/JavaScript.tmLanguage.json",
-      "name": "javascript",
+      "name": "JavaScript",
       "scopeName": "source.js",
       "languageConfiguration": "editor/textmate/javascript/language-configuration.json"
     },
     {
-      "name": "markdown",
+      "name": "Markdown",
       "scopeName": "text.html.markdown",
       "grammar": "editor/textmate/markdown/syntaxes/markdown.tmLanguage.json",
       "languageConfiguration": "editor/textmate/markdown/language-configuration.json",

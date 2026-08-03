@@ -54,6 +54,7 @@ public class FileEditorActivity extends AppCompatActivity {
     private ImageView btnSave;
     private ProgressBar loadingIndicator;
     private boolean isModified = false;
+    private boolean isSaving = false;
     private boolean wordWrapEnabled = true;
     private String fileName;
     private static boolean textMateInited = false;
@@ -93,6 +94,26 @@ public class FileEditorActivity extends AppCompatActivity {
 
         EXTENSION_TO_SCOPE.put(".bat", "source.batchfile");
         EXTENSION_TO_SCOPE.put(".cmd", "source.batchfile");
+
+        EXTENSION_TO_SCOPE.put(".java", "source.java");
+        EXTENSION_TO_SCOPE.put(".jav", "source.java");
+
+        EXTENSION_TO_SCOPE.put(".toml", "source.toml");
+
+        EXTENSION_TO_SCOPE.put(".kts", "source.kotlin");
+        EXTENSION_TO_SCOPE.put(".kt", "source.kotlin");
+        EXTENSION_TO_SCOPE.put(".ktm", "source.kotlin");
+
+        EXTENSION_TO_SCOPE.put(".c", "source.c");
+        EXTENSION_TO_SCOPE.put(".h", "source.c");
+
+        EXTENSION_TO_SCOPE.put(".cpp", "source.cpp");
+        EXTENSION_TO_SCOPE.put(".cc", "source.cpp");
+        EXTENSION_TO_SCOPE.put(".cxx", "source.cpp");
+        EXTENSION_TO_SCOPE.put(".c++", "source.cpp");
+        EXTENSION_TO_SCOPE.put(".hpp", "source.cpp");
+        EXTENSION_TO_SCOPE.put(".hh", "source.cpp");
+        EXTENSION_TO_SCOPE.put(".hxx", "source.cpp");
     }
 
     private void ensureTextMateInited() {
@@ -274,20 +295,24 @@ public class FileEditorActivity extends AppCompatActivity {
     }
 
     /**
-     * 通过 API 保存文件内容到服务器，换行符统一转换为 LF
+     * 通过 API 保存文件内容到服务器。
      */
     private void saveFile() {
         if (remotePath == null || serverId <= 0) {
             Feedback.error(this, "路径无效");
             return;
         }
-        // 将换行符统一转换为 LF
-        String text = codeEditor.getText().toString().replace("\r\n", "\n").replace("\r", "\n");
+        if (isSaving) {
+            return; // 已有保存在进行中，避免并发保存
+        }
+        isSaving = true;
+        final String text = getTextToSave();
         setEditorEnabled(false);
 
         fileApi.saveFileContent(this, serverId, remotePath, text, new FileCallback() {
             @Override
             public void onSuccess(JSONObject data) {
+                isSaving = false;
                 if (isFinishing() || isDestroyed()) return;
                 isModified = false;
                 setEditorEnabled(true);
@@ -296,12 +321,27 @@ public class FileEditorActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(String errorMsg) {
+                isSaving = false;
                 if (isFinishing() || isDestroyed()) return;
                 setEditorEnabled(true);
                 updateUIState();
                 Feedback.error(FileEditorActivity.this, "保存失败: " + errorMsg);
             }
         });
+    }
+
+    /**
+     * 获取待保存文本。.bat/.cmd 依赖 CRLF，不做换行符转换；其余统一转换为 LF。
+     */
+    private String getTextToSave() {
+        String text = codeEditor.getText().toString();
+        if (fileName != null) {
+            String lower = fileName.toLowerCase(Locale.ROOT);
+            if (lower.endsWith(".bat") || lower.endsWith(".cmd")) {
+                return text;
+            }
+        }
+        return text.replace("\r\n", "\n").replace("\r", "\n");
     }
 
     private void setEditorEnabled(boolean enabled) {
@@ -315,10 +355,16 @@ public class FileEditorActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (isSaving) {
+            // 正在保存，忽略返回键，避免发起并发保存
+            return;
+        }
         if (isModified) {
             showExitConfirmDialog();
         } else {
-            super.onBackPressed();
+            // 未修改时直接退出。不要用 getOnBackPressedDispatcher().onBackPressed()，
+            // 它在部分场景下不会结束当前 Activity（表现为不编辑无法退出）。
+            finish();
         }
     }
 
@@ -346,12 +392,17 @@ public class FileEditorActivity extends AppCompatActivity {
             finish();
             return;
         }
-        String text = codeEditor.getText().toString().replace("\r\n", "\n").replace("\r", "\n");
+        if (isSaving) {
+            return; // 已有保存在进行中，避免并发保存
+        }
+        isSaving = true;
+        final String text = getTextToSave();
         setEditorEnabled(false);
 
         fileApi.saveFileContent(this, serverId, remotePath, text, new FileCallback() {
             @Override
             public void onSuccess(JSONObject data) {
+                isSaving = false;
                 if (isFinishing() || isDestroyed()) return;
                 isModified = false;
                 finish();
@@ -359,6 +410,7 @@ public class FileEditorActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(String errorMsg) {
+                isSaving = false;
                 if (isFinishing() || isDestroyed()) return;
                 setEditorEnabled(true);
                 Feedback.error(FileEditorActivity.this, "保存失败: " + errorMsg);
@@ -484,8 +536,14 @@ public class FileEditorActivity extends AppCompatActivity {
                 if (loadingIndicator != null) {
                     loadingIndicator.setVisibility(View.GONE);
                 }
-                Feedback.error(FileEditorActivity.this, "加载失败: " + errorMsg);
-                finish();
+                // 弹窗说明失败原因，避免一闪而过又退回文件列表
+                new MaterialAlertDialogBuilder(FileEditorActivity.this)
+                        .setTitle("无法打开文件")
+                        .setMessage(errorMsg)
+                        .setNegativeButton("重试", (d, which) -> fetchContent())
+                        .setPositiveButton("返回", (d, which) -> finish())
+                        .setCancelable(false)
+                        .show();
             }
         });
     }

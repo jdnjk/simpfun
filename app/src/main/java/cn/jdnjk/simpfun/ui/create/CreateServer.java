@@ -942,7 +942,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void appendVersionInfoPart(StringBuilder sb, String part) {
         if (TextUtils.isEmpty(part)) return;
-        if (sb.length() > 0) sb.append(" | ");
+        if (!sb.isEmpty()) sb.append(" | ");
         sb.append(part);
     }
 
@@ -1214,7 +1214,7 @@ public class CreateServer extends AppCompatActivity {
         }
         void bind(ListItem item, GenericAdapter.OnSelect cb){
             title.setText(item.title);
-            if (item.subtitle==null||item.subtitle.isEmpty()){ subtitle.setVisibility(item.isGroup?View.GONE:View.GONE);} else { subtitle.setVisibility(View.VISIBLE); subtitle.setText(item.subtitle);}
+            if (item.subtitle==null||item.subtitle.isEmpty()){ subtitle.setVisibility(View.GONE);} else { subtitle.setVisibility(View.VISIBLE); subtitle.setText(item.subtitle);}
             if (item.showImage && img instanceof android.widget.ImageView){ img.setVisibility(View.VISIBLE); Glide.with(img.getContext()).load(item.imageUrl).into((android.widget.ImageView) img);} else { img.setVisibility(item.showImage?View.VISIBLE:View.GONE);}
             if (item.isGroup) {
                 if (flagFull!=null) flagFull.setVisibility(View.GONE);
