@@ -14,6 +14,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.SWebView;
+import cn.jdnjk.simpfun.ui.troubleshoot.TroubleshootActivity;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
@@ -25,6 +26,7 @@ public class SettingsActivity extends AppCompatActivity {
     private int debugTapCount = 0;
     private final Handler debugTapHandler = new Handler(Looper.getMainLooper());
     private final Runnable resetTapRunnable = () -> debugTapCount = 0;
+    private MaterialToolbar toolbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,7 +42,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_settings);
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_settings_help) {
@@ -98,5 +100,9 @@ public class SettingsActivity extends AppCompatActivity {
                 .replace(R.id.fragment_container, debugFragment)
                 .addToBackStack("debug")
                 .commit();
+    }
+
+    public void openTroubleshootPage() {
+        startActivity(new Intent(this, TroubleshootActivity.class));
     }
 }

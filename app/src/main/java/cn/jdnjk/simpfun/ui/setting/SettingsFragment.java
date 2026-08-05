@@ -238,6 +238,11 @@ public class SettingsFragment extends Fragment {
         root.findViewById(R.id.option_login_browser).setOnClickListener(v -> openBrowserLogin());
         root.findViewById(R.id.option_logout).setOnClickListener(v -> showLogoutDialog());
         root.findViewById(R.id.option_bind_qq).setOnClickListener(v -> showBindQQDialog());
+        root.findViewById(R.id.option_troubleshoot).setOnClickListener(v -> {
+            if (getActivity() instanceof SettingsActivity activity) {
+                activity.openTroubleshootPage();
+            }
+        });
     }
 
     private void updateSftpThreadCountDisplay() {
