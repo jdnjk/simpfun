@@ -54,6 +54,11 @@ public class SettingsSaveManager {
         scheduleFlush();
     }
 
+    public void putString(String key, String value) {
+        pending.put(key, value);
+        scheduleFlush();
+    }
+
     // ---------- 读取接口（优先读 pending，否则读 SP） ----------
 
     public int getInt(String key, int defValue) {

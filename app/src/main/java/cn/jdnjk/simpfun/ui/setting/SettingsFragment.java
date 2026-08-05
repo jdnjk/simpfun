@@ -34,8 +34,11 @@ import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
+import cn.jdnjk.simpfun.mcp.McpServerService;
+import cn.jdnjk.simpfun.mcp.McpSettingsManager;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
+import cn.jdnjk.simpfun.utils.NetworkUtils;
 import cn.jdnjk.simpfun.utils.PageDataStore;
 import cn.jdnjk.simpfun.utils.StoragePermissionHelper;
 
@@ -54,9 +57,14 @@ public class SettingsFragment extends Fragment {
     private FilePaneModeManager filePaneModeManager;
     private SftpTransferSettingsManager sftpTransferSettingsManager;
     private TerminalFontSizeManager terminalFontSizeManager;
+    private McpSettingsManager mcpSettingsManager;
     private TextView tvThemeCurrent;
     private TextView tvTerminalThemeCurrent;
     private TextView tvQqCurrent;
+    private TextView tvMcpUrl;
+    private TextView tvMcpPort;
+    private MaterialSwitch switchMcpServer;
+    private View optionMcpUrl;
     private EditText etSftpThreadCount;
     private Slider sliderSftpThreadCount;
     private MaterialSwitch switchServerCardStyle;
@@ -86,6 +94,7 @@ public class SettingsFragment extends Fragment {
         userInfo = requireContext().getSharedPreferences(SP_USER_INFO, 0);
         themeManager = ThemeManager.getInstance(requireContext());
         terminalThemeManager = TerminalThemeManager.getInstance(requireContext());
+        mcpSettingsManager = new McpSettingsManager(requireContext());
         serverCardStyleManager = new ServerCardStyleManager(requireContext());
         filePaneModeManager = new FilePaneModeManager(requireContext());
         sftpTransferSettingsManager = new SftpTransferSettingsManager(requireContext());
@@ -108,6 +117,7 @@ public class SettingsFragment extends Fragment {
         updateSftpThreadCountDisplay();
         updateTerminalFontSizeDisplay();
         bindSwitches();
+        bindMcpSwitch(root);
 
         return root;
     }
@@ -118,6 +128,7 @@ public class SettingsFragment extends Fragment {
         if (pendingEnableDualPane && StoragePermissionHelper.hasLocalStorageAccess(requireContext())) {
             enableDualPaneSetting();
         }
+        updateMcpDisplay();
     }
 
     @Override
@@ -145,10 +156,104 @@ public class SettingsFragment extends Fragment {
         switchFileDualPane = root.findViewById(R.id.switch_file_dual_pane);
         sliderTerminalFontSize = root.findViewById(R.id.slider_terminal_font_size);
         tvTerminalFontSize = root.findViewById(R.id.tv_terminal_font_size);
+        switchMcpServer = root.findViewById(R.id.switch_mcp_server);
+        tvMcpUrl = root.findViewById(R.id.tv_mcp_url);
+        tvMcpPort = root.findViewById(R.id.tv_mcp_port);
+        optionMcpUrl = root.findViewById(R.id.option_mcp_url);
 
         TextView tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ")";
         tvVersion.setText(String.format("当前版本：%s", currentVersion));
+    }
+
+    private void bindMcpSwitch(View root) {
+        if (switchMcpServer == null) return;
+        switchMcpServer.setOnCheckedChangeListener(null);
+        switchMcpServer.setChecked(mcpSettingsManager.isEnabled());
+        switchMcpServer.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                String token = sp.getString(KEY_TOKEN, "");
+                if (token.isEmpty()) {
+                    Toast.makeText(requireContext(), "请先登录简幻欢账号", Toast.LENGTH_SHORT).show();
+                    switchMcpServer.setChecked(false);
+                    return;
+                }
+                mcpSettingsManager.setEnabled(true);
+                McpServerService.start(requireContext());
+                // 服务异步启动，稍后刷新以显示地址
+                scrollView.postDelayed(this::updateMcpDisplay, 800);
+            } else {
+                mcpSettingsManager.setEnabled(false);
+                McpServerService.stop(requireContext());
+            }
+            updateMcpDisplay();
+        });
+
+        root.findViewById(R.id.btn_copy_mcp_url).setOnClickListener(v -> {
+            String url = tvMcpUrl.getText().toString();
+            copyToClipboard("MCP URL", url);
+        });
+
+        root.findViewById(R.id.option_mcp_port).setOnClickListener(v -> showMcpPortDialog());
+    }
+
+    private void showMcpPortDialog() {
+        final EditText editText = new EditText(requireContext());
+        editText.setText(String.valueOf(mcpSettingsManager.getPort()));
+        editText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        editText.setHint("端口号 1025-65535");
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        editText.setPadding(padding * 2, padding, padding * 2, padding);
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("设置监听端口")
+                .setMessage("修改后需要重启 MCP 服务才能生效")
+                .setView(editText)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String input = editText.getText().toString().trim();
+                    int port;
+                    try {
+                        port = Integer.parseInt(input);
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(requireContext(), "请输入有效的端口号", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (port < 1025 || port > 65535) {
+                        Toast.makeText(requireContext(), "端口号必须在 1025-65535 之间", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    mcpSettingsManager.setPort(port);
+                    updateMcpDisplay();
+                    if (McpServerService.isRunning()) {
+                        Toast.makeText(requireContext(), "MCP 服务将自动重启以应用新端口", Toast.LENGTH_SHORT).show();
+                        McpServerService.stop(requireContext());
+                        McpServerService.start(requireContext());
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void updateMcpDisplay() {
+        if (switchMcpServer == null || optionMcpUrl == null) return;
+        boolean enabled = mcpSettingsManager.isEnabled() && McpServerService.isRunning();
+        optionMcpUrl.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (tvMcpPort != null) {
+            tvMcpPort.setText(String.valueOf(mcpSettingsManager.getPort()));
+        }
+        if (enabled) {
+            String ip = NetworkUtils.getLocalIpAddress(requireContext());
+            String url = ip != null ? "http://" + ip + ":" + mcpSettingsManager.getPort() + "/mcp" : "未获取";
+            tvMcpUrl.setText(url);
+        }
+    }
+
+    private void copyToClipboard(String label, String text) {
+        android.content.ClipboardManager cm = (android.content.ClipboardManager) requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(android.content.ClipData.newPlainText(label, text));
+            Toast.makeText(requireContext(), "已复制", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void bindSwitches() {

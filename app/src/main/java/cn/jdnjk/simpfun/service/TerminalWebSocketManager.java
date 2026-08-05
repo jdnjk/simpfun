@@ -435,4 +435,27 @@ public class TerminalWebSocketManager {
     public boolean isConnectedTo(int deviceId) {
         return currentDeviceId == deviceId && isConnected();
     }
+
+    /**
+     * 获取终端日志缓冲中最后 maxLines 行（按时间先后排列）。
+     * 供 MCP 终端工具读取控制台内容使用。
+     * @param maxLines 最多返回多少行；<=0 返回空列表
+     */
+    public List<String> getRecentLogLines(int maxLines) {
+        if (maxLines <= 0) {
+            return Collections.emptyList();
+        }
+        synchronized (logBuffer) {
+            int size = logBuffer.size();
+            if (size == 0) {
+                return Collections.emptyList();
+            }
+            int from = Math.max(0, size - maxLines);
+            return new ArrayList<>(logBuffer.subList(from, size));
+        }
+    }
+
+    public int getCurrentDeviceId() {
+        return currentDeviceId;
+    }
 }

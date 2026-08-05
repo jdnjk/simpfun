@@ -1,22 +1,17 @@
 package cn.jdnjk.simpfun.ui.setting;
 
 import android.content.Intent;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.SWebView;
 import cn.jdnjk.simpfun.ui.troubleshoot.TroubleshootActivity;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
-import androidx.core.view.WindowCompat;
 import androidx.fragment.app.Fragment;
 
 public class SettingsActivity extends AppCompatActivity {
@@ -32,13 +27,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        getWindow().setStatusBarColor(Color.TRANSPARENT);
-        WindowInsetsControllerCompat windowInsetsController =
-                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (windowInsetsController != null) {
-            windowInsetsController.setAppearanceLightStatusBars(true);
-        }
+        ThemeUtils.applyEdgeToEdge(this);
 
         setContentView(R.layout.activity_settings);
 
@@ -60,11 +49,6 @@ public class SettingsActivity extends AppCompatActivity {
                 debugTapCount = 0;
                 openDebugPage();
             }
-        });
-        ViewCompat.setOnApplyWindowInsetsListener(toolbar, (v, insets) -> {
-            int statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
-            v.setPadding(v.getPaddingLeft(), statusBarHeight, v.getPaddingRight(), v.getPaddingBottom());
-            return insets;
         });
 
         if (savedInstanceState == null) {

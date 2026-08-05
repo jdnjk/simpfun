@@ -20,6 +20,8 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import cn.jdnjk.simpfun.mcp.McpServerService;
+import cn.jdnjk.simpfun.mcp.McpSettingsManager;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
@@ -108,6 +110,25 @@ public class MainActivity extends AppCompatActivity {
         String token = getTokenFromSharedPreferences();
         if (token == null || token.isEmpty()) {
             Toast.makeText(this, "未登录", Toast.LENGTH_SHORT).show();
+        }
+
+        resetMcpServerOnColdStart();
+    }
+
+    /**
+     * MCP 服务默认关闭：App 冷启动时停止服务并把开关复位为关，
+     * 需要手动在设置页重新开启。避免无鉴权的高危接口意外常驻。
+     */
+    private void resetMcpServerOnColdStart() {
+        try {
+            McpSettingsManager manager = new McpSettingsManager(this);
+            if (manager.isEnabled()) {
+                manager.setEnabled(false);
+            }
+            if (McpServerService.isRunning()) {
+                McpServerService.stop(this);
+            }
+        } catch (Exception ignored) {
         }
     }
 

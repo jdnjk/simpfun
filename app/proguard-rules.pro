@@ -94,5 +94,9 @@
 -dontwarn org.codehaus.mojo.animal_sniffer.**
 -dontwarn javax.annotation.**
 
+# ---- NanoHTTPD ----
+-keep class fi.iki.elonen.** { *; }
+-dontwarn fi.iki.elonen.**
+
 # ---- Desugaring / platform optional APIs ----
 -dontwarn java.lang.invoke.StringConcatFactory
