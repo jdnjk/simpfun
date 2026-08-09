@@ -1,6 +1,10 @@
 package cn.jdnjk.simpfun.ui.ins.files;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,10 +21,14 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.provider.Settings;
 import cn.jdnjk.simpfun.model.FileItem;
 import cn.jdnjk.simpfun.utils.StoragePermissionHelper;
 
 class LocalFileListController {
+    static final int REQUEST_CODE_ALL_FILES_ACCESS = 4001;
+    static final int REQUEST_CODE_STORAGE = 4002;
+
     interface Host {
         Context getContextOrNull();
         boolean isActive();
@@ -28,6 +36,9 @@ class LocalFileListController {
         void showError(String message);
         void stopRefreshing();
         void onFileListChanged();
+        void startActivityForResult(Intent intent, int requestCode);
+        void requestPermissions(String[] permissions, int requestCode);
+        void showMessage(String message);
     }
 
     private final FilePaneState state;
@@ -48,7 +59,19 @@ class LocalFileListController {
         }
         if (!StoragePermissionHelper.hasLocalStorageAccess(context)) {
             host.stopRefreshing();
-            host.showError("需要授予所有文件访问权限");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+                intent.setData(uri);
+                host.startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
+            } else {
+                host.requestPermissions(
+                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        REQUEST_CODE_STORAGE
+                );
+            }
+            host.showMessage("需要文件访问权限才能刷新内容");
             return;
         }
         String requestPath = state.getCurrentPath();

@@ -19,7 +19,7 @@
     <color name="task_status_waiting">#E2B84A</color>
     <color name="task_status_waiting_container">#5E4200</color>
 
-    <!-- Simpfun Vibrant Blue Theme (Dark/OLED) -->
+    <!-- Simpfun Vibrant Blue Theme (Dark, soft neutral for LCD) -->
     <color name="md_theme_primary">#AAC7FF</color>
     <color name="md_theme_onPrimary">#0A305F</color>
     <color name="md_theme_primaryContainer">#284777</color>
@@ -36,9 +36,9 @@
     <color name="md_theme_onError">#690005</color>
     <color name="md_theme_errorContainer">#93000A</color>
     <color name="md_theme_onErrorContainer">#FFDAD6</color>
-    <color name="md_theme_background">#000000</color> <!-- Pure Black for OLED -->
+    <color name="md_theme_background">#121316</color> <!-- 柔和深灰，兼容 LCD，避免 OLED 纯黑 -->
     <color name="md_theme_onBackground">#E3E2E6</color>
-    <color name="md_theme_surface">#000000</color>
+    <color name="md_theme_surface">#121316</color>
     <color name="md_theme_onSurface">#E3E2E6</color>
     <color name="md_theme_surfaceVariant">#44474F</color>
     <color name="md_theme_onSurfaceVariant">#C4C6D0</color>
@@ -49,14 +49,14 @@
     <color name="md_theme_inverseOnSurface">#1B1B1F</color>
     <color name="md_theme_inversePrimary">#005AC1</color>
 
-    <!-- Surface Containers (Dark/OLED optimization) -->
-    <color name="md_theme_surfaceDim">#000000</color>
-    <color name="md_theme_surfaceBright">#202023</color>
-    <color name="md_theme_surfaceContainerLowest">#000000</color>
-    <color name="md_theme_surfaceContainerLow">#101012</color>
-    <color name="md_theme_surfaceContainer">#141417</color>
-    <color name="md_theme_surfaceContainerHigh">#1F1F23</color>
-    <color name="md_theme_surfaceContainerHighest">#29292D</color>
+    <!-- Surface Containers (Dark, soft neutral for LCD) -->
+    <color name="md_theme_surfaceDim">#121316</color>
+    <color name="md_theme_surfaceBright">#3A3B40</color>
+    <color name="md_theme_surfaceContainerLowest">#0E0F11</color>
+    <color name="md_theme_surfaceContainerLow">#1A1C1F</color>
+    <color name="md_theme_surfaceContainer">#1F2124</color>
+    <color name="md_theme_surfaceContainerHigh">#292B2F</color>
+    <color name="md_theme_surfaceContainerHighest">#34363A</color>
 
     <!-- Fixed variants -->
     <color name="md_theme_primaryFixed">#D8E2FF</color>

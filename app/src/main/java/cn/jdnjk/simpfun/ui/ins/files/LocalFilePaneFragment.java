@@ -290,6 +290,31 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
     }
 
     @Override
+    public void showMessage(String message) {
+        toast(message, Toast.LENGTH_SHORT);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Context context = getContext();
+        if (requestCode == LocalFileListController.REQUEST_CODE_ALL_FILES_ACCESS
+                && context != null && StoragePermissionHelper.hasLocalStorageAccess(context)) {
+            loadFileList();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Context context = getContext();
+        if (requestCode == LocalFileListController.REQUEST_CODE_STORAGE
+                && context != null && StoragePermissionHelper.hasLocalStorageAccess(context)) {
+            loadFileList();
+        }
+    }
+
+    @Override
     public void onFileListChanged() {
         if (views == null) {
             return;

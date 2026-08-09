@@ -8,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -31,11 +30,7 @@ public class TroubleshootActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(Color.TRANSPARENT);
-        WindowInsetsControllerCompat windowInsetsController =
-                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (windowInsetsController != null) {
-            windowInsetsController.setAppearanceLightStatusBars(true);
-        }
+        ThemeUtils.applySystemBarAppearance(this);
 
         setContentView(R.layout.activity_troubleshoot);
 
@@ -67,6 +62,15 @@ public class TroubleshootActivity extends AppCompatActivity {
         }
         setToolbarTitle("故障排错");
         return new TroubleshootFragment();
+    }
+
+    public void openFirewallPage() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, new FirewallFragment())
+                .addToBackStack("firewall")
+                .commit();
+        setToolbarTitle("防火墙");
     }
 
     public void openStatusMonitorPage() {

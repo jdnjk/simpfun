@@ -22,6 +22,11 @@ public class TroubleshootFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        view.findViewById(R.id.option_firewall).setOnClickListener(v -> {
+            if (getActivity() instanceof TroubleshootActivity activity) {
+                activity.openFirewallPage();
+            }
+        });
         view.findViewById(R.id.option_status_monitor).setOnClickListener(v -> {
             if (getActivity() instanceof TroubleshootActivity activity) {
                 activity.openStatusMonitorPage();
