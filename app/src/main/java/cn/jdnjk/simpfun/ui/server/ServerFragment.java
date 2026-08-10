@@ -334,6 +334,7 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
 
     private void resubscribeStats() {
         if (!isAdded()) return;
+        if (cardStyleManager != null && !cardStyleManager.isModernServerCardEnabled()) return;
         for (ServerItem item : serverItems) {
             if (item.isSupportInstance()) continue;
             if (subscribedIds.add(item.getId())) {

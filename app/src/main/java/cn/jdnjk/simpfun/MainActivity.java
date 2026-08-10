@@ -25,6 +25,7 @@ import cn.jdnjk.simpfun.mcp.McpSettingsManager;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
+import cn.jdnjk.simpfun.utils.AnnouncementHelper;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class MainActivity extends AppCompatActivity {
@@ -113,6 +114,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         resetMcpServerOnColdStart();
+        AnnouncementHelper.maybeShowAnnouncement(this);
     }
 
     /**

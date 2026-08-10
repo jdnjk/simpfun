@@ -2,7 +2,8 @@
 <LinearLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
-        android:layout_height="130dp"
+        android:layout_height="wrap_content"
+        android:minHeight="130dp"
         android:orientation="vertical"
         android:padding="16dp"
         android:background="?attr/colorPrimaryContainer"
@@ -45,5 +46,15 @@
                 android:textColor="?attr/colorOnPrimaryContainer"
                 android:textSize="14sp"/>
     </LinearLayout>
+
+    <TextView
+            android:id="@+id/textServerDestroyNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="预计于 1970-01-01 销毁 (连续关闭服务器7天)"
+            android:textColor="?attr/colorError"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"/>
 
 </LinearLayout>

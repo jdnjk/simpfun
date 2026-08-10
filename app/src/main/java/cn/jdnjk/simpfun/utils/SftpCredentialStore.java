@@ -108,6 +108,19 @@ public class SftpCredentialStore extends SQLiteOpenHelper {
         getWritableDatabase().delete(TABLE, "instance_id=?", new String[]{instanceId});
     }
 
+    public synchronized boolean updatePassword(String instanceId, String newPassword) {
+        if (instanceId == null || instanceId.trim().isEmpty() || newPassword == null) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        ContentValues values = new ContentValues();
+        values.put("password", newPassword);
+        values.put("last_validated_at", now);
+        values.put("updated_at", now);
+        int rows = getWritableDatabase().update(TABLE, values, "instance_id=?", new String[]{instanceId});
+        return rows > 0;
+    }
+
     public synchronized void pruneExpired() {
         long cutoff = System.currentTimeMillis() - TTL_MILLIS;
         getWritableDatabase().delete(TABLE, "last_validated_at<?", new String[]{String.valueOf(cutoff)});

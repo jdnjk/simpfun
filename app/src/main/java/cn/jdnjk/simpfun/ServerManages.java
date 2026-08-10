@@ -30,6 +30,10 @@ import com.google.android.material.snackbar.Snackbar;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PowerApi;
 import cn.jdnjk.simpfun.databinding.ActivityMainBinding;
@@ -251,6 +255,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
     private void updateServerStatus(String status) {
         String statusText = getStatusText(status);
         InstanceDetailStore.getInstance().updateStatus(deviceId, status);
+        JSONObject cachedDetail = InstanceDetailStore.getInstance().getDetailData(deviceId);
         runOnUiThread(() -> {
             if (binding == null || navigationView == null) return;
             View headerView = navigationView.getHeaderView(0);
@@ -259,6 +264,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
             if (textStatus != null) {
                 textStatus.setText(statusText);
             }
+            updateDestroyNotice(headerView, cachedDetail);
         });
     }
 
@@ -327,10 +333,42 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
                         }
                     });
                 }
+                updateDestroyNotice(headerView, data);
             });
 
         } catch (Exception e) {
             Log.e("ServerManages", "Error parsing server details", e);
+        }
+    }
+
+    private void updateDestroyNotice(View headerView, @Nullable JSONObject detail) {
+        if (headerView == null) return;
+        TextView textDestroyNotice = headerView.findViewById(R.id.textServerDestroyNotice);
+        if (textDestroyNotice == null) return;
+
+        String notice = computeDestroyNotice(detail);
+        if (notice == null) {
+            textDestroyNotice.setVisibility(View.GONE);
+            return;
+        }
+        textDestroyNotice.setText(notice);
+        textDestroyNotice.setVisibility(View.VISIBLE);
+    }
+
+    @Nullable
+    private String computeDestroyNotice(@Nullable JSONObject detail) {
+        if (detail == null) return null;
+        String status = detail.optString("status", "");
+        if (!"offline".equals(status)) return null;
+
+        String lastPaidTime = detail.optString("last_paid_time", "");
+        if (lastPaidTime.trim().isEmpty()) return null;
+        try {
+            OffsetDateTime paid = OffsetDateTime.parse(lastPaidTime);
+            LocalDate destroyDate = paid.plusDays(7).toLocalDate();
+            return "预计于 " + destroyDate.format(DateTimeFormatter.ISO_LOCAL_DATE) + " 销毁 (连续关闭服务器7天)";
+        } catch (Exception ignored) {
+            return null;
         }
     }
 

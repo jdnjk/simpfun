@@ -6,7 +6,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
@@ -18,12 +17,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.core.widget.NestedScrollView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import cn.jdnjk.simpfun.MainActivity;
 import cn.jdnjk.simpfun.R;
@@ -151,8 +147,6 @@ public class ProfileFragment extends Fragment {
         if (TextUtils.isEmpty(text)) {
             text = "暂无内容";
         }
-        boolean show = UserInfo.getBoolean("announcement_show", false);
-
         tvAnnouncementTitle.setText(title);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
             tvAnnouncementText.setText(android.text.Html.fromHtml(text, android.text.Html.FROM_HTML_MODE_COMPACT));
@@ -162,10 +156,6 @@ public class ProfileFragment extends Fragment {
         tvAnnouncementText.setMovementMethod(LinkMovementMethod.getInstance());
         tvAnnouncementText.setLinksClickable(true);
         tvAnnouncementText.setTextIsSelectable(false);
-
-        if (show) {
-            showAnnouncementDialog(title, text);
-        }
     }
 
     private void updateUserBadge(boolean verified, boolean isPro, boolean proValid) {
@@ -209,38 +199,6 @@ public class ProfileFragment extends Fragment {
         } else {
             ivThemeMode.setImageResource(R.drawable.ic_theme_auto);
             ivThemeMode.setContentDescription("跟随系统");
-        }
-    }
-
-    private void showAnnouncementDialog(String title, String text) {
-        Spanned styledText;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            styledText = android.text.Html.fromHtml(text, android.text.Html.FROM_HTML_MODE_COMPACT);
-        } else {
-            styledText = android.text.Html.fromHtml(text);
-        }
-
-        AlertDialog dialog = new MaterialAlertDialogBuilder(context)
-                .setTitle(title)
-                .setMessage(styledText)
-                .setPositiveButton("我知道了", (dialogInterface, which) -> {
-                    markAnnouncementAsRead();
-                    UserInfo.edit().putBoolean("announcement_show", false).apply();
-                })
-                .setCancelable(false)
-                .show();
-        TextView messageView = dialog.findViewById(android.R.id.message);
-        if (messageView != null) {
-            messageView.setMovementMethod(LinkMovementMethod.getInstance());
-            messageView.setLinksClickable(true);
-            messageView.setTextIsSelectable(false);
-        }
-    }
-
-    private void markAnnouncementAsRead() {
-        String token = AuthInfo.getString("token", null);
-        if (token != null) {
-            new UserApi(context).readAnnouncement(token);
         }
     }
 

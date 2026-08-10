@@ -127,6 +127,25 @@ public class UserApi {
         sendInstanceRequest(request, callback);
     }
 
+    /**
+     * 获取当前登录账号的个人信息（用户名、UID、积分、钻石、QQ、认证状态等）
+     * @param token 用户Token
+     * @param callback 回调，onSuccess 返回含 info 字段的 JSONObject
+     */
+    public void getUserInfo(String token, InstanceCallback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, false, "Token 不能为空");
+            return;
+        }
+
+        Request request = new Request.Builder()
+                .url(BASE_URL + "/auth/info")
+                .header("Authorization", token)
+                .build();
+
+        sendInstanceRequest(request, callback);
+    }
+
     public void getSupportInstanceList(String token, InstanceCallback callback) {
         if (token == null || token.trim().isEmpty()) {
             invokeCallback(callback, false, "Token 不能为空");

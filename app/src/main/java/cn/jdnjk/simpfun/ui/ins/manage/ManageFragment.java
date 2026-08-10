@@ -15,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.Filter;
+import android.widget.ImageButton;
 import android.widget.RadioGroup;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
@@ -36,6 +37,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.time.OffsetDateTime;
@@ -86,6 +88,7 @@ public class ManageFragment extends Fragment {
     private TextView tvSftpPort;
     private TextView tvSftpUser;
     private TextView tvSftpPassword;
+    private ImageButton btnResetSftpPassword;
     private TextView tvSupportDevQq;
     private TextView tvSupportGroup;
     private TextView tvSupportComment;
@@ -206,6 +209,7 @@ public class ManageFragment extends Fragment {
         tvSftpPort = root.findViewById(R.id.tv_sftp_port);
         tvSftpUser = root.findViewById(R.id.tv_sftp_user);
         tvSftpPassword = root.findViewById(R.id.tv_sftp_password);
+        btnResetSftpPassword = root.findViewById(R.id.btn_reset_sftp_password);
         tvSupportDevQq = root.findViewById(R.id.tv_support_dev_qq);
         tvSupportGroup = root.findViewById(R.id.tv_support_group);
         tvSupportComment = root.findViewById(R.id.tv_support_comment);
@@ -296,6 +300,7 @@ public class ManageFragment extends Fragment {
             Toast.makeText(requireContext(), sftpPasswordVisible ? "SFTP 密码已显示" : "SFTP 密码已隐藏", Toast.LENGTH_SHORT).show();
             return true;
         });
+        btnResetSftpPassword.setOnClickListener(v -> confirmResetSftpPassword());
     }
 
     private void refreshCachedDetail() {
@@ -1030,6 +1035,73 @@ public class ManageFragment extends Fragment {
             return text.trim();
         }
         return text.substring(idx + 1).trim();
+    }
+
+    private void confirmResetSftpPassword() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("重置 SFTP 密码")
+                .setMessage("重置后旧密码将立即失效，需要重新用新密码连接 SFTP。是否继续？")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("重置密码", (dialog, which) -> resetSftpPassword())
+                .show();
+    }
+
+    private void resetSftpPassword() {
+        if (!(getActivity() instanceof ServerManages activity)) return;
+        String token = getToken();
+        if (token == null) {
+            Toast.makeText(requireContext(), "尚未登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final String instanceId = String.valueOf(activity.getDeviceId());
+        if (btnResetSftpPassword != null) {
+            btnResetSftpPassword.setEnabled(false);
+        }
+        new MainApi(requireContext()).resetSftpPassword(token, instanceId, new MainApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (!isAdded()) return;
+                if (btnResetSftpPassword != null) {
+                    btnResetSftpPassword.setEnabled(true);
+                }
+
+                String newPassword = data.optString("new_passwd", "");
+                if (newPassword.isEmpty()) {
+                    JSONObject dataObj = data.optJSONObject("data");
+                    if (dataObj != null) {
+                        newPassword = dataObj.optString("new_passwd", "");
+                    }
+                }
+                if (newPassword.isEmpty()) {
+                    Toast.makeText(requireContext(), "重置失败：未获取到新密码", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                SftpCredentialStore.get(requireContext()).updatePassword(instanceId, newPassword);
+
+                if (cachedSftp != null) {
+                    try {
+                        cachedSftp.put("password", newPassword);
+                    } catch (JSONException ignored) {
+                    }
+                }
+                sftpPasswordVisible = true;
+                tvSftpPassword.setTag(newPassword);
+                updateSftpPasswordText();
+
+                Toast.makeText(requireContext(), "SFTP 密码已重置", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                if (btnResetSftpPassword != null) {
+                    btnResetSftpPassword.setEnabled(true);
+                }
+                Toast.makeText(requireContext(), "重置 SFTP 密码失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void updateSftpPasswordText() {

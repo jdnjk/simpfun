@@ -181,6 +181,46 @@ public class MainApi {
         });
     }
 
+    /**
+     * 重置 SFTP 密码
+     * @param token 用户Token
+     * @param serverId 实例ID
+     * @param callback 回调（onSuccess 传入 data 对象，含 new_passwd）
+     */
+    public void resetSftpPassword(String token, String serverId, Callback callback) {
+        if (token == null || token.trim().isEmpty()) {
+            invokeCallback(callback, "Token 不能为空");
+            return;
+        }
+        if (serverId == null || serverId.trim().isEmpty()) {
+            invokeCallback(callback, "Server ID 不能为空");
+            return;
+        }
+
+        RequestBody emptyBody = new FormBody.Builder().build();
+        Request request = new Request.Builder()
+                .url(BASE_INS_URL + serverId + "/sftp")
+                .post(emptyBody)
+                .header("Authorization", token)
+                .build();
+
+        sendRequest(request, new Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (callback != null) {
+                    callback.onSuccess(data);
+                }
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (callback != null) {
+                    callback.onFailure(errorMsg);
+                }
+            }
+        });
+    }
+
     private void sendRequest(Request request, Callback callback) {
         sendRequest(request, callback, null, null);
     }

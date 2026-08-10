@@ -3,9 +3,11 @@ package cn.jdnjk.simpfun;
 import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.webkit.CookieManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -18,8 +20,11 @@ import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 import com.alipay.sdk.app.PayTask;
 
+import org.json.JSONObject;
+
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Locale;
 
 public class SWebView extends AppCompatActivity {
     private WebView webView;
@@ -49,9 +54,56 @@ public class SWebView extends AppCompatActivity {
             urlFromIntent = DEFAULT_URL;
         }
         if (isValidUrl(urlFromIntent)) {
+            setAuthCookieForUrl(urlFromIntent);
             webView.loadUrl(urlFromIntent);
         } else {
             webView.loadUrl(DEFAULT_URL);
+        }
+    }
+
+    private void setAuthCookieForUrl(String urlString) {
+        if (TextUtils.isEmpty(urlString)) return;
+        try {
+            URL url = new URL(urlString);
+            String host = url.getHost();
+            if (host == null) return;
+            host = host.toLowerCase(Locale.ROOT);
+
+            if (!"simpfun.net".equals(host) && !"beta.simpfun.cn".equals(host)) {
+                return;
+            }
+
+            String token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
+            if (TextUtils.isEmpty(token)) return;
+
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.setAcceptCookie(true);
+            cookieManager.setCookie("https://" + host + "/",
+                    "simpfun-token=" + token + "; Path=/; SameSite=Lax");
+            cookieManager.flush();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void injectLocalStorageTokenForUrl(String urlString) {
+        if (TextUtils.isEmpty(urlString)) return;
+        try {
+            URL url = new URL(urlString);
+            String host = url.getHost();
+            if (!"simpfun.cn".equalsIgnoreCase(host)) {
+                return;
+            }
+
+            String token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
+            if (TextUtils.isEmpty(token)) return;
+
+            final String quoted = JSONObject.quote(token);
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.evaluateJavascript("localStorage.setItem('token', " + quoted + ");", null);
+                }
+            });
+        } catch (Exception ignored) {
         }
     }
 
@@ -102,6 +154,19 @@ public class SWebView extends AppCompatActivity {
         }
 
         @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            setAuthCookieForUrl(url);
+            injectLocalStorageTokenForUrl(url);
+            super.onPageStarted(view, url, favicon);
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            injectLocalStorageTokenForUrl(url);
+            super.onPageFinished(view, url);
+        }
+
+        @Override
         public void onLoadResource(WebView view, String url) {
             if (!payOkDialogShown && url != null && (url.equals(PAY_OK_URL) || url.startsWith(PAY_OK_URL + "?"))) {
                 showPayOkDialogOnce();
@@ -124,6 +189,7 @@ public class SWebView extends AppCompatActivity {
                 });
 
                 if (!isIntercepted) {
+                    setAuthCookieForUrl(url);
                     view.loadUrl(url);
                 }
             } else {

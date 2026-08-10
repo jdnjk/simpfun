@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
@@ -27,10 +29,14 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.card.MaterialCardView;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.SWebView;
@@ -43,9 +49,23 @@ import okhttp3.Call;
 
 public class StatusMonitorFragment extends Fragment {
     private static final String STATUS_PAGE_WEB_URL = "https://simp.host/status/simpfun";
+    private static final long REFRESH_INTERVAL_MS = 10000L;
     private static final int AMBER = 0xFFE6A23C;
     private static final int GREEN = 0xFF43A047;
     private static final int GRAY = 0xFF9E9E9E;
+
+    /** 以下分组的异常不计入"部分服务状态异常"（不代表服务异常）。 */
+    private static final Set<String> EXCLUDED_ABNORMAL_GROUPS = new HashSet<>(
+            Arrays.asList("网络可达性", "周边"));
+
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            loadData(false, true);
+            refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
+        }
+    };
 
     private SwipeRefreshLayout swipeRefreshLayout;
     private NestedScrollView contentScroll;
@@ -57,6 +77,8 @@ public class StatusMonitorFragment extends Fragment {
     private TextView tvStatusDescription;
     private TextView tvStatusMeta;
     private MaterialCardView cardIncident;
+    private MaterialCardView cardAbnormal;
+    private TextView tvAbnormalServices;
     private LinearLayout monitorListContainer;
 
     private boolean isLoading = false;
@@ -82,6 +104,8 @@ public class StatusMonitorFragment extends Fragment {
         tvStatusDescription = view.findViewById(R.id.tv_status_description);
         tvStatusMeta = view.findViewById(R.id.tv_status_meta);
         cardIncident = view.findViewById(R.id.card_incident);
+        cardAbnormal = view.findViewById(R.id.card_abnormal);
+        tvAbnormalServices = view.findViewById(R.id.tv_abnormal_services);
         monitorListContainer = view.findViewById(R.id.monitor_list_container);
 
         swipeRefreshLayout.setOnRefreshListener(() -> loadData(true));
@@ -91,11 +115,27 @@ public class StatusMonitorFragment extends Fragment {
         loadData(false);
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS);
+    }
+
+    @Override
+    public void onPause() {
+        refreshHandler.removeCallbacks(refreshRunnable);
+        super.onPause();
+    }
+
     private void loadData(boolean fromUserRefresh) {
+        loadData(fromUserRefresh, false);
+    }
+
+    private void loadData(boolean fromUserRefresh, boolean silent) {
         if (isLoading) return;
         if (fromUserRefresh && swipeRefreshLayout != null) {
             swipeRefreshLayout.setRefreshing(true);
-        } else {
+        } else if (!silent) {
             showLoading();
         }
         isLoading = true;
@@ -104,20 +144,24 @@ public class StatusMonitorFragment extends Fragment {
             @Override
             public void onSuccess(StatusPageData data) {
                 if (!isAdded()) return;
-                fetchLive(data);
+                fetchLive(data, silent);
             }
 
             @Override
             public void onFailure(String errorMsg) {
                 isLoading = false;
                 stopRefresh();
-                if (!isAdded()) return;
+                if (!isAdded() || silent) return;
                 showError(errorMsg);
             }
         });
     }
 
     private void fetchLive(StatusPageData data) {
+        fetchLive(data, false);
+    }
+
+    private void fetchLive(StatusPageData data, boolean silent) {
         call = new StatusPageApi().fetchLiveStatus(new StatusPageApi.LiveCallback() {
             @Override
             public void onSuccess(Map<Long, MonitorLiveStatus> live) {
@@ -126,7 +170,7 @@ public class StatusMonitorFragment extends Fragment {
                 if (!isAdded()) return;
                 liveMap = live;
                 if (data.getMonitorCount() == 0 || data.getGroups().isEmpty()) {
-                    showEmpty();
+                    if (!silent) showEmpty();
                 } else {
                     render(data);
                 }
@@ -139,10 +183,10 @@ public class StatusMonitorFragment extends Fragment {
                 if (!isAdded()) return;
                 liveMap = null;
                 if (data.getMonitorCount() == 0 || data.getGroups().isEmpty()) {
-                    showEmpty();
+                    if (!silent) showEmpty();
                 } else {
                     render(data);
-                    Toast.makeText(requireContext(), "实时状态获取失败", Toast.LENGTH_SHORT).show();
+                    if (!silent) Toast.makeText(requireContext(), "实时状态获取失败", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -206,7 +250,36 @@ public class StatusMonitorFragment extends Fragment {
 
         cardIncident.setVisibility(data.hasIncident() ? View.VISIBLE : View.GONE);
 
+        updateAbnormalBanner(data);
+
         buildMonitorList(data);
+    }
+
+    private void updateAbnormalBanner(StatusPageData data) {
+        if (cardAbnormal == null || tvAbnormalServices == null) return;
+
+        List<String> abnormalServices = findAbnormalServices(data);
+        if (abnormalServices.isEmpty()) {
+            cardAbnormal.setVisibility(View.GONE);
+            return;
+        }
+        tvAbnormalServices.setText(TextUtils.join("、", abnormalServices));
+        cardAbnormal.setVisibility(View.VISIBLE);
+    }
+
+    private List<String> findAbnormalServices(StatusPageData data) {
+        List<String> abnormal = new ArrayList<>();
+        if (liveMap == null) return abnormal;
+        for (StatusMonitorGroup group : data.getGroups()) {
+            if (EXCLUDED_ABNORMAL_GROUPS.contains(group.getName())) continue;
+            for (StatusMonitor monitor : group.getMonitors()) {
+                MonitorLiveStatus live = liveMap.get(monitor.getId());
+                if (live != null && !live.isOnline() && !live.isPending()) {
+                    abnormal.add(monitor.getName());
+                }
+            }
+        }
+        return abnormal;
     }
 
     private int countOnline(StatusPageData data) {
@@ -275,7 +348,6 @@ public class StatusMonitorFragment extends Fragment {
         TextView tvName = row.findViewById(R.id.tv_monitor_name);
         TextView tvDetail = row.findViewById(R.id.tv_monitor_detail);
         TextView tvState = row.findViewById(R.id.tv_monitor_state);
-        TextView tvType = row.findViewById(R.id.tv_monitor_type);
         ImageView ivDot = row.findViewById(R.id.iv_status_dot);
         ImageView ivArrow = row.findViewById(R.id.iv_monitor_arrow);
         HeartbeatStripView strip = row.findViewById(R.id.view_heartbeat_strip);
@@ -283,14 +355,6 @@ public class StatusMonitorFragment extends Fragment {
         MonitorLiveStatus live = liveMap == null ? null : liveMap.get(monitor.getId());
 
         tvName.setText(monitor.getName());
-
-        String type = typeLabel(monitor.getType());
-        if (TextUtils.isEmpty(type)) {
-            tvType.setVisibility(View.GONE);
-        } else {
-            tvType.setText(type);
-            tvType.setVisibility(View.VISIBLE);
-        }
 
         int dotColor = GRAY;
         if (live != null) {
@@ -352,32 +416,6 @@ public class StatusMonitorFragment extends Fragment {
         return row;
     }
 
-    private static String typeLabel(String type) {
-        if (type == null) return "";
-        switch (type) {
-            case "http":
-                return "HTTP";
-            case "port":
-                return "端口";
-            case "push":
-                return "推送";
-            case "tcp":
-                return "TCP";
-            case "ping":
-                return "Ping";
-            case "dns":
-                return "DNS";
-            case "keyword":
-                return "关键词";
-            case "docker":
-                return "Docker";
-            case "group":
-                return "分组";
-            default:
-                return type.toUpperCase(Locale.ROOT);
-        }
-    }
-
     private static String buildCertText(StatusMonitor monitor) {
         long days = monitor.getCertExpiryDaysRemaining();
         if (days >= 0) {
@@ -432,6 +470,7 @@ public class StatusMonitorFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        refreshHandler.removeCallbacks(refreshRunnable);
         if (call != null) {
             call.cancel();
             call = null;
@@ -446,6 +485,8 @@ public class StatusMonitorFragment extends Fragment {
         tvStatusDescription = null;
         tvStatusMeta = null;
         cardIncident = null;
+        cardAbnormal = null;
+        tvAbnormalServices = null;
         monitorListContainer = null;
         super.onDestroyView();
     }

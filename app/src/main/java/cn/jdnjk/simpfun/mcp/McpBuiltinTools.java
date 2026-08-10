@@ -25,6 +25,7 @@ public class McpBuiltinTools {
     public static McpToolRegistry createRegistry(Context appContext) {
         Context ctx = appContext.getApplicationContext();
         List<McpTool> tools = Arrays.asList(
+                new UserInfoTool(ctx),
                 new ServerListTool(ctx),
                 new ServerDetailTool(ctx),
                 new ServerPowerTool(ctx, "server_start", PowerApi.Action.START, "启动简幻欢服务器"),
@@ -108,6 +109,27 @@ public class McpBuiltinTools {
         }
     }
 
+    // ---------- user_info ----------
+    private static class UserInfoTool extends BaseTool {
+        UserInfoTool(Context context) { super(context); }
+        @Override public String getName() { return "user_info"; }
+        @Override public String getDescription() { return "获取当前登录简幻欢账号的个人信息（用户名、UID、积分、钻石、QQ、认证状态、Pro 状态、创建时间、公告等）"; }
+        @Override public JSONObject getInputSchema() { return emptySchema(); }
+        @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
+            String token = requireToken();
+            JSONObject data = bridge.await(McpConstants.REGULAR_TOOL_TIMEOUT_MS, (ok, fail) ->
+                    new UserApi(appContext).getUserInfo(token, new UserApi.InstanceCallback() {
+                        @Override public void onSuccess(JSONObject data) { ok.accept(data); }
+                        @Override public void onFailure(String errorMsg) { fail.accept(errorMsg); }
+                    }));
+            JSONObject info = data.optJSONObject("info");
+            if (info != null) {
+                return McpToolResult.ok(info.toString());
+            }
+            return McpToolResult.ok(data.toString());
+        }
+    }
+
     // ---------- server_list ----------
     private static class ServerListTool extends BaseTool {
         ServerListTool(Context context) { super(context); }
@@ -129,7 +151,7 @@ public class McpBuiltinTools {
     private static class ServerDetailTool extends BaseTool {
         ServerDetailTool(Context context) { super(context); }
         @Override public String getName() { return "server_detail"; }
-        @Override public String getDescription() { return "获取指定简幻欢服务器的详细信息"; }
+        @Override public String getDescription() { return "获取指定简幻欢服务器的详细信息 \"last_paid_time\"为最后付费时间，加7天则为销毁日期"; }
         @Override public JSONObject getInputSchema() { return singleIntSchema("server_id", "服务器 ID"); }
         @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
             String token = requireToken();
