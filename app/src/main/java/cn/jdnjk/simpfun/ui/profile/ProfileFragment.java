@@ -29,6 +29,9 @@ import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
 import cn.jdnjk.simpfun.ui.setting.ThemeManager;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
+
 public class ProfileFragment extends Fragment {
 
     private SharedPreferences UserInfo;
@@ -42,6 +45,7 @@ public class ProfileFragment extends Fragment {
     private TextView tvDiamond;
     private TextView tvAnnouncementTitle;
     private TextView tvAnnouncementText;
+    private ImageView ivAvatar;
     private ImageView ivThemeMode;
 
     private Context context;
@@ -81,6 +85,7 @@ public class ProfileFragment extends Fragment {
         tvDiamond = root.findViewById(R.id.tv_diamond);
         tvAnnouncementTitle = root.findViewById(R.id.tv_announcement_title);
         tvAnnouncementText = root.findViewById(R.id.tv_announcement_text);
+        ivAvatar = root.findViewById(R.id.iv_avatar);
         ivThemeMode = root.findViewById(R.id.iv_theme_mode);
 
         root.findViewById(R.id.iv_theme_mode).setOnClickListener(v -> cycleThemeMode());
@@ -139,6 +144,8 @@ public class ProfileFragment extends Fragment {
         tvPoint.setText(String.valueOf(point));
         tvDiamond.setText(String.valueOf(diamond));
 
+        loadAvatar(qq);
+
         updateUserBadge(verified, isPro, proValid);
         updateThemeModeDisplay();
 
@@ -156,6 +163,25 @@ public class ProfileFragment extends Fragment {
         tvAnnouncementText.setMovementMethod(LinkMovementMethod.getInstance());
         tvAnnouncementText.setLinksClickable(true);
         tvAnnouncementText.setTextIsSelectable(false);
+    }
+
+    private void loadAvatar(long qq) {
+        if (qq <= 0) {
+            // 未绑定 QQ：恢复默认占位图标
+            ivAvatar.setImageResource(R.drawable.ic_user_outline);
+            ivAvatar.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    requireContext().getColor(R.color.md_theme_primary)));
+            return;
+        }
+        // 腾讯 QQ 头像接口：按 QQ 号拉取高清头像，圆形裁剪
+        String url = "https://q1.qlogo.cn/g?b=qq&nk=" + qq + "&s=640";
+        ivAvatar.setImageTintList(null);
+        Glide.with(ivAvatar)
+                .load(url)
+                .apply(RequestOptions.circleCropTransform()
+                        .placeholder(R.drawable.ic_user_outline)
+                        .error(R.drawable.ic_user_outline))
+                .into(ivAvatar);
     }
 
     private void updateUserBadge(boolean verified, boolean isPro, boolean proValid) {
