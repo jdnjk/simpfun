@@ -98,5 +98,16 @@
 -keep class fi.iki.elonen.** { *; }
 -dontwarn fi.iki.elonen.**
 
+# ---- Markwon ----
+# Markwon 插件与 span 内部使用反射注册；保留类名与成员避免 R8 裁剪后运行时异常。
+-keep class io.noties.markwon.** { *; }
+-dontwarn io.noties.markwon.**
+
+# Markwon 依赖 commonmark 与 jsoup；R8 裁剪会导致 toMarkdown 抛 NoClassDefFoundError
+-keep class org.commonmark.** { *; }
+-dontwarn org.commonmark.**
+-keep class org.jsoup.** { *; }
+-dontwarn org.jsoup.**
+
 # ---- Desugaring / platform optional APIs ----
 -dontwarn java.lang.invoke.StringConcatFactory

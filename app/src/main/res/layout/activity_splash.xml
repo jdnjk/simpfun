@@ -11,4 +11,14 @@
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher_foreground"/>
 
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="40dp"
+            android:text="简幻云提供计算服务"
+            android:textSize="13sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:alpha="0.7"/>
+
 </FrameLayout>

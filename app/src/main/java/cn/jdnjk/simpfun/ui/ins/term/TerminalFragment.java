@@ -53,6 +53,7 @@ import cn.jdnjk.simpfun.service.TerminalWebSocketManager;
 import cn.jdnjk.simpfun.ui.setting.TerminalColorUtils;
 import cn.jdnjk.simpfun.utils.AiResponseFormatter;
 import cn.jdnjk.simpfun.utils.ClipboardUtils;
+import cn.jdnjk.simpfun.utils.MarkdownRenderer;
 
 public class TerminalFragment extends Fragment implements TerminalWebSocketListener {
     private static final int MAX_AI_ANALYZE_CHARS = 12000;
@@ -623,8 +624,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             TextView contentView = new TextView(context);
             int padding = (int) (16 * context.getResources().getDisplayMetrics().density);
             contentView.setPadding(padding, padding, padding, padding);
-            contentView.setText(content);
-            contentView.setTextIsSelectable(true);
+            MarkdownRenderer.getInstance(context).render(contentView, content);
 
             android.widget.ScrollView scrollView = new android.widget.ScrollView(context);
             scrollView.addView(contentView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

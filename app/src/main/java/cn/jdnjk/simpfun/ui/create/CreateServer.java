@@ -2,6 +2,7 @@ package cn.jdnjk.simpfun.ui.create;
 
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -16,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.CServerApi;
 import cn.jdnjk.simpfun.utils.Feedback;
+import cn.jdnjk.simpfun.utils.MarkdownRenderer;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 import com.bumptech.glide.Glide;
 import okhttp3.*;
@@ -504,9 +506,15 @@ public class CreateServer extends AppCompatActivity {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
                 if (isCustom) {
-                    fullImageKindList.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), o.optString("description")));
+                    fullImageKindList.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), o.optString("description")));
                 } else {
-                    items.add(ListItem.image(o.optInt("id"), o.optString("name"), o.optString("description"), o.optString("pic_path")));
+                    String desc = o.optString("description");
+                    String link = o.optString("link");
+                    if (!TextUtils.isEmpty(link)) {
+                        if (!TextUtils.isEmpty(desc)) desc = desc + "\n";
+                        desc = desc + link;
+                    }
+                    items.add(ListItem.image(o.optInt("id"), o.optString("name"), desc, o.optString("pic_path")));
                 }
             }
             if (isCustom) {
@@ -536,9 +544,9 @@ public class CreateServer extends AppCompatActivity {
                     appendVersionInfoPart(sb, desc);
                     appendVersionInfoPart(sb, !TextUtils.isEmpty(rec) ? getString(R.string.create_server_recommended_prefix, rec) : "");
                     appendVersionInfoPart(sb, !TextUtils.isEmpty(sizeFmt) ? getString(R.string.create_server_size_prefix, sizeFmt) : "");
-                    items.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), sb.toString()));
+                    items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), sb.toString()));
                 } else {
-                    items.add(ListItem.simpleWithId(o.optInt("id"), o.optString("name"), o.optString("description")));
+                    items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), o.optString("description")));
                 }
             }
             replaceData(items);
@@ -942,7 +950,9 @@ public class CreateServer extends AppCompatActivity {
 
     private void appendVersionInfoPart(StringBuilder sb, String part) {
         if (TextUtils.isEmpty(part)) return;
-        if (!sb.isEmpty()) sb.append(" | ");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            if (!sb.isEmpty()) sb.append(" | ");
+        }
         sb.append(part);
     }
 
@@ -1068,12 +1078,14 @@ public class CreateServer extends AppCompatActivity {
     // --- 数据与适配器 ---
     private static class ListItem {
         int id; String title; String subtitle; String imageUrl; boolean showImage; boolean selectable = true; boolean isGroup = false; int point = -1; boolean full = false; // full: 标记已满状态
+        boolean markdown;
         // Spec specific fields
         String grade; String specName; int cpu; int ram; int disk; int traffic;
 
         static ListItem simple(String t, String sub){ ListItem li = new ListItem(); li.id = -1; li.title=t; li.subtitle=sub; return li; }
         static ListItem simpleWithId(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; return li; }
-        static ListItem image(int id, String t, String sub, String url){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.imageUrl=url; li.showImage=true; return li; }
+        static ListItem simpleWithIdMd(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.markdown=true; return li; }
+        static ListItem image(int id, String t, String sub, String url){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.imageUrl=url; li.showImage=true; li.markdown=true; return li; }
         static ListItem info(String t, String v){ ListItem li = new ListItem(); li.id=-1; li.title=t; li.subtitle=v; li.selectable=false; li.full=false; return li; }
         static ListItem spec(int id, String grade, String specName, int cpu, int ram, int disk, int traffic, int point, boolean creatable) {
             ListItem li = new ListItem();
@@ -1214,7 +1226,20 @@ public class CreateServer extends AppCompatActivity {
         }
         void bind(ListItem item, GenericAdapter.OnSelect cb){
             title.setText(item.title);
-            if (item.subtitle==null||item.subtitle.isEmpty()){ subtitle.setVisibility(View.GONE);} else { subtitle.setVisibility(View.VISIBLE); subtitle.setText(item.subtitle);}
+            if (item.subtitle==null||item.subtitle.isEmpty()){
+                subtitle.setVisibility(View.GONE);
+                MarkdownRenderer.clear(subtitle);
+            } else {
+                subtitle.setVisibility(View.VISIBLE);
+                if (item.markdown) {
+                    android.util.Log.d("CreateServerBind", "markdown render: title=" + item.title + " sub=" + (item.subtitle == null ? "null" : item.subtitle.substring(0, Math.min(30, item.subtitle.length()))));
+                    MarkdownRenderer.renderAsync(subtitle, item.subtitle);
+                } else {
+                    android.util.Log.d("CreateServerBind", "plain text: title=" + item.title);
+                    MarkdownRenderer.clear(subtitle);
+                    subtitle.setText(item.subtitle);
+                }
+            }
             if (item.showImage && img instanceof android.widget.ImageView){ img.setVisibility(View.VISIBLE); Glide.with(img.getContext()).load(item.imageUrl).into((android.widget.ImageView) img);} else { img.setVisibility(item.showImage?View.VISIBLE:View.GONE);}
             if (item.isGroup) {
                 if (flagFull!=null) flagFull.setVisibility(View.GONE);
