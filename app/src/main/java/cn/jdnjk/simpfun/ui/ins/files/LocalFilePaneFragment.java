@@ -101,7 +101,9 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
     public void onRetry() {
         Context context = getContext();
         if (context != null && !StoragePermissionHelper.hasLocalStorageAccess(context)) {
-            openStoragePermissionSettings();
+            if (listController != null) {
+                listController.requestStorageAccess();
+            }
             return;
         }
         loadFileList();

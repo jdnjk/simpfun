@@ -57,6 +57,16 @@
                         android:textAppearance="?attr/textAppearanceTitleLarge"
                         android:textColor="?attr/colorOnSurface" />
 
+                    <ImageButton
+                        android:id="@+id/btn_instance_info"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="8dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="实例信息说明"
+                        android:src="@drawable/ic_help"
+                        app:tint="?attr/colorOnSurfaceVariant" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btn_rate_image"
                         style="@style/Widget.Material3.Button.TonalButton"

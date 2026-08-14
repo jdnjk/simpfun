@@ -59,19 +59,9 @@ class LocalFileListController {
         }
         if (!StoragePermissionHelper.hasLocalStorageAccess(context)) {
             host.stopRefreshing();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                Uri uri = Uri.fromParts("package", context.getPackageName(), null);
-                intent.setData(uri);
-                host.startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
-            } else {
-                host.requestPermissions(
-                        new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                        REQUEST_CODE_STORAGE
-                );
-            }
-            host.showMessage("需要文件访问权限才能刷新内容");
+            host.showLoading(false);
+            host.showError("需要文件访问权限才能浏览本地文件");
+            requestStorageAccess();
             return;
         }
         String requestPath = state.getCurrentPath();
@@ -100,6 +90,27 @@ class LocalFileListController {
                 });
             }
         });
+    }
+
+    /** 从页面上重新发起系统授权弹窗，不跳转系统设置 */
+    void requestStorageAccess() {
+        Context context = host.getContextOrNull();
+        if (context == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+：系统弹窗只用于 READ_MEDIA_*，完整文件访问需去设置页
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+            intent.setData(uri);
+            host.startActivityForResult(intent, REQUEST_CODE_ALL_FILES_ACCESS);
+        } else {
+            host.requestPermissions(
+                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    REQUEST_CODE_STORAGE
+            );
+        }
     }
 
     void shutdown() {

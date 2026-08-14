@@ -7,3 +7,5 @@ app/debug/
 /sign.properties
 /local.properties
 .qoder
+/app/release.keystore
+/*.apk

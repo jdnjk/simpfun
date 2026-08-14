@@ -107,14 +107,35 @@ public class RechargeFragment extends Fragment {
     private boolean moreTraffic;
     private String selectedPaymentMethod = PAY_METHOD_ALIPAY;
 
+    private static final String ARG_RECHARGE_TAB = "recharge_tab";
+    private static final String ARG_PRESELECT_INSTANCE = "preselect_instance";
+    private int argRechargeTab = -1;
+    private int argPreselectInstance = -1;
+
+    public static RechargeFragment newInstance(int rechargeTab, int preselectInstance) {
+        RechargeFragment fragment = new RechargeFragment();
+        Bundle args = new Bundle();
+        args.putInt(ARG_RECHARGE_TAB, rechargeTab);
+        args.putInt(ARG_PRESELECT_INSTANCE, preselectInstance);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        if (getArguments() != null) {
+            argRechargeTab = getArguments().getInt(ARG_RECHARGE_TAB, -1);
+            argPreselectInstance = getArguments().getInt(ARG_PRESELECT_INSTANCE, -1);
+        }
         binding = FragmentRechargeLayoutBinding.inflate(inflater, container, false);
 
         initTrafficPackages();
         initBenefitCardTypes();
         setupTabs();
+        if (argRechargeTab >= 0 && argRechargeTab < binding.tabCategory.getTabCount()) {
+            binding.tabCategory.getTabAt(argRechargeTab).select();
+        }
         setupRecyclers();
         setupTrafficSelector();
         setupListeners();
@@ -490,6 +511,15 @@ public class RechargeFragment extends Fragment {
 
         selectedInstanceIndex = instanceOptions.isEmpty() ? -1 : 0;
         bindInstanceAdapter();
+        if (argPreselectInstance > 0) {
+            for (int i = 0; i < instanceOptions.size(); i++) {
+                if (instanceOptions.get(i).getId() == argPreselectInstance) {
+                    selectedInstanceIndex = i;
+                    binding.spinnerTrafficInstance.setSelection(i, false);
+                    break;
+                }
+            }
+        }
         updateTrafficInstanceSummary();
         updateTrafficBuyButtonText();
         requestSelectedInstanceDetail();

@@ -5,7 +5,19 @@ def isGithubActions = System.getenv('GITHUB_ACTIONS') == 'true'
 
 def signingProps = new Properties()
 def hasSignConfig = false
-if (!isGithubActions) {
+if (isGithubActions) {
+    def ksPath = System.getenv('KEYSTORE_PATH')
+    def ksPass = System.getenv('KEYSTORE_PASSWORD')
+    def keyAlias = System.getenv('KEY_ALIAS')
+    def keyPass = System.getenv('KEY_PASSWORD')
+    if (ksPath != null && ksPass != null && keyAlias != null && keyPass != null) {
+        signingProps['storeFile'] = ksPath
+        signingProps['storePassword'] = ksPass
+        signingProps['keyAlias'] = keyAlias
+        signingProps['keyPassword'] = keyPass
+        hasSignConfig = true
+    }
+} else {
     def signFile = rootProject.file('sign.properties')
     if (signFile.exists()) {
         signFile.withInputStream { stream -> signingProps.load(stream) }
@@ -18,13 +30,14 @@ android {
     compileSdkVersion 36
 
     defaultConfig {
-        buildConfigField "String", "VERSION_NAME", "\"1.1.5.1\""
-        buildConfigField 'int', 'VERSION_CODE', "11515"
+        buildConfigField "String", "VERSION_NAME", "\"${project.version_name}\""
+        buildConfigField 'int', 'VERSION_CODE', "${project.version_code}"
         applicationId "cn.jdnjk.simpfun"
         minSdkVersion 23
+        //noinspection OldTargetApi
         targetSdkVersion 35
-        versionCode 11515
-        versionName "1.1.5.1"
+        versionCode Integer.parseInt(project.version_code)
+        versionName project.version_name
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
         }

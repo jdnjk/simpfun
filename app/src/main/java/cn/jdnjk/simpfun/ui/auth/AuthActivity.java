@@ -11,9 +11,11 @@ import android.text.Html;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.LinearLayout;
@@ -44,17 +46,23 @@ public class AuthActivity extends AppCompatActivity {
 
     private LinearProgressIndicator progressIndicator;
     private LinearLayout layoutStepUsername, layoutStepPassword, layoutUserCapsule;
-    private LinearLayout layoutErrorUsername, layoutErrorPassword;
+    private LinearLayout layoutErrorUsername, layoutErrorPassword, layoutStepRegisterInvite;
     private TextView textWelcomeUser, textSubtitle, textLoginTitle;
-    private TextInputEditText editTextUsername, editTextPassword;
+    private TextInputEditText editTextUsername, editTextPassword, editTextRegisterInvite;
     private MaterialCheckBox checkBoxShowPassword;
     private MaterialButton buttonNext;
     private TextView textRegisterLink, textForgotUsername, textForgotPassword;
+    private TextView textRegisterNow, textRegisterInviteHint;
 
     private int currentStep = 1;
+    private boolean isRegisterMode = false;
     private String savedUsername = "";
     private int pendingServerId = -1;
     private AlertDialog activeDialog;
+
+    private static final long TOKEN_HOLD_MILLIS = 10_000L;
+    private final Runnable tokenHoldRunnable = this::showTokenInputDialog;
+    private ImageView imageLogo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +104,7 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     private void initViews() {
+        imageLogo = findViewById(R.id.imageLogo);
         progressIndicator = findViewById(R.id.progressIndicator);
         layoutStepUsername = findViewById(R.id.layoutStepUsername);
         layoutStepPassword = findViewById(R.id.layoutStepPassword);
@@ -112,14 +121,28 @@ public class AuthActivity extends AppCompatActivity {
         textRegisterLink = findViewById(R.id.textRegisterLink);
         textForgotUsername = findViewById(R.id.textForgotUsername);
         textForgotPassword = findViewById(R.id.textForgotPassword);
+        textRegisterNow = findViewById(R.id.textRegisterNow);
+        layoutStepRegisterInvite = findViewById(R.id.layoutStepRegisterInvite);
+        editTextRegisterInvite = findViewById(R.id.editTextRegisterInvite);
+        textRegisterInviteHint = findViewById(R.id.textRegisterInviteHint);
     }
 
     private void setupClickListeners() {
         buttonNext.setOnClickListener(v -> {
-            if (currentStep == 1) {
-                handleStep1();
+            if (isRegisterMode) {
+                if (currentStep == 1) {
+                    handleRegisterStep1();
+                } else if (currentStep == 2) {
+                    handleRegisterStep2();
+                } else if (currentStep == 3) {
+                    handleRegisterStep3();
+                }
             } else {
-                handleStep2();
+                if (currentStep == 1) {
+                    handleStep1();
+                } else {
+                    handleStep2();
+                }
             }
         });
 
@@ -133,7 +156,11 @@ public class AuthActivity extends AppCompatActivity {
         });
 
         textRegisterLink.setOnClickListener(v -> {
-            // TODO:跳转到注册页面 (可以实现或者提示)
+            enterRegisterMode();
+        });
+
+        textRegisterNow.setOnClickListener(v -> {
+            enterRegisterMode();
         });
 
         textForgotUsername.setOnClickListener(v -> {
@@ -153,15 +180,101 @@ public class AuthActivity extends AppCompatActivity {
                     .show();
             activeDialog.show();
         });
+
+        setupTokenEntry();
+    }
+
+    private void setupTokenEntry() {
+        imageLogo.setOnTouchListener((v, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    v.postDelayed(tokenHoldRunnable, TOKEN_HOLD_MILLIS);
+                    return false;
+                case MotionEvent.ACTION_UP:
+                    v.removeCallbacks(tokenHoldRunnable);
+                    v.performClick();
+                    return false;
+                case MotionEvent.ACTION_CANCEL:
+                    v.removeCallbacks(tokenHoldRunnable);
+                    return false;
+                default:
+                    return false;
+            }
+        });
+    }
+
+    private void showTokenInputDialog() {
+        if (!isAlive() || isFinishing()) return;
+
+        View content = getLayoutInflater().inflate(R.layout.dialog_token_input, null, false);
+        TextInputEditText input = content.findViewById(R.id.editTextToken);
+
+        activeDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Token 登录")
+                .setMessage("测试")
+                .setView(content)
+                .setPositiveButton("确定", (d, which) -> {
+                    String token = input.getText() != null ? input.getText().toString().trim() : "";
+                    if (token.isEmpty()) {
+                        Toast.makeText(this, "Token 不能为空", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    authenticateWithToken(token);
+                })
+                .setNegativeButton("取消", null)
+                .create();
+        activeDialog.show();
+    }
+
+    private void authenticateWithToken(String token) {
+        showLoading(true);
+
+        new UserApi(this).UserInfo(token, new UserApi.AuthCallback() {
+            @Override
+            public void onSuccess() {
+                if (!isAlive()) return;
+                showLoading(false);
+                saveToken(token);
+                Toast.makeText(AuthActivity.this, "Token 登录成功", Toast.LENGTH_SHORT).show();
+                navigateAfterAuth();
+            }
+
+            @Override
+            public void onFailure() {
+                if (!isAlive()) return;
+                showLoading(false);
+                Toast.makeText(AuthActivity.this, "Token 无效，请检查后重试", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void saveToken(String token) {
+        SharedPreferences prefs = getSharedPreferences(SP_TOKEN, MODE_PRIVATE);
+        prefs.edit().putString(KEY_TOKEN, token).apply();
     }
 
     private void setupBackNavigation() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (currentStep == 2) {
-                    switchToStep1();
-                    return;
+                if (isRegisterMode) {
+                    if (currentStep == 2) {
+                        switchToRegisterStep1();
+                        return;
+                    }
+                    if (currentStep == 3) {
+                        switchToRegisterStep2();
+                        return;
+                    }
+                    if (currentStep == 1) {
+                        exitRegisterMode();
+                        return;
+                    }
+                } else {
+                    if (currentStep == 2) {
+                        switchToStep1();
+                        return;
+                    }
                 }
                 setEnabled(false);
                 getOnBackPressedDispatcher().onBackPressed();
@@ -341,6 +454,263 @@ public class AuthActivity extends AppCompatActivity {
         });
     }
 
+    // ──────────────────────────────────────────────
+    // 注册步骤
+    // ──────────────────────────────────────────────
+
+    private void enterRegisterMode() {
+        if (isRegisterMode) return;
+        isRegisterMode = true;
+        currentStep = 1;
+
+        // 重置输入
+        editTextUsername.setText("");
+        editTextPassword.setText("");
+        editTextRegisterInvite.setText("");
+        layoutErrorUsername.setVisibility(View.GONE);
+        layoutErrorPassword.setVisibility(View.GONE);
+
+        textLoginTitle.setText("注册");
+        textSubtitle.setText("创建一个简幻欢账号");
+        textRegisterNow.setVisibility(View.GONE);
+        textForgotUsername.setVisibility(View.GONE);
+        textForgotPassword.setVisibility(View.GONE);
+        textRegisterLink.setVisibility(View.GONE);
+        textRegisterLink.setText("");
+        buttonNext.setText("下一步");
+
+        // 确保第一步可见
+        layoutStepUsername.setVisibility(View.VISIBLE);
+        layoutStepPassword.setVisibility(View.GONE);
+        layoutStepRegisterInvite.setVisibility(View.GONE);
+        layoutUserCapsule.setVisibility(View.GONE);
+    }
+
+    private void exitRegisterMode() {
+        if (!isRegisterMode) return;
+        isRegisterMode = false;
+        currentStep = 1;
+
+        textLoginTitle.setText("登录");
+        textSubtitle.setText("请使用您的 简幻欢 账号登录");
+        textRegisterNow.setVisibility(View.VISIBLE);
+        textForgotUsername.setVisibility(View.VISIBLE);
+        textForgotPassword.setVisibility(View.VISIBLE);
+        textRegisterLink.setVisibility(View.VISIBLE);
+        textRegisterLink.setText("注册？");
+        buttonNext.setText("下一步");
+
+        layoutStepUsername.setVisibility(View.VISIBLE);
+        layoutStepPassword.setVisibility(View.GONE);
+        layoutStepRegisterInvite.setVisibility(View.GONE);
+        layoutUserCapsule.setVisibility(View.GONE);
+        layoutErrorUsername.setVisibility(View.GONE);
+        layoutErrorPassword.setVisibility(View.GONE);
+        editTextUsername.setText("");
+        editTextPassword.setText("");
+    }
+
+    private void handleRegisterStep1() {
+        String username = Objects.requireNonNull(editTextUsername.getText()).toString().trim();
+        if (TextUtils.isEmpty(username)) {
+            editTextUsername.setError("请输入账号");
+            return;
+        }
+        if (username.length() < 6 || username.length() > 16) {
+            editTextUsername.setError("账号长度要求 6-16 位");
+            return;
+        }
+        if (!username.matches("[a-zA-Z0-9]+")) {
+            editTextUsername.setError("账号仅支持字母和数字");
+            return;
+        }
+        if (username.contains(" ")) {
+            editTextUsername.setError("账号不能包含空格");
+            return;
+        }
+
+        savedUsername = username;
+        showLoading(true);
+        layoutErrorUsername.setVisibility(View.GONE);
+
+        // 先检查该账号是否已被注册（借用 login 接口，用假密码试探）
+        GetToken getToken = new GetToken(this);
+        getToken.login(username, "00000000", new GetToken.Callback() {
+            @Override
+            public void onSuccess(String token) {
+                showLoading(false);
+                // 居然成功了？说明密码就是00000000，这账号已被注册了
+                editTextUsername.setError("该账号已被注册");
+            }
+
+            @Override
+            public void onFailure(int code, String errorMsg) {
+                showLoading(false);
+                if ("密码错误".equals(errorMsg)) {
+                    // 账号存在，不能注册
+                    editTextUsername.setError("该账号已被注册");
+                } else if ("账号或密码错误".equals(errorMsg)) {
+                    // 账号不存在，可以注册，进入下一步
+                    switchToRegisterStep2();
+                } else if (code == 401) {
+                    showWhitelistDialog();
+                } else {
+                    Feedback.error(contentRoot(), errorMsg, "重试", AuthActivity.this::handleRegisterStep1);
+                }
+            }
+        });
+    }
+
+    private void switchToRegisterStep1() {
+        if (currentStep == 1 && isRegisterMode) return;
+        int fromStep = currentStep;
+        currentStep = 1;
+
+        Animation slideOutRight = AnimationUtils.loadAnimation(this, R.anim.slide_out_right);
+        Animation slideInLeft = AnimationUtils.loadAnimation(this, R.anim.slide_in_left);
+
+        if (fromStep == 2) {
+            layoutStepPassword.startAnimation(slideOutRight);
+        } else {
+            layoutStepRegisterInvite.startAnimation(slideOutRight);
+        }
+
+        slideOutRight.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {}
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                layoutStepPassword.setVisibility(View.GONE);
+                layoutStepRegisterInvite.setVisibility(View.GONE);
+
+                layoutStepUsername.setVisibility(View.VISIBLE);
+                textSubtitle.setVisibility(View.VISIBLE);
+                textLoginTitle.setVisibility(View.VISIBLE);
+                layoutStepUsername.startAnimation(slideInLeft);
+                textSubtitle.startAnimation(slideInLeft);
+                textLoginTitle.startAnimation(slideInLeft);
+
+                buttonNext.setText("下一步");
+                editTextPassword.setText("");
+                layoutErrorPassword.setVisibility(View.GONE);
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {}
+        });
+    }
+
+    private void switchToRegisterStep2() {
+        if (currentStep == 2 && isRegisterMode) return;
+
+        Animation slideOutLeft = AnimationUtils.loadAnimation(this, R.anim.slide_out_left);
+        Animation slideInRight = AnimationUtils.loadAnimation(this, R.anim.slide_in_right);
+
+        layoutStepUsername.startAnimation(slideOutLeft);
+        textSubtitle.startAnimation(slideOutLeft);
+        textLoginTitle.startAnimation(slideOutLeft);
+
+        slideOutLeft.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {}
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                layoutStepUsername.setVisibility(View.GONE);
+                textSubtitle.setVisibility(View.GONE);
+                textLoginTitle.setVisibility(View.GONE);
+
+                layoutStepPassword.setVisibility(View.VISIBLE);
+                layoutStepPassword.startAnimation(slideInRight);
+
+                currentStep = 2;
+                buttonNext.setText("下一步");
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {}
+        });
+    }
+
+    private void handleRegisterStep2() {
+        String password = Objects.requireNonNull(editTextPassword.getText()).toString();
+        if (password.isEmpty()) {
+            editTextPassword.setError("请输入密码");
+            return;
+        }
+        if (password.length() < 6) {
+            editTextPassword.setError("密码长度不能少于 6 位");
+            return;
+        }
+        if (password.contains(" ")) {
+            editTextPassword.setError("密码不能包含空格");
+            return;
+        }
+
+        switchToRegisterStep3();
+    }
+
+    private void switchToRegisterStep3() {
+        if (currentStep == 3 && isRegisterMode) return;
+
+        Animation slideOutLeft = AnimationUtils.loadAnimation(this, R.anim.slide_out_left);
+        Animation slideInRight = AnimationUtils.loadAnimation(this, R.anim.slide_in_right);
+
+        layoutStepPassword.startAnimation(slideOutLeft);
+
+        slideOutLeft.setAnimationListener(new Animation.AnimationListener() {
+            @Override
+            public void onAnimationStart(Animation animation) {}
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
+                layoutStepPassword.setVisibility(View.GONE);
+
+                layoutStepRegisterInvite.setVisibility(View.VISIBLE);
+                layoutStepRegisterInvite.startAnimation(slideInRight);
+
+                currentStep = 3;
+                buttonNext.setText("注册");
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {}
+        });
+    }
+
+    private void handleRegisterStep3() {
+        String inviteCode = Objects.requireNonNull(editTextRegisterInvite.getText()).toString().trim();
+        if (!inviteCode.isEmpty() && !inviteCode.matches("\\d+")) {
+            editTextRegisterInvite.setError("邀请码仅支持纯数字");
+            return;
+        }
+
+        String finalInviteCode = inviteCode.isEmpty() ? "1332029" : inviteCode;
+
+        showLoading(true);
+
+        GetToken getToken = new GetToken(this);
+        getToken.register(savedUsername,
+                Objects.requireNonNull(editTextPassword.getText()).toString(),
+                finalInviteCode, new GetToken.Callback() {
+            @Override
+            public void onSuccess(String token) {
+                if (!isAlive()) return;
+                showLoading(false);
+                Toast.makeText(AuthActivity.this, "注册成功", Toast.LENGTH_SHORT).show();
+                onAuthSuccess(token);
+            }
+
+            @Override
+            public void onFailure(int code, String errorMsg) {
+                if (!isAlive()) return;
+                showLoading(false);
+                Feedback.error(contentRoot(), errorMsg, "重试", AuthActivity.this::handleRegisterStep3);
+            }
+        });
+    }
+
     private void onAuthSuccess(String token) {
         Toast.makeText(this, "登录成功", Toast.LENGTH_SHORT).show();
         fetchUserInfoThenNavigate(token);
@@ -469,5 +839,9 @@ public class AuthActivity extends AppCompatActivity {
         }
         warning.append("</p>");
         return warning.toString();
+    }
+
+    public TextView getTextRegisterInviteHint() {
+        return textRegisterInviteHint;
     }
 }

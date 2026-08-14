@@ -1,0 +1,132 @@
+name: Release Build
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          # Tag 形如: v1.1.5.2-11520
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag: ${TAG}"
+          if [[ ! "${TAG}" =~ ^v[0-9]+(\.[0-9]+){2,3}-[0-9]+$ ]]; then
+            echo "::error::Tag format invalid. Expected v1.1.5.2-11520, got '${TAG}'"
+            exit 1
+          fi
+          VERSION_NAME="${TAG#v}"
+          VERSION_CODE="${VERSION_NAME##*-}"
+          VERSION_NAME="${VERSION_NAME%-*}"
+          echo "version_name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "resolved version_name=${VERSION_NAME}, version_code=${VERSION_CODE}"
+
+      - name: Write version into gradle.properties
+        run: |
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          VERSION_CODE="${{ steps.version.outputs.version_code }}"
+          sed -i "s/^version_code=.*/version_code=${VERSION_CODE}/" gradle.properties
+          sed -i "s/^version_name=.*/version_name=${VERSION_NAME}/" gradle.properties
+          grep -E '^(version_code|version_name)=' gradle.properties
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Decode signing keystore
+        env:
+          SIGNING_KEYSTORE: ${{ secrets.SIGNING_KEYSTORE }}
+        run: |
+          if [ -z "${SIGNING_KEYSTORE}" ]; then
+            echo "::error::Secret SIGNING_KEYSTORE is not configured. Add it in repo Settings → Secrets."
+            exit 1
+          fi
+          echo "${SIGNING_KEYSTORE}" | base64 -d > "${GITHUB_WORKSPACE}/app/release.keystore"
+          echo "keystore decoded to app/release.keystore"
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/app/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          BUGLY_ID: ${{ secrets.BUGLY_ID }}
+          MST_ID: ${{ secrets.MST_ID }}
+
+      - name: Locate and rename APK
+        id: apk
+        run: |
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          VERSION_CODE="${{ steps.version.outputs.version_code }}"
+          APK_SRC="$(find app/build/outputs/apk/release -name '*.apk' | head -1)"
+          if [ -z "${APK_SRC}" ]; then
+            echo "::error::No APK produced under app/build/outputs/apk/release"
+            exit 1
+          fi
+          APK_DEST="simpfun-v${VERSION_NAME}-${VERSION_CODE}.apk"
+          cp "${APK_SRC}" "${APK_DEST}"
+          echo "apk_path=${APK_DEST}" >> "$GITHUB_OUTPUT"
+          echo "renamed to ${APK_DEST}"
+
+      - name: Backfill release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+
+          BODY="$(gh release view "${TAG}" --json body -q .body 2>/dev/null || true)"
+          if [ -n "$(printf '%s' "${BODY}" | tr -d '[:space:]')" ]; then
+            echo "Release body already has content — leaving it as-is."
+            exit 0
+          fi
+
+          PREV_TAG="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          if [ -n "${PREV_TAG}" ]; then
+            echo "Collecting commits since ${PREV_TAG}"
+            NOTES="$(git log --pretty=format:"- %s" --no-merges "${PREV_TAG}..${TAG}")"
+          else
+            echo "No previous tag — using last 50 commits"
+            NOTES="$(git log --pretty=format:"- %s" --no-merges -50 "${TAG}")"
+          fi
+
+          if [ -z "${NOTES}" ]; then
+            NOTES="- 本次发布无提交变更"
+          fi
+
+          printf '%s\n' "${NOTES}" > /tmp/release_notes.md
+          gh release edit "${TAG}" --notes-file /tmp/release_notes.md
+          echo "Release notes backfilled."
+
+      - name: Upload APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" "${{ steps.apk.outputs.apk_path }}" --clobber
+
+      - name: Upload ProGuard mapping as artifact
+        # mapping 含混淆前后对照，仅作 artifact 供仓库内排查，不发到 Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: proguard-mapping-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn

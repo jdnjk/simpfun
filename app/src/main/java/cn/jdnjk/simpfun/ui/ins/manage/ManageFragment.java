@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
+import android.transition.TransitionManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,6 +34,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -53,10 +55,13 @@ import cn.jdnjk.simpfun.api.ins.DiamondApi;
 import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PortApi;
 import cn.jdnjk.simpfun.api.ins.SupportAPI;
+import cn.jdnjk.simpfun.api.ins.TrafficApi;
 import cn.jdnjk.simpfun.ui.create.CreateServer;
+import cn.jdnjk.simpfun.ui.point.PointManageActivity;
 import cn.jdnjk.simpfun.ui.setting.ManageScreenshotProtection;
 import cn.jdnjk.simpfun.utils.ClipboardUtils;
 import cn.jdnjk.simpfun.utils.InstanceDetailStore;
+import cn.jdnjk.simpfun.utils.MarkdownRenderer;
 import cn.jdnjk.simpfun.utils.PageDataStore;
 import cn.jdnjk.simpfun.utils.SftpCredentialStore;
 
@@ -84,6 +89,7 @@ public class ManageFragment extends Fragment {
     private TextView tvGameType;
     private TextView tvDiskCheckTime;
     private MaterialButton btnRateImage;
+    private ImageButton btnInstanceInfo;
     private TextView tvSftpHost;
     private TextView tvSftpPort;
     private TextView tvSftpUser;
@@ -104,6 +110,18 @@ public class ManageFragment extends Fragment {
     private MaterialButton btnReinstallInstance;
     private MaterialButton btnChangeConfig;
     private MaterialButton btnDestroyInstance;
+
+    private BottomSheetDialog instanceInfoDialog;
+    private TextView tvLineCurrent;
+    private TextView tvLineCooldown;
+    private MaterialButton btnSwitchLine;
+    private TextView tvAutoSupplyBody;
+    private TextView tvResetCdCurrent;
+    private MaterialButton btnSetResetCd;
+    private MaterialButton btnToggleAutoSupply;
+    private boolean lineSwitchRunning;
+    private boolean autoSupplyRunning;
+    private boolean resetCdRunning;
 
     private final ActivityResultLauncher<Intent> reinstallLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -142,6 +160,10 @@ public class ManageFragment extends Fragment {
     public void onDestroyView() {
         detailRefreshGeneration++;
         detailRefreshRunning = false;
+        if (instanceInfoDialog != null) {
+            instanceInfoDialog.dismiss();
+            instanceInfoDialog = null;
+        }
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setOnRefreshListener(null);
             swipeRefreshLayout.setRefreshing(false);
@@ -205,6 +227,7 @@ public class ManageFragment extends Fragment {
         tvGameType = root.findViewById(R.id.tv_game_type);
         tvDiskCheckTime = root.findViewById(R.id.tv_disk_check_time);
         btnRateImage = root.findViewById(R.id.btn_rate_image);
+        btnInstanceInfo = root.findViewById(R.id.btn_instance_info);
         tvSftpHost = root.findViewById(R.id.tv_sftp_host);
         tvSftpPort = root.findViewById(R.id.tv_sftp_port);
         tvSftpUser = root.findViewById(R.id.tv_sftp_user);
@@ -277,6 +300,7 @@ public class ManageFragment extends Fragment {
         btnApplyDiamondPlan.setOnClickListener(v -> applyDiamondPlan());
         btnRateImage.setOnClickListener(v -> showRatingDialog());
         btnSupportAction.setOnClickListener(v -> showSupportCommentDialog(isSupportValid()));
+        btnInstanceInfo.setOnClickListener(v -> showInstanceInfoDialog());
 
         btnBuyPort.setOnClickListener(v -> confirmBuyPort());
         btnSetMainPort.setOnClickListener(v -> setMainPort());
@@ -481,6 +505,296 @@ public class ManageFragment extends Fragment {
         boolean showButton = shouldShowSupportCard();
         btnRateImage.setVisibility(showButton ? View.VISIBLE : View.GONE);
         btnRateImage.setEnabled(showButton && cachedDetail != null);
+    }
+
+    // ---------- 实例信息说明弹窗 ----------
+
+    private void showInstanceInfoDialog() {
+        if (cachedDetail == null || !isAdded() || getContext() == null) return;
+
+        View view = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_instance_info, null, false);
+
+        instanceInfoDialog = new BottomSheetDialog(requireContext(), R.style.ThemeOverlay_Simpfun_BottomSheet);
+        instanceInfoDialog.setContentView(view);
+        instanceInfoDialog.setOnDismissListener(d -> {
+            if (instanceInfoDialog == d) {
+                instanceInfoDialog = null;
+            }
+        });
+
+        ViewGroup sceneRoot = (ViewGroup) ((ViewGroup) view).getChildAt(0);
+
+        MarkdownRenderer renderer = MarkdownRenderer.getInstance(requireContext());
+        TextView tvDiskBody = view.findViewById(R.id.tv_disk_body);
+        renderer.render(tvDiskBody, "磁盘占用数据非实时更新，一天内至少更新一次\n超过免费额度上限的部分，将按 **1积分/GB/天** 收取");
+
+        TextView tvTrafficDescBody = view.findViewById(R.id.tv_traffic_desc_body);
+        renderer.render(tvTrafficDescBody, "实例上行带宽**1000Mbps**，正常使用无需考虑带宽问题\n上行流量将在实例扣费时，重置为 **5GB**，并叠加上周期计费 **剩余流量的60%**\n建议错峰使用，并开启数据压缩以降低流量消耗，在了解线路差异后按需选取合适线路\n当流量用尽时，实例将会断网，且在关闭后无法开启，您可以通过购买流量包来恢复网络连接，该功能 **不会** 续期实例");
+
+        TextView tvPackageBody = view.findViewById(R.id.tv_package_body);
+        renderer.render(tvPackageBody, "流量包将立即为实例补充上行流量，从当前积分中扣除。\n购买流量包 **不会** 续期实例，仅恢复网络连接。");
+
+        TextView tvBillingBody = view.findViewById(R.id.tv_billing_body);
+        renderer.render(tvBillingBody, "仅计算上行流量：从实例发出的流量会计费，下行流量不计费\n低谷期：流量使用按正常的 0.2倍 计入\n每日：2:00 - 10:00\n高峰期：流量使用按正常的 1.5倍 计入\n周六：19:00 - 23:00");
+
+        // 展开/折叠
+        bindExpandable(sceneRoot, view.findViewById(R.id.card_disk_header), tvDiskBody, view.findViewById(R.id.iv_disk_chevron), true);
+        bindExpandable(sceneRoot, view.findViewById(R.id.card_traffic_desc_header), tvTrafficDescBody, view.findViewById(R.id.iv_traffic_desc_chevron), false);
+        View layoutPackageBody = view.findViewById(R.id.layout_package_body);
+        bindExpandable(sceneRoot, view.findViewById(R.id.card_package_header), layoutPackageBody, view.findViewById(R.id.iv_package_chevron), false);
+        View layoutLineBody = view.findViewById(R.id.layout_line_body);
+        bindExpandable(sceneRoot, view.findViewById(R.id.card_line_header), layoutLineBody, view.findViewById(R.id.iv_line_chevron), false);
+        View layoutAutoSupplyBody = view.findViewById(R.id.layout_auto_supply_body);
+        bindExpandable(sceneRoot, view.findViewById(R.id.card_auto_supply_header), layoutAutoSupplyBody, view.findViewById(R.id.iv_auto_supply_chevron), false);
+        bindExpandable(sceneRoot, view.findViewById(R.id.card_billing_header), tvBillingBody, view.findViewById(R.id.iv_billing_chevron), false);
+
+        tvLineCurrent = view.findViewById(R.id.tv_line_current);
+        tvLineCooldown = view.findViewById(R.id.tv_line_cooldown);
+        btnSwitchLine = view.findViewById(R.id.btn_switch_line);
+        tvAutoSupplyBody = view.findViewById(R.id.tv_auto_supply_body);
+        tvResetCdCurrent = view.findViewById(R.id.tv_reset_cd_current);
+        btnSetResetCd = view.findViewById(R.id.btn_set_reset_cd);
+        btnToggleAutoSupply = view.findViewById(R.id.btn_toggle_auto_supply);
+
+        // 前往购买流量
+        view.findViewById(R.id.btn_go_purchase_traffic).setOnClickListener(v -> {
+            if (instanceInfoDialog != null) {
+                instanceInfoDialog.dismiss();
+                instanceInfoDialog = null;
+            }
+            openTrafficRecharge();
+        });
+
+        btnSwitchLine.setOnClickListener(v -> switchTrafficLine());
+        btnToggleAutoSupply.setOnClickListener(v -> toggleAutoSupply());
+        btnSetResetCd.setOnClickListener(v -> showSetResetCdDialog());
+
+        // 在 dialog 已赋值后渲染，按钮/文案才会被正确填充
+        renderInfoDialogDynamic();
+
+        instanceInfoDialog.show();
+    }
+
+    private void bindExpandable(ViewGroup sceneRoot, View header, View body, View chevron, boolean initiallyExpanded) {
+        final boolean[] expanded = {initiallyExpanded};
+        body.setVisibility(expanded[0] ? View.VISIBLE : View.GONE);
+        if (chevron != null) {
+            chevron.setRotation(expanded[0] ? 180f : 0f);
+        }
+        header.setOnClickListener(v -> {
+            expanded[0] = !expanded[0];
+            if (sceneRoot != null) {
+                TransitionManager.beginDelayedTransition(sceneRoot);
+            }
+            body.setVisibility(expanded[0] ? View.VISIBLE : View.GONE);
+            if (chevron != null) {
+                chevron.animate().rotation(expanded[0] ? 180f : 0f).setDuration(200).start();
+            }
+        });
+    }
+
+    private void openTrafficRecharge() {
+        if (!(getActivity() instanceof ServerManages activity)) return;
+        Intent intent = new Intent(requireContext(), PointManageActivity.class);
+        intent.putExtra(PointManageActivity.EXTRA_TAB, PointManageActivity.TAB_POINTS);
+        intent.putExtra(PointManageActivity.EXTRA_RECHARGE_TAB, PointManageActivity.RECHARGE_TAB_TRAFFIC);
+        intent.putExtra(PointManageActivity.EXTRA_PRESELECT_INSTANCE, activity.getDeviceId());
+        startActivity(intent);
+    }
+
+    private void renderInfoDialogDynamic() {
+        if (instanceInfoDialog == null || cachedDetail == null) return;
+        JSONObject traffic = cachedDetail.optJSONObject("traffic");
+        boolean moreTraffic = traffic != null && traffic.optBoolean("more_traffic", false);
+        boolean autoReset = traffic != null && traffic.optBoolean("auto_reset", false);
+        boolean isPro = cachedDetail.optBoolean("is_pro", false);
+
+        if (tvLineCurrent != null) {
+            tvLineCurrent.setText("当前线路：" + (moreTraffic ? "普通线路" : "精品线路"));
+        }
+
+        // 线路切换冷却：more_traffic_next_change_at 之后才可再次切换
+        long nextChangeAt = traffic != null ? traffic.optLong("more_traffic_next_change_at", 0) : 0;
+        long nowSec = System.currentTimeMillis() / 1000L;
+        long cooldownSec = nextChangeAt - nowSec;
+        if (tvLineCooldown != null) {
+            if (cooldownSec > 0) {
+                tvLineCooldown.setText("切换冷却中，剩余 " + formatDuration(cooldownSec));
+                tvLineCooldown.setVisibility(View.VISIBLE);
+            } else {
+                tvLineCooldown.setVisibility(View.GONE);
+            }
+        }
+        if (btnSwitchLine != null) {
+            if (lineSwitchRunning || cooldownSec > 0) {
+                btnSwitchLine.setEnabled(false);
+            } else {
+                btnSwitchLine.setEnabled(true);
+                btnSwitchLine.setText(moreTraffic ? "切换为精品线路" : "切换为普通线路");
+            }
+        }
+
+        if (tvAutoSupplyBody != null) {
+            StringBuilder sb = new StringBuilder("目前流量 **会在耗尽时自动补充**，消耗 **10积分** 购买");
+            sb.append(moreTraffic ? "3G" : "1G").append("流量");
+            if (!isPro) {
+                sb.append(" (变更Pro后消耗减半至5积分)");
+            }
+            MarkdownRenderer.getInstance(requireContext()).render(tvAutoSupplyBody, sb.toString());
+        }
+
+        // 自动补充间隔配置
+        long resetCd = traffic != null ? traffic.optLong("cd", 0) : 0;
+        if (tvResetCdCurrent != null) {
+            if (autoReset && resetCd > 0) {
+                tvResetCdCurrent.setText("当前补充间隔：" + resetCd + " 分钟");
+                tvResetCdCurrent.setVisibility(View.VISIBLE);
+            } else {
+                tvResetCdCurrent.setVisibility(View.GONE);
+            }
+        }
+        if (btnSetResetCd != null) {
+            boolean showCd = autoReset && !resetCdRunning;
+            btnSetResetCd.setVisibility(showCd ? View.VISIBLE : View.GONE);
+            btnSetResetCd.setEnabled(showCd);
+        }
+        if (btnToggleAutoSupply != null) {
+            if (autoSupplyRunning || resetCdRunning) {
+                btnToggleAutoSupply.setEnabled(false);
+            } else {
+                btnToggleAutoSupply.setEnabled(true);
+                btnToggleAutoSupply.setText(autoReset ? "关闭自动补充" : "开启自动补充");
+            }
+        }
+    }
+
+    private String formatDuration(long seconds) {
+        if (seconds <= 0) return "0分钟";
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        if (hours > 0) {
+            return hours + "小时" + (minutes > 0 ? minutes + "分钟" : "");
+        }
+        if (minutes <= 0) {
+            return seconds + "秒";
+        }
+        return minutes + "分钟";
+    }
+
+    private void switchTrafficLine() {
+        if (!(getActivity() instanceof ServerManages activity) || cachedDetail == null) return;
+        JSONObject traffic = cachedDetail.optJSONObject("traffic");
+        boolean moreTraffic = traffic != null && traffic.optBoolean("more_traffic", false);
+        String action = moreTraffic ? "disable_more_traffic" : "enable_more_traffic";
+
+        lineSwitchRunning = true;
+        renderInfoDialogDynamic();
+        new TrafficApi().changeTrafficMode(requireContext(), activity.getDeviceId(), action, new TrafficApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), data.optString("msg", "线路切换成功"), Toast.LENGTH_SHORT).show();
+                lineSwitchRunning = false;
+                refreshDetailFromApi(ManageFragment.this::renderInfoDialogDynamic);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                lineSwitchRunning = false;
+                renderInfoDialogDynamic();
+                Toast.makeText(requireContext(), "线路切换失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void toggleAutoSupply() {
+        if (!(getActivity() instanceof ServerManages activity) || cachedDetail == null) return;
+        JSONObject traffic = cachedDetail.optJSONObject("traffic");
+        boolean autoReset = traffic != null && traffic.optBoolean("auto_reset", false);
+        String action = autoReset ? "manual_reset" : "auto_reset";
+
+        autoSupplyRunning = true;
+        renderInfoDialogDynamic();
+        new TrafficApi().changeTrafficMode(requireContext(), activity.getDeviceId(), action, new TrafficApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), data.optString("msg", "操作成功"), Toast.LENGTH_SHORT).show();
+                autoSupplyRunning = false;
+                refreshDetailFromApi(ManageFragment.this::renderInfoDialogDynamic);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                autoSupplyRunning = false;
+                renderInfoDialogDynamic();
+                Toast.makeText(requireContext(), "操作失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showSetResetCdDialog() {
+        if (cachedDetail == null || !isAdded() || getContext() == null) return;
+        JSONObject traffic = cachedDetail.optJSONObject("traffic");
+        long currentCd = traffic != null ? traffic.optLong("cd", 0) : 0;
+
+        EditText input = new EditText(requireContext());
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setHint("分钟");
+        if (currentCd > 0) {
+            input.setText(String.valueOf(currentCd));
+            input.setSelection(input.getText().length());
+        }
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("设置自动补充间隔")
+                .setMessage("两次流量补充之间的最小间隔（分钟），防止恶意刷流量")
+                .setView(input)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("保存", null)
+                .create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String raw = input.getText() == null ? "" : input.getText().toString().trim();
+            int minutes;
+            try {
+                minutes = Integer.parseInt(raw);
+            } catch (NumberFormatException e) {
+                Toast.makeText(requireContext(), "请输入有效的分钟数", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (minutes <= 0) {
+                Toast.makeText(requireContext(), "间隔必须大于 0 分钟", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            dialog.dismiss();
+            setResetCd(minutes);
+        }));
+        dialog.show();
+    }
+
+    private void setResetCd(int minutes) {
+        if (!(getActivity() instanceof ServerManages activity)) return;
+        resetCdRunning = true;
+        renderInfoDialogDynamic();
+        new TrafficApi().changeTrafficMode(requireContext(), activity.getDeviceId(), "set_reset_cd", minutes, new TrafficApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (!isAdded()) return;
+                Toast.makeText(requireContext(), data.optString("msg", "设置间隔成功"), Toast.LENGTH_SHORT).show();
+                resetCdRunning = false;
+                refreshDetailFromApi(ManageFragment.this::renderInfoDialogDynamic);
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!isAdded()) return;
+                resetCdRunning = false;
+                renderInfoDialogDynamic();
+                Toast.makeText(requireContext(), "设置间隔失败: " + errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void renderSupportCard() {

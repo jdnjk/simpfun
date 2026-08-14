@@ -29,8 +29,23 @@ public class PointManageActivity extends AppCompatActivity {
     public static final String TAB_POINTS = "points";
     public static final String TAB_DIAMONDS = "diamonds";
 
+    public static final String EXTRA_RECHARGE_TAB = "recharge_tab";
+    public static final int RECHARGE_TAB_POINTS = 0;
+    public static final int RECHARGE_TAB_TRAFFIC = 1;
+    public static final String EXTRA_PRESELECT_INSTANCE = "preselect_instance";
+
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
+    private int rechargeTab = -1;
+    private int preselectInstance = -1;
+
+    public int getRechargeTab() {
+        return rechargeTab;
+    }
+
+    public int getPreselectInstance() {
+        return preselectInstance;
+    }
 
     public void showRecharge(boolean show) {
         if (tabLayout != null) {
@@ -98,6 +113,11 @@ public class PointManageActivity extends AppCompatActivity {
             viewPager.setCurrentItem(1, false);
         } else {
             viewPager.setCurrentItem(0, false);
+        }
+
+        if (getIntent() != null) {
+            rechargeTab = getIntent().getIntExtra(EXTRA_RECHARGE_TAB, -1);
+            preselectInstance = getIntent().getIntExtra(EXTRA_PRESELECT_INSTANCE, -1);
         }
     }
 

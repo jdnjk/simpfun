@@ -88,6 +88,13 @@ public class PointHistoryFragment extends Fragment {
 
         loadHistoryData();
 
+        if (TYPE_POINTS.equals(type) && getActivity() instanceof PointManageActivity) {
+            PointManageActivity pointActivity = (PointManageActivity) getActivity();
+            if (pointActivity.getRechargeTab() >= 0) {
+                toggleRecharge();
+            }
+        }
+
         return view;
     }
 
@@ -104,8 +111,15 @@ public class PointHistoryFragment extends Fragment {
             recyclerView.setVisibility(View.VISIBLE);
             if (titleLayout != null) titleLayout.setVisibility(View.VISIBLE);
         } else {
+            int rechargeTab = -1;
+            int preselectInstance = -1;
+            if (getActivity() instanceof PointManageActivity) {
+                PointManageActivity activity = (PointManageActivity) getActivity();
+                rechargeTab = activity.getRechargeTab();
+                preselectInstance = activity.getPreselectInstance();
+            }
             getChildFragmentManager().beginTransaction()
-                    .replace(R.id.recharge_container, new RechargeFragment())
+                    .replace(R.id.recharge_container, RechargeFragment.newInstance(rechargeTab, preselectInstance))
                     .commit();
             isRechargeLoaded = true;
             rechargeContainer.setVisibility(View.VISIBLE);
