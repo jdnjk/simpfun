@@ -16,6 +16,9 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
+import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.SplashActivity;
+
 public final class ThemeUtils {
     private static final String SETTINGS_PREFS = "setting_sp";
     private static final String THEME_MODE_KEY = "theme_mode";
@@ -24,12 +27,17 @@ public final class ThemeUtils {
     public static final int THEME_SYSTEM = 0;
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
+    public static final int THEME_APPLE = 3;
 
     private ThemeUtils() {
     }
 
     public static void applySavedTheme(Context context) {
-        applyTheme(getThemeMode(context));
+        int themeMode = getThemeMode(context);
+        if (context instanceof Activity) {
+            ((Activity) context).setTheme(getThemeResId(context, themeMode));
+        }
+        applyTheme(themeMode);
     }
 
     public static void setThemeMode(Context context, int themeMode) {
@@ -49,6 +57,9 @@ public final class ThemeUtils {
             case THEME_DARK:
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
                 break;
+            case THEME_APPLE:
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+                break;
             case THEME_SYSTEM:
             default:
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
@@ -60,8 +71,20 @@ public final class ThemeUtils {
         return switch (themeMode) {
             case THEME_LIGHT -> "浅色模式";
             case THEME_DARK -> "深色模式";
+            case THEME_APPLE -> "Apple 冰霜";
             default -> "跟随系统";
         };
+    }
+
+    private static int getThemeResId(Context context, int themeMode) {
+        if (themeMode == THEME_APPLE) {
+            return context instanceof SplashActivity
+                    ? R.style.Theme_Simpfun_Apple_Splash
+                    : R.style.Theme_Simpfun_Apple;
+        }
+        return context instanceof SplashActivity
+                ? R.style.Theme_Simpfun_Splash
+                : R.style.Theme_Simpfun;
     }
 
     // ---------------------------------------------------------------- 动态取色

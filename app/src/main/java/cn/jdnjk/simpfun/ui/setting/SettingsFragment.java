@@ -338,6 +338,8 @@ public class SettingsFragment extends Fragment {
     }
 
     private void setupClickListeners(View root) {
+        root.findViewById(R.id.option_check_update).setOnClickListener(v ->
+                startActivity(new Intent(requireContext(), VersionHistoryActivity.class)));
         root.findViewById(R.id.option_theme).setOnClickListener(v -> showThemeDialog());
         root.findViewById(R.id.option_terminal_theme).setOnClickListener(v -> showTerminalThemeDialog());
         root.findViewById(R.id.option_login_browser).setOnClickListener(v -> openBrowserLogin());
@@ -428,7 +430,7 @@ public class SettingsFragment extends Fragment {
     }
 
     private void showThemeDialog() {
-        String[] themeOptions = {"跟随系统", "浅色模式", "深色模式"};
+        String[] themeOptions = {"跟随系统", "浅色模式", "深色模式", "Apple 冰霜"};
         int currentTheme = themeManager.getThemeMode();
 
         new MaterialAlertDialogBuilder(requireContext())
@@ -436,6 +438,7 @@ public class SettingsFragment extends Fragment {
                 .setSingleChoiceItems(themeOptions, currentTheme, (dialog, which) -> {
                     themeManager.setThemeMode(which);
                     updateThemeDisplay();
+                    requireActivity().recreate();
                     dialog.dismiss();
                 })
                 .setNegativeButton("取消", null)

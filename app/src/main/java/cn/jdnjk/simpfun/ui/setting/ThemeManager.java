@@ -8,6 +8,7 @@ public class ThemeManager {
     public static final int THEME_SYSTEM = ThemeUtils.THEME_SYSTEM;
     public static final int THEME_LIGHT = ThemeUtils.THEME_LIGHT;
     public static final int THEME_DARK = ThemeUtils.THEME_DARK;
+    public static final int THEME_APPLE = ThemeUtils.THEME_APPLE;
 
     private static ThemeManager instance;
     private final Context appContext;

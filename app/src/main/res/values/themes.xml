@@ -57,4 +57,72 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
+
+    <style name="Theme.Simpfun.Apple" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/apple_primary</item>
+        <item name="colorOnPrimary">@color/apple_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/apple_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/apple_onPrimaryContainer</item>
+        <item name="colorSecondary">@color/apple_secondary</item>
+        <item name="colorOnSecondary">@color/apple_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/apple_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/apple_onSecondaryContainer</item>
+        <item name="colorTertiary">@color/apple_tertiary</item>
+        <item name="colorOnTertiary">@color/apple_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/apple_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/apple_onTertiaryContainer</item>
+        <item name="colorError">@color/apple_error</item>
+        <item name="colorOnError">@color/apple_onError</item>
+        <item name="colorErrorContainer">@color/apple_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/apple_onErrorContainer</item>
+        <item name="android:colorBackground">@color/apple_background</item>
+        <item name="colorOnBackground">@color/apple_onBackground</item>
+        <item name="colorSurface">@color/apple_surface</item>
+        <item name="colorOnSurface">@color/apple_onSurface</item>
+        <item name="colorSurfaceVariant">@color/apple_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/apple_onSurfaceVariant</item>
+        <item name="colorOutline">@color/apple_outline</item>
+        <item name="colorOutlineVariant">@color/apple_outlineVariant</item>
+        <item name="colorSurfaceInverse">@color/apple_inverseSurface</item>
+        <item name="colorOnSurfaceInverse">@color/apple_inverseOnSurface</item>
+        <item name="colorPrimaryInverse">@color/apple_inversePrimary</item>
+        <item name="colorPrimaryFixed">@color/apple_primaryFixed</item>
+        <item name="colorOnPrimaryFixed">@color/apple_onPrimaryFixed</item>
+        <item name="colorPrimaryFixedDim">@color/apple_primaryFixedDim</item>
+        <item name="colorOnPrimaryFixedVariant">@color/apple_onPrimaryFixedVariant</item>
+        <item name="colorSecondaryFixed">@color/apple_secondaryFixed</item>
+        <item name="colorOnSecondaryFixed">@color/apple_onSecondaryFixed</item>
+        <item name="colorSecondaryFixedDim">@color/apple_secondaryFixedDim</item>
+        <item name="colorOnSecondaryFixedVariant">@color/apple_onSecondaryFixedVariant</item>
+        <item name="colorTertiaryFixed">@color/apple_tertiaryFixed</item>
+        <item name="colorOnTertiaryFixed">@color/apple_onTertiaryFixed</item>
+        <item name="colorTertiaryFixedDim">@color/apple_tertiaryFixedDim</item>
+        <item name="colorOnTertiaryFixedVariant">@color/apple_onTertiaryFixedVariant</item>
+        <item name="colorSurfaceDim">@color/apple_surfaceDim</item>
+        <item name="colorSurfaceBright">@color/apple_surfaceBright</item>
+        <item name="colorSurfaceContainerLowest">@color/apple_surfaceContainerLowest</item>
+        <item name="colorSurfaceContainerLow">@color/apple_surfaceContainerLow</item>
+        <item name="colorSurfaceContainer">@color/apple_surfaceContainer</item>
+        <item name="colorSurfaceContainerHigh">@color/apple_surfaceContainerHigh</item>
+        <item name="colorSurfaceContainerHighest">@color/apple_surfaceContainerHighest</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Simpfun.BottomSheet</item>
+        <item name="shapeAppearanceSmallComponent">@style/SimpfunAppleShapeSmall</item>
+        <item name="shapeAppearanceMediumComponent">@style/SimpfunAppleShapeMedium</item>
+        <item name="shapeAppearanceLargeComponent">@style/SimpfunAppleShapeLarge</item>
+        <item name="materialCardViewStyle">@style/Widget.Simpfun.Apple.CardView</item>
+        <item name="materialCardViewFilledStyle">@style/Widget.Simpfun.Apple.CardView.Filled</item>
+        <item name="materialCardViewElevatedStyle">@style/Widget.Simpfun.Apple.CardView.Elevated</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="Theme.Simpfun.Apple.Splash" parent="Theme.Simpfun.Apple">
+        <item name="android:windowBackground">@color/apple_background</item>
+        <item name="android:statusBarColor">@color/apple_background</item>
+        <item name="android:navigationBarColor">@color/apple_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
 </resources>

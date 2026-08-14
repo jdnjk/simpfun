@@ -207,11 +207,14 @@ public class ProfileFragment extends Fragment {
             nextMode = ThemeManager.THEME_LIGHT;
         } else if (currentMode == ThemeManager.THEME_LIGHT) {
             nextMode = ThemeManager.THEME_DARK;
+        } else if (currentMode == ThemeManager.THEME_DARK) {
+            nextMode = ThemeManager.THEME_APPLE;
         } else {
             nextMode = ThemeManager.THEME_SYSTEM;
         }
         themeManager.setThemeMode(nextMode);
         updateThemeModeDisplay();
+        requireActivity().recreate();
     }
 
     private void updateThemeModeDisplay() {
@@ -222,6 +225,9 @@ public class ProfileFragment extends Fragment {
         } else if (mode == ThemeManager.THEME_DARK) {
             ivThemeMode.setImageResource(R.drawable.ic_theme_dark);
             ivThemeMode.setContentDescription("保持暗色");
+        } else if (mode == ThemeManager.THEME_APPLE) {
+            ivThemeMode.setImageResource(R.drawable.ic_palette);
+            ivThemeMode.setContentDescription("Apple 冰霜");
         } else {
             ivThemeMode.setImageResource(R.drawable.ic_theme_auto);
             ivThemeMode.setContentDescription("跟随系统");

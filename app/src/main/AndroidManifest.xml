@@ -62,6 +62,9 @@
                 android:exported="true">
         </activity>
         <activity
+                android:name=".ui.setting.VersionHistoryActivity"
+                android:exported="false" />
+        <activity
                 android:name=".ui.troubleshoot.TroubleshootActivity"
                 android:exported="true">
             <intent-filter>
