@@ -1,12 +1,14 @@
 package cn.jdnjk.simpfun.ui.ins.files;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
 import cn.jdnjk.simpfun.model.FileItem;
+import cn.jdnjk.simpfun.model.FileSortMode;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
 
 class FilePaneState {
@@ -17,6 +19,7 @@ class FilePaneState {
     private final List<String> forwardHistory = new ArrayList<>();
     private final String rootPath;
     private String currentPath = "/";
+    private FileSortMode sortMode = FileSortMode.NAME_ASC;
     private boolean selectionMode;
     private boolean pendingMoveContainsDirectory;
     private String pendingMoveLabel;
@@ -66,6 +69,60 @@ class FilePaneState {
 
     String getRootPath() {
         return rootPath;
+    }
+
+    FileSortMode getSortMode() {
+        return sortMode;
+    }
+
+    void setSortMode(FileSortMode sortMode) {
+        this.sortMode = sortMode != null ? sortMode : FileSortMode.NAME_ASC;
+    }
+
+    /**
+     * 根据当前排序方式构建比较器。
+     * 所有模式下目录始终排在文件前面，同类别内再按所选键排序。
+     */
+    Comparator<FileItem> buildSortComparator() {
+        Comparator<FileItem> keyComparator;
+        switch (sortMode) {
+            case NAME_ASC:
+            case NAME_DESC:
+                keyComparator = Comparator.comparing(i -> i.getName().toLowerCase(Locale.ROOT));
+                break;
+            case SIZE_ASC:
+            case SIZE_DESC:
+                keyComparator = Comparator.comparingLong(FileItem::getSize);
+                break;
+            case DATE_ASC:
+            case DATE_DESC:
+                keyComparator = Comparator.comparing(FileItem::getModifiedAt);
+                break;
+            case TYPE_ASC:
+            case TYPE_DESC:
+                keyComparator = Comparator.comparing(FilePaneState::extractExtension);
+                break;
+            default:
+                keyComparator = Comparator.comparing(i -> i.getName().toLowerCase(Locale.ROOT));
+                break;
+        }
+        Comparator<FileItem> comparator = Comparator
+                .comparing(FileItem::isFile)
+                .thenComparing(keyComparator);
+        boolean desc = sortMode == FileSortMode.NAME_DESC
+                || sortMode == FileSortMode.SIZE_DESC
+                || sortMode == FileSortMode.DATE_DESC
+                || sortMode == FileSortMode.TYPE_DESC;
+        return desc ? comparator.reversed() : comparator;
+    }
+
+    private static String extractExtension(FileItem item) {
+        String name = item.getName();
+        int dot = name.lastIndexOf('.');
+        if (dot < 0 || dot == name.length() - 1) {
+            return "";
+        }
+        return name.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     void setCurrentPath(String currentPath) {
@@ -140,6 +197,7 @@ class FilePaneState {
     void replaceFileList(List<FileItem> items) {
         fileList.clear();
         fileList.addAll(items);
+        fileList.sort(buildSortComparator());
         resetSwipeSelectionAnchor();
     }
 

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -106,7 +107,7 @@ public class StatsFragment extends Fragment {
         binding.buttonRetry.setOnClickListener(v -> loadStats());
         binding.buttonCustomRange.setOnClickListener(v -> showCustomRangeDialog());
         binding.chipGroupRanges.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            if (checkedIds == null || checkedIds.isEmpty()) return;
+            if (checkedIds.isEmpty()) return;
             int checkedId = checkedIds.get(0);
             boolean hadCustomRange = hasValidCustomRange();
             if (checkedId == R.id.chip_range_1h) {
@@ -128,7 +129,7 @@ public class StatsFragment extends Fragment {
             renderChartAsync();
         });
         binding.chipGroupMetrics.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            if (checkedIds == null || checkedIds.isEmpty()) {
+            if (checkedIds.isEmpty()) {
                 binding.chipCpu.setChecked(true);
                 return;
             }
@@ -539,7 +540,7 @@ public class StatsFragment extends Fragment {
         if (payload.hasCpu) {
             leftAxis.setValueFormatter(StatMetric.CPU.axisFormatter);
             leftAxis.setAxisMinimum(0f);
-            leftAxis.setAxisMaximum(100f);
+            leftAxis.setAxisMaximum(resolveCpuAxisMax(payload.maxLeftY));
         } else {
             leftAxis.setValueFormatter(new BytesAxisFormatter());
             leftAxis.setAxisMinimum(0f);
@@ -556,6 +557,17 @@ public class StatsFragment extends Fragment {
                 rightAxis.setAxisMaximum(payload.maxRightY * 1.1f);
             }
         }
+    }
+
+    /**
+     * CPU 可能按多核计算，超过 100%（如 2 核满载 200%）。
+     * 轴上限取「数据最大值向上取整」（至少 100），避免数据被画到图外。
+     */
+    private float resolveCpuAxisMax(float maxDataValue) {
+        if (maxDataValue <= 100f) {
+            return 100f;
+        }
+        return (float) Math.ceil(maxDataValue / 100d) * 100f;
     }
 
     private int resolveXAxisLabelCount(TimeRange range, int chartWidth, long durationSeconds) {
@@ -814,6 +826,24 @@ public class StatsFragment extends Fragment {
         @Override
         public MPPointF getOffset() {
             return new MPPointF(-(getWidth() / 2f), -getHeight() - 12f);
+        }
+
+        @Override
+        public void draw(Canvas canvas, float posX, float posY) {
+            // 默认 getOffset() 返回 (-width/2, -height-12)，水平居中显示。
+            // 但当点位靠近 chart 左右边界时，居中的 marker 会超出边界被裁切。
+            // 此处对 drawX 做 clamp，确保 marker 完整可见。
+            MPPointF offset = getOffset();
+            float drawX = posX + offset.x;
+            float drawY = posY + offset.y;
+            if (getChartView() != null) {
+                float chartWidth = getChartView().getWidth();
+                drawX = Math.max(0f, Math.min(drawX, chartWidth - getWidth()));
+            }
+            canvas.save();
+            canvas.translate(drawX, drawY);
+            draw(canvas);
+            canvas.restore();
         }
     }
 

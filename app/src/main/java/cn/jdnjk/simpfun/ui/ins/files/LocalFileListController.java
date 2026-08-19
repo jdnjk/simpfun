@@ -14,7 +14,6 @@ import java.net.URLConnection;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -130,9 +129,6 @@ class LocalFileListController {
         if (files != null) {
             Collections.addAll(fileList, files);
         }
-        fileList.sort(Comparator
-                .comparing((File file) -> file.isFile())
-                .thenComparing(file -> file.getName().toLowerCase(Locale.ROOT)));
 
         List<FileItem> items = new ArrayList<>();
         if (!state.isAtRoot()) {

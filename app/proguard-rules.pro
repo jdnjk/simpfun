@@ -1,7 +1,7 @@
-# Simpfun R8 / ProGuard rules
-#
-# 目标：只保留确实依赖反射、清单/XML、第三方 SDK 要求保留的类，
-# 避免类似 `-keep class cn.jdnjk.simpfun.** { *; }` 这种会基本关闭混淆和收缩的宽规则。
+# 基础界面
+-keep class cn.jdnjk.simpfun.SWebView
+-keep class cn.jdnjk.simpfun.FileEditorActivity
+-keep class cn.jdnjk.simpfun.mcp.McpServerService
 
 # ---- Debuggability / reflection metadata ----
 # Bugly 等崩溃上报需要行号；泛型/注解对部分 SDK 和回调解析有用。

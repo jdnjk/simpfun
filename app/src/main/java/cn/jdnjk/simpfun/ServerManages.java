@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun;
 
+import android.graphics.Color;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -16,6 +17,9 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
@@ -70,12 +74,18 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        ThemeUtils.applyEdgeToEdge(this);
+
         androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
         toolbarFilePathTitle = findViewById(R.id.toolbar_file_path_title);
         setSupportActionBar(toolbar);
 
         DrawerLayout drawer = binding.drawerLayout;
         navigationView = binding.navView;
+        // DrawerLayout 默认用 colorPrimary(深蓝) 做状态栏背景，与白色 toolbar 不一致。
+        // 改为透明，露出 toolbar 的 colorSurface 背景，与首页一致。
+        drawer.setStatusBarBackgroundColor(Color.TRANSPARENT);
+        applyDrawerStatusBarInsets(drawer, navigationView);
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
                 R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_stats,
@@ -101,6 +111,30 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
         super.onNewIntent(intent);
         setIntent(intent);
         handleIntent(intent);
+    }
+
+    /**
+     * 给侧边栏 header 手动加上状态栏高度 padding。
+     *
+     * <p>DrawerLayout 的 fitsSystemWindows 会吃掉系统栏 inset，大屏/刘海屏下
+     * NavigationView 的 header 无法感知状态栏高度，导致 header 内容（尤其关机时
+     * 变高的销毁提示）与透明状态栏重叠。这里改为手动 apply inset 到 header 顶部。
+     */
+    private void applyDrawerStatusBarInsets(DrawerLayout drawer, NavigationView navView) {
+        if (navView == null) return;
+        ViewCompat.setOnApplyWindowInsetsListener(navView, (v, insets) -> {
+            int statusBarTop = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            View header = navView.getHeaderView(0);
+            if (header != null) {
+                header.setPadding(
+                        header.getPaddingLeft(),
+                        statusBarTop,
+                        header.getPaddingRight(),
+                        header.getPaddingBottom()
+                );
+            }
+            return insets.consumeSystemWindowInsets();
+        });
     }
 
     private void handleIntent(Intent intent) {

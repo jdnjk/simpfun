@@ -266,6 +266,13 @@
                     android:text="互换" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_sort"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="名称 ↑" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_parent_dir"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"

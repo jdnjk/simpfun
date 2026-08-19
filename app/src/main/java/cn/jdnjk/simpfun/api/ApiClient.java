@@ -20,7 +20,12 @@ public class ApiClient {
     private static final String USER_AGENT = "SimpfunAPP/"+ BuildConfig.VERSION_NAME;
 
     private ApiClient() {
+        Dispatcher dispatcher = new Dispatcher();
+        dispatcher.setMaxRequests(32);
+        dispatcher.setMaxRequestsPerHost(16);
+
         OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                .dispatcher(dispatcher)
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(60, TimeUnit.SECONDS)

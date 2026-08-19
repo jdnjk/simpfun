@@ -411,7 +411,7 @@ public class BackupFragment extends Fragment {
         MirrorApi api = new MirrorApi(requireContext());
 
         for (BackupItem item : selected) {
-            new Thread(() -> api.deleteBackup(token, deviceId, item.getId(), new MirrorApi.Callback() {
+            api.deleteBackup(token, deviceId, item.getId(), new MirrorApi.Callback() {
                 @Override
                 public void onSuccess(JSONObject response) {
                     success.incrementAndGet();
@@ -431,7 +431,7 @@ public class BackupFragment extends Fragment {
                         loadBackups(false);
                     }
                 }
-            })).start();
+            });
         }
     }
 

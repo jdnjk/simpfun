@@ -19,6 +19,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
@@ -48,6 +49,7 @@ import java.util.Locale;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.api.ins.AiApi;
+import cn.jdnjk.simpfun.model.QuickCommandNode;
 import cn.jdnjk.simpfun.service.TerminalWebSocketListener;
 import cn.jdnjk.simpfun.service.TerminalWebSocketManager;
 import cn.jdnjk.simpfun.ui.setting.TerminalColorUtils;
@@ -70,6 +72,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     private LinesAdapter terminalAdapter;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AiApi aiApi = new AiApi();
+    private QuickCommandMenuManager quickCommandMenuManager;
     private AlertDialog aiLoadingDialog;
     private AlertDialog activeDialog;
     private TextView aiLoadingMessageView;
@@ -81,6 +84,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
 
     private final TerminalWebSocketManager wsManager = TerminalWebSocketManager.getInstance();
     private final List<String> pendingLines = new ArrayList<>();
+    private volatile String wsStatus = null;
     private boolean isBufferUpdateScheduled = false;
     private final Runnable bufferFlushRunnable = () -> {
         if (isViewAvailable()) {
@@ -108,7 +112,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         View root = inflater.inflate(R.layout.fragment_terminal, container, false);
 
         editTextCommand = root.findViewById(R.id.edit_text_command);
-        Button buttonSend = root.findViewById(R.id.button_send);
+        ImageButton buttonSend = root.findViewById(R.id.button_send);
         recyclerViewOutput = root.findViewById(R.id.recycler_view_output);
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
@@ -171,8 +175,17 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
 
     @Override
     public void onStatusChanged(String status) {
+        wsStatus = status;
         if ("offline".equalsIgnoreCase(status)) {
             appendOutput("服务器已停止。");
+        }
+        // 状态变化后刷新菜单，更新"快捷指令"的可用性
+        if (isAdded() && getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (isViewAvailable()) {
+                    requireActivity().invalidateOptionsMenu();
+                }
+            });
         }
     }
 
@@ -292,6 +305,23 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     }
 
     private void setupToolbarAiMenu() {
+        quickCommandMenuManager = new QuickCommandMenuManager(
+                requireContext(),
+                () -> getCurrentDeviceId(),
+                () -> {
+                    String s = wsStatus;
+                    if (s != null) {
+                        return !"offline".equalsIgnoreCase(s);
+                    }
+                    return true;
+                },
+                () -> {
+                    if (isViewAvailable()) {
+                        requireActivity().invalidateOptionsMenu();
+                    }
+                },
+                this::handleQuickCommandSelected);
+
         MenuHost menuHost = requireActivity();
         menuHost.addMenuProvider(new MenuProvider() {
             @Override
@@ -303,13 +333,189 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
                 aiMenu.add(Menu.NONE, R.id.action_ai_troubleshoot, 2, "AI疑难解答");
                 aiMenu.add(Menu.NONE, R.id.action_ai_analyze, 3, "AI故障分析");
                 aiMenu.getItem().setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+                // 快捷指令 — 递归嵌套 SubMenu，仅终端页出现
+                if (quickCommandMenuManager != null) {
+                    quickCommandMenuManager.ensureLoaded();
+                    quickCommandMenuManager.onCreateMenu(menu);
+                }
             }
 
             @Override
             public boolean onMenuItemSelected(@NonNull MenuItem item) {
+                if (quickCommandMenuManager != null
+                        && quickCommandMenuManager.onMenuItemSelected(item)) {
+                    return true;
+                }
                 return handleTerminalMenuItem(item);
             }
         }, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
+    }
+
+    private int countPlaceholders(QuickCommandNode node) {
+        int max = 0;
+        List<String> templates = node.actions;
+        if (templates == null || templates.isEmpty()) {
+            // 兼容单命令字段
+            if (node.command != null && !node.command.isEmpty()) {
+                templates = java.util.Collections.singletonList(node.command);
+            }
+        }
+        if (templates == null) return 0;
+
+        for (String t : templates) {
+            if (t == null) continue;
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("!\\{(\\d+)\\}").matcher(t);
+            while (m.find()) {
+                int n = Integer.parseInt(m.group(1));
+                if (n > max) max = n;
+            }
+        }
+        return max;
+    }
+
+    /**
+     * 快捷指令被选中：无参数直接发送，有参数弹输入框。
+     */
+    private void handleQuickCommandSelected(QuickCommandNode node) {
+        if (!isViewAvailable()) return;
+        if (node == null) return;
+
+        // 无显式参数定义 → 若模板含 !{N} 占位符则自动推导输入框，否则直接发送
+        List<QuickCommandNode.Param> params = node.params;
+        if (params == null || params.isEmpty()) {
+            int placeholderCount = countPlaceholders(node);
+            if (placeholderCount == 0) {
+                executeQuickCommand(node, new String[0]);
+                return;
+            }
+            // 合成临时代理参数列表，复用下方参数输入逻辑
+            List<QuickCommandNode.Param> derived = new ArrayList<>();
+            for (int i = 0; i < placeholderCount; i++) {
+                QuickCommandNode.Param p = new QuickCommandNode.Param();
+                p.name = "参数 " + (i + 1);
+                p.type = "string";
+                p.hint = "请输入参数 " + (i + 1);
+                derived.add(p);
+            }
+            params = derived;
+        }
+
+        Context context = requireContext();
+        float density = context.getResources().getDisplayMetrics().density;
+        int padding = (int) (20 * density);
+
+        LinearLayout container = new LinearLayout(context);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(padding, padding, padding, padding);
+
+        final List<QuickCommandNode.Param> paramList = params;
+        List<View> inputViews = new ArrayList<>();
+
+        for (int i = 0; i < paramList.size(); i++) {
+            QuickCommandNode.Param param = paramList.get(i);
+
+            TextView label = new TextView(context);
+            label.setText(param.name);
+            label.setPadding(0, i > 0 ? padding : 0, 0, (int) (8 * density));
+            label.setTextSize(16);
+            container.addView(label);
+
+            if ("select".equals(param.type)) {
+                List<QuickCommandNode.Option> options = param.options;
+                String[] displayItems;
+                if (options != null && !options.isEmpty()) {
+                    displayItems = new String[options.size()];
+                    for (int k = 0; k < options.size(); k++) {
+                        displayItems[k] = options.get(k).label;
+                    }
+                } else {
+                    displayItems = new String[]{""};
+                }
+                Spinner spinner = new Spinner(context);
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(context,
+                        android.R.layout.simple_spinner_dropdown_item, displayItems);
+                spinner.setAdapter(adapter);
+                container.addView(spinner);
+                inputViews.add(spinner);
+            } else {
+                EditText editText = new EditText(context);
+                editText.setHint(param.hint != null && !param.hint.isEmpty() ? param.hint : "请输入" + param.name);
+                editText.setSingleLine(true);
+                container.addView(editText);
+                inputViews.add(editText);
+            }
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle(node.name)
+                .setView(container)
+                .setPositiveButton("执行", (d, which) -> {
+                    if (!isViewAvailable()) return;
+                    String[] values = new String[inputViews.size()];
+                    for (int i = 0; i < inputViews.size(); i++) {
+                        View v = inputViews.get(i);
+                        if (v instanceof EditText) {
+                            values[i] = ((EditText) v).getText().toString().trim();
+                        } else if (v instanceof Spinner) {
+                            int pos = ((Spinner) v).getSelectedItemPosition();
+                            List<QuickCommandNode.Option> opts = paramList.get(i).options;
+                            if (opts != null && pos >= 0 && pos < opts.size()) {
+                                values[i] = opts.get(pos).value;
+                            } else {
+                                values[i] = ((Spinner) v).getSelectedItem().toString();
+                            }
+                        }
+                    }
+                    executeQuickCommand(node, values);
+                })
+                .setNegativeButton("取消", null)
+                .create();
+        showManagedDialog(dialog);
+    }
+
+    /**
+     * 替换占位符并发送命令。
+     */
+    private void executeQuickCommand(QuickCommandNode item, String[] values) {
+        if (!isViewAvailable()) return;
+
+        List<String> actions = item.actions;
+        if (actions == null || actions.isEmpty()) {
+            showToast("指令模板为空");
+            return;
+        }
+
+        int deviceId = getCurrentDeviceId();
+        int sentCount = 0;
+
+        for (String template : actions) {
+            if (template == null || template.trim().isEmpty()) continue;
+
+            String cmd = template;
+            for (int i = 0; i < values.length; i++) {
+                String placeholder = "!{" + (i + 1) + "}";
+                String value = values[i] != null ? values[i] : "";
+                boolean needQuote = item.quote;
+                if (!needQuote && i < item.params.size()) {
+                    needQuote = item.params.get(i).quote;
+                }
+                if (needQuote && !value.isEmpty()) {
+                    value = "\"" + value + "\"";
+                }
+                cmd = cmd.replace(placeholder, value);
+            }
+
+            if (wsManager.sendCommand(deviceId, cmd)) {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0) {
+            showToast("已发送 " + sentCount + " 条指令");
+        } else {
+            showToast("发送失败：终端未连接");
+        }
     }
 
     private boolean handleTerminalMenuItem(@NonNull MenuItem item) {
@@ -651,7 +857,13 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     public void onHostDeviceChanged() {
         unregisterWebSocketListener();
         activeDeviceId = -1;
+        wsStatus = null;
         connectToTerminal();
+
+        if (quickCommandMenuManager != null) {
+            quickCommandMenuManager.reset();
+            requireActivity().invalidateOptionsMenu();
+        }
     }
 
     private void connectToTerminal() {
@@ -821,6 +1033,10 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         isAppInForeground = true;
         applyTerminalColors();
         refreshTerminalLogs();
+        // 服务器切换/重新进入后刷新菜单可用性
+        if (isViewAvailable()) {
+            requireActivity().invalidateOptionsMenu();
+        }
     }
 
     @Override
@@ -844,7 +1060,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
                 || capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN));
     }
 
-    private static class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineVH> {
+        private static class LinesAdapter extends RecyclerView.Adapter<LinesAdapter.LineVH> {
         private static final int MAX_LINES = 5000;
         private final List<String> lines = new ArrayList<>();
         private final Context context;

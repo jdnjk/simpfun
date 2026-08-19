@@ -101,8 +101,7 @@ public class StatsApi {
                     for (int i = 0; i < list.length(); i++) {
                         JSONObject item = list.optJSONObject(i);
                         if (item == null) continue;
-                        int cpuPercent = item.optInt("cpu_percent", 0);
-                        cpuPercent = Math.max(0, Math.min(100, cpuPercent));
+                        int cpuPercent = Math.max(0, item.optInt("cpu_percent", 0));
                         points.add(new InstanceStatPoint(
                                 item.optLong("uptime", 0L),
                                 item.optLong("in_bytes", 0L),

@@ -52,9 +52,7 @@ public class BackupAdapter extends RecyclerView.Adapter<BackupAdapter.BackupVH> 
             backups.addAll(list);
         }
         selectedIds.clear();
-        if (!backups.isEmpty()) {
-            notifyItemRangeChanged(0, backups.size());
-        }
+        notifyDataSetChanged();
         notifySelectionChanged();
     }
 

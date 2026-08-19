@@ -28,11 +28,13 @@ import com.google.android.material.slider.Slider;
 
 import org.json.JSONObject;
 
+import java.util.List;
 import java.util.Locale;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.UserApi;
+import cn.jdnjk.simpfun.model.QuickCommandNode;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.mcp.McpServerService;
 import cn.jdnjk.simpfun.mcp.McpSettingsManager;
@@ -77,6 +79,7 @@ public class SettingsFragment extends Fragment {
     private boolean pendingEnableDualPane;
     private boolean suppressDualPaneSwitchChange;
     private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
+    private QuickCommandStorage quickCommandStorage;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -99,6 +102,7 @@ public class SettingsFragment extends Fragment {
         filePaneModeManager = new FilePaneModeManager(requireContext());
         sftpTransferSettingsManager = new SftpTransferSettingsManager(requireContext());
         terminalFontSizeManager = TerminalFontSizeManager.getInstance(requireContext());
+        quickCommandStorage = new QuickCommandStorage(requireContext());
     }
 
     @Nullable
@@ -348,6 +352,35 @@ public class SettingsFragment extends Fragment {
                 activity.openTroubleshootPage();
             }
         });
+        root.findViewById(R.id.option_quick_commands).setOnClickListener(v ->
+                showQuickCommandManagementDialog());
+    }
+
+    private void showQuickCommandManagementDialog() {
+        List<QuickCommandNode> commands = quickCommandStorage.loadAll();
+        String[] names = new String[commands.size()];
+        for (int i = 0; i < commands.size(); i++) {
+            names[i] = commands.get(i).name;
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(commands.isEmpty() ? "还没有自定义指令" : "我的快捷指令")
+                .setItems(names, (dialog, which) ->
+                        openEditor(which, commands.get(which)))
+                .setPositiveButton("添加新指令", (dialog, which) ->
+                        openEditor(-1, null))
+                .setNegativeButton("关闭", null)
+                .show();
+    }
+
+    private void openEditor(int index, QuickCommandNode existing) {
+        if (getActivity() == null) return;
+        QuickCommandEditorFragment fragment = QuickCommandEditorFragment.newInstance(index, existing);
+        getActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, fragment)
+                .addToBackStack("quick_command_editor")
+                .commit();
     }
 
     private void updateSftpThreadCountDisplay() {

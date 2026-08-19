@@ -5,6 +5,7 @@ import android.content.Context;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -15,7 +16,9 @@ import cn.jdnjk.simpfun.api.ins.MainApi;
 import cn.jdnjk.simpfun.api.ins.PlanAPI;
 import cn.jdnjk.simpfun.api.ins.PowerApi;
 import cn.jdnjk.simpfun.api.ins.file.FileCallback;
+import cn.jdnjk.simpfun.model.QuickCommandNode;
 import cn.jdnjk.simpfun.service.TerminalWebSocketManager;
+import cn.jdnjk.simpfun.ui.setting.QuickCommandStorage;
 
 /**
  * 内置 MCP 工具集合。
@@ -45,7 +48,11 @@ public class McpBuiltinTools {
                 new PlanCreateTool(ctx),
                 new PlanDeleteTool(ctx),
                 new TerminalGetLogsTool(ctx),
-                new TerminalSendCommandTool(ctx)
+                new TerminalSendCommandTool(ctx),
+                new QuickCommandListTool(ctx),
+                new QuickCommandCreateTool(ctx),
+                new QuickCommandUpdateTool(ctx),
+                new QuickCommandDeleteTool(ctx)
         );
         return new McpToolRegistry(tools);
     }
@@ -772,6 +779,198 @@ public class McpBuiltinTools {
                 }
             }
             return McpToolResult.ok(sb.toString());
+        }
+    }
+
+    // ---------- quick_command_list ----------
+    private static class QuickCommandListTool extends BaseTool {
+        QuickCommandListTool(Context context) { super(context); }
+        @Override public String getName() { return "quick_command_list"; }
+        @Override public String getDescription() { return "列出所有本地自定义快捷指令（一键命令），返回每条指令的索引、名称、动作列表，可配合 quick_command_update / quick_command_delete 使用"; }
+        @Override public JSONObject getInputSchema() { return emptySchema(); }
+        @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
+            List<QuickCommandNode> commands = new QuickCommandStorage(appContext).loadAll();
+            JSONArray arr = new JSONArray();
+            for (int i = 0; i < commands.size(); i++) {
+                QuickCommandNode node = commands.get(i);
+                JSONObject obj = new JSONObject();
+                try {
+                    obj.put("index", i);
+                    obj.put("name", node.name != null ? node.name : "");
+                    JSONArray actions = new JSONArray();
+                    if (node.actions != null) {
+                        for (String a : node.actions) {
+                            actions.put(a != null ? a : "");
+                        }
+                    }
+                    obj.put("actions", actions);
+                    obj.put("delay", node.delay);
+                    obj.put("quote", node.quote);
+                } catch (Exception ignored) {}
+                arr.put(obj);
+            }
+            return McpToolResult.ok(arr.toString());
+        }
+    }
+
+    // ---------- quick_command_create ----------
+    private static class QuickCommandCreateTool extends BaseTool {
+        QuickCommandCreateTool(Context context) { super(context); }
+        @Override public String getName() { return "quick_command_create"; }
+        @Override public String getDescription() { return "创建新的本地自定义快捷指令（一键命令）。actions 为命令动作列表，每项是一个命令模板，可用 !{1} !{2} 作为参数占位符，如 [\"op !{1}\", \"say 欢迎\"]；delay 表示动作之间是否延迟；quote 表示参数值是否加引号"; }
+        @Override public JSONObject getInputSchema() {
+            JSONObject schema = new JSONObject();
+            try {
+                schema.put("type", "object");
+                JSONObject props = new JSONObject();
+                JSONObject name = new JSONObject();
+                name.put("type", "string");
+                name.put("description", "指令名称");
+                props.put("name", name);
+                JSONObject actions = new JSONObject();
+                actions.put("type", "array");
+                actions.put("items", new JSONObject().put("type", "string"));
+                actions.put("description", "命令动作列表，每项是一个命令模板");
+                props.put("actions", actions);
+                JSONObject delay = new JSONObject();
+                delay.put("type", "boolean");
+                delay.put("description", "动作之间是否需要延迟");
+                props.put("delay", delay);
+                JSONObject quote = new JSONObject();
+                quote.put("type", "boolean");
+                quote.put("description", "参数值是否需要加引号");
+                props.put("quote", quote);
+                schema.put("properties", props);
+                schema.put("required", new JSONArray().put("name").put("actions"));
+            } catch (Exception ignored) {}
+            return schema;
+        }
+        @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
+            String name = args.optString("name");
+            if (name.isEmpty()) throw new McpToolException("缺少 name");
+            JSONArray actionsArray = args.optJSONArray("actions");
+            if (actionsArray == null || actionsArray.length() == 0) {
+                throw new McpToolException("缺少 actions，且不能为空");
+            }
+            QuickCommandNode node = new QuickCommandNode();
+            node.type = "item";
+            node.isCustom = true;
+            node.name = name;
+            node.delay = args.optBoolean("delay", false);
+            node.quote = args.optBoolean("quote", false);
+            node.actions = new ArrayList<>();
+            for (int i = 0; i < actionsArray.length(); i++) {
+                String a = actionsArray.optString(i, "");
+                if (a.isEmpty()) {
+                    throw new McpToolException("actions 不能包含空命令");
+                }
+                node.actions.add(a);
+            }
+            new QuickCommandStorage(appContext).add(node);
+            return McpToolResult.ok("已创建快捷指令「" + name + "」");
+        }
+    }
+
+    // ---------- quick_command_update ----------
+    private static class QuickCommandUpdateTool extends BaseTool {
+        QuickCommandUpdateTool(Context context) { super(context); }
+        @Override public String getName() { return "quick_command_update"; }
+        @Override public String getDescription() { return "更新已存在的本地自定义快捷指令。index 为指令索引（从 0 开始，通过 quick_command_list 获取）；传入需要更新的字段"; }
+        @Override public JSONObject getInputSchema() {
+            JSONObject schema = new JSONObject();
+            try {
+                schema.put("type", "object");
+                JSONObject props = new JSONObject();
+                JSONObject index = new JSONObject();
+                index.put("type", "integer");
+                index.put("description", "要更新的指令索引（从 0 开始）");
+                props.put("index", index);
+                JSONObject name = new JSONObject();
+                name.put("type", "string");
+                name.put("description", "新的指令名称");
+                props.put("name", name);
+                JSONObject actions = new JSONObject();
+                actions.put("type", "array");
+                actions.put("items", new JSONObject().put("type", "string"));
+                actions.put("description", "新的命令动作列表");
+                props.put("actions", actions);
+                JSONObject delay = new JSONObject();
+                delay.put("type", "boolean");
+                delay.put("description", "动作之间是否需要延迟");
+                props.put("delay", delay);
+                JSONObject quote = new JSONObject();
+                quote.put("type", "boolean");
+                quote.put("description", "参数值是否需要加引号");
+                props.put("quote", quote);
+                schema.put("properties", props);
+                schema.put("required", new JSONArray().put("index"));
+            } catch (Exception ignored) {}
+            return schema;
+        }
+        @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
+            if (!args.has("index")) throw new McpToolException("缺少 index");
+            QuickCommandStorage storage = new QuickCommandStorage(appContext);
+            List<QuickCommandNode> commands = storage.loadAll();
+            int index = args.optInt("index");
+            if (index < 0 || index >= commands.size()) {
+                throw new McpToolException("index " + index + " 超出范围（共 " + commands.size() + " 条）");
+            }
+            QuickCommandNode node = commands.get(index);
+            if (args.has("name")) {
+                String name = args.optString("name");
+                if (name.isEmpty()) throw new McpToolException("name 不能为空");
+                node.name = name;
+            }
+            if (args.has("actions")) {
+                JSONArray actionsArray = args.optJSONArray("actions");
+                if (actionsArray == null || actionsArray.length() == 0) {
+                    throw new McpToolException("actions 不能为空");
+                }
+                List<String> newActions = new ArrayList<>();
+                for (int i = 0; i < actionsArray.length(); i++) {
+                    String a = actionsArray.optString(i, "");
+                    if (a.isEmpty()) throw new McpToolException("actions 不能包含空命令");
+                    newActions.add(a);
+                }
+                node.actions = newActions;
+            }
+            if (args.has("delay")) node.delay = args.optBoolean("delay");
+            if (args.has("quote")) node.quote = args.optBoolean("quote");
+            storage.update(index, node);
+            return McpToolResult.ok("已更新快捷指令「" + node.name + "」");
+        }
+    }
+
+    // ---------- quick_command_delete ----------
+    private static class QuickCommandDeleteTool extends BaseTool {
+        QuickCommandDeleteTool(Context context) { super(context); }
+        @Override public String getName() { return "quick_command_delete"; }
+        @Override public String getDescription() { return "删除本地自定义快捷指令（危险操作，不可恢复，要求经过用户审批才能执行）。index 为指令索引（从 0 开始，通过 quick_command_list 获取）"; }
+        @Override public JSONObject getInputSchema() {
+            JSONObject schema = new JSONObject();
+            try {
+                schema.put("type", "object");
+                JSONObject props = new JSONObject();
+                JSONObject index = new JSONObject();
+                index.put("type", "integer");
+                index.put("description", "要删除的指令索引（从 0 开始）");
+                props.put("index", index);
+                schema.put("properties", props);
+                schema.put("required", new JSONArray().put("index"));
+            } catch (Exception ignored) {}
+            return schema;
+        }
+        @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
+            if (!args.has("index")) throw new McpToolException("缺少 index");
+            QuickCommandStorage storage = new QuickCommandStorage(appContext);
+            List<QuickCommandNode> commands = storage.loadAll();
+            int index = args.optInt("index");
+            if (index < 0 || index >= commands.size()) {
+                throw new McpToolException("index " + index + " 超出范围（共 " + commands.size() + " 条）");
+            }
+            String name = commands.get(index).name != null ? commands.get(index).name : "";
+            storage.delete(index);
+            return McpToolResult.ok("已删除快捷指令「" + name + "」");
         }
     }
 

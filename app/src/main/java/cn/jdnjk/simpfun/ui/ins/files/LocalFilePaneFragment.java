@@ -35,12 +35,16 @@ import java.util.concurrent.Executors;
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.model.FileItem;
+import cn.jdnjk.simpfun.model.FileSortMode;
+import cn.jdnjk.simpfun.ui.setting.SettingsSaveManager;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
 import cn.jdnjk.simpfun.utils.StoragePermissionHelper;
 
 public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Callbacks, LocalFileListController.Host {
     private static final String LOCAL_ROOT = Environment.getExternalStorageDirectory().getPath();
     private static final String ARG_INITIAL_PATH = "initial_path";
+    private static final String ARG_PANE_SIDE = "pane_side";
+    private static final String SORT_KEY_PREFIX = "file_sort_mode";
 
     static LocalFilePaneFragment newInstance(String initialPath) {
         LocalFilePaneFragment fragment = new LocalFilePaneFragment();
@@ -57,6 +61,45 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
     private FilePaneState state;
     private FilePaneViews views;
     private LocalFileListController listController;
+
+    private String getSortKey() {
+        if (getArguments() != null) {
+            String side = getArguments().getString(ARG_PANE_SIDE, "");
+            if (!side.isEmpty()) {
+                return SORT_KEY_PREFIX + "_" + side;
+            }
+        }
+        return SORT_KEY_PREFIX;
+    }
+
+    private void loadSortMode() {
+        Context ctx = getContext();
+        if (ctx == null) return;
+        String saved = SettingsSaveManager.getInstance(ctx).getString(getSortKey(), "");
+        if (!saved.isEmpty()) {
+            state.setSortMode(FileSortMode.fromName(saved));
+        }
+    }
+
+    private void saveSortMode() {
+        Context ctx = getContext();
+        if (ctx == null) return;
+        SettingsSaveManager.getInstance(ctx).putString(getSortKey(), state.getSortMode().name());
+    }
+
+    /** 由外部（如 DualFilePaneFragment）调用以切换排序方式。 */
+    void setSortMode(FileSortMode mode) {
+        state.setSortMode(mode);
+        saveSortMode();
+        if (views != null) {
+            views.updateSortButtonText();
+        }
+        loadFileList();
+    }
+
+    FileSortMode getSortMode() {
+        return state.getSortMode();
+    }
 
     @Nullable
     @Override
@@ -243,6 +286,11 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         if (!state.isAtRoot()) {
             navigateToPath(state.getParentPath());
         }
+    }
+
+    @Override
+    public void onSortModeSelected(FileSortMode mode) {
+        setSortMode(mode);
     }
 
     @Override
@@ -970,6 +1018,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                 }
             }
             state = new FilePaneState(initialPath, LOCAL_ROOT);
+            loadSortMode();
         }
     }
 

@@ -11,6 +11,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.PopupMenu;
 
 import cn.jdnjk.simpfun.utils.Feedback;
 
@@ -27,8 +28,10 @@ import androidx.lifecycle.Lifecycle;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.model.FileItem;
+import cn.jdnjk.simpfun.model.FileSortMode;
 
 public class DualFilePaneFragment extends Fragment {
+    private static final String ARG_PANE_SIDE = "pane_side";
     private PaneSlot leftSlot;
     private PaneSlot rightSlot;
     private PaneSide activePane = PaneSide.LEFT;
@@ -38,6 +41,7 @@ public class DualFilePaneFragment extends Fragment {
     private View btnDualParent;
     private View btnDualNew;
     private View btnDualSwap;
+    private View btnDualSort;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -77,15 +81,51 @@ public class DualFilePaneFragment extends Fragment {
         btnDualParent = view.findViewById(R.id.btn_dual_parent);
         btnDualNew = view.findViewById(R.id.btn_dual_new);
         btnDualSwap = view.findViewById(R.id.btn_dual_swap);
+        btnDualSort = view.findViewById(R.id.btn_dual_sort);
 
         btnDualBack.setOnClickListener(v -> handleToolbarAction("back"));
         btnDualForward.setOnClickListener(v -> handleToolbarAction("forward"));
         btnDualParent.setOnClickListener(v -> handleToolbarAction("parent"));
         btnDualNew.setOnClickListener(v -> handleToolbarAction("new"));
         btnDualSwap.setOnClickListener(v -> swapPanes());
+        btnDualSort.setOnClickListener(v -> showDualSortMenu(v));
 
         updateActivePane();
         updateActivityTitle();
+    }
+
+    private void showDualSortMenu(View anchor) {
+        Fragment active = getActiveFragment();
+        FileSortMode current = active instanceof FilePaneFragment f
+                ? f.getSortMode()
+                : active instanceof LocalFilePaneFragment f
+                ? f.getSortMode()
+                : FileSortMode.NAME_ASC;
+        PopupMenu popup = new PopupMenu(requireContext(), anchor);
+        for (FileSortMode mode : FileSortMode.values()) {
+            MenuItem item = popup.getMenu().add(0, mode.ordinal(), mode.ordinal(), mode.getLabel());
+            if (mode == current) {
+                item.setChecked(true);
+            }
+        }
+        popup.getMenu().setGroupCheckable(0, true, true);
+        popup.setOnMenuItemClickListener(menuItem -> {
+            FileSortMode selected = FileSortMode.values()[menuItem.getItemId()];
+            if (selected != current) {
+                applySortToActivePane(selected);
+            }
+            return true;
+        });
+        popup.show();
+    }
+
+    private void applySortToActivePane(FileSortMode mode) {
+        Fragment active = getActiveFragment();
+        if (active instanceof FilePaneFragment filePaneFragment) {
+            filePaneFragment.setSortMode(mode);
+        } else if (active instanceof LocalFilePaneFragment localFilePaneFragment) {
+            localFilePaneFragment.setSortMode(mode);
+        }
     }
 
     private void handleToolbarAction(String action) {
@@ -126,6 +166,7 @@ public class DualFilePaneFragment extends Fragment {
         btnDualParent = null;
         btnDualNew = null;
         btnDualSwap = null;
+        btnDualSort = null;
         super.onDestroyView();
     }
 
@@ -289,7 +330,16 @@ public class DualFilePaneFragment extends Fragment {
 
     private void replaceSlot(PaneSlot slot, PaneKind kind, String initialPath) {
         slot.kind = kind;
-        slot.fragment = kind == PaneKind.LOCAL ? LocalFilePaneFragment.newInstance(initialPath) : FilePaneFragment.newEmbedded(initialPath);
+        Fragment fragment = kind == PaneKind.LOCAL
+                ? LocalFilePaneFragment.newInstance(initialPath)
+                : FilePaneFragment.newEmbedded(initialPath);
+        Bundle args = fragment.getArguments();
+        if (args == null) {
+            args = new Bundle();
+            fragment.setArguments(args);
+        }
+        args.putString(ARG_PANE_SIDE, slot.side == PaneSide.LEFT ? "left" : "right");
+        slot.fragment = fragment;
         getChildFragmentManager().beginTransaction().replace(slot.containerId, slot.fragment).commitNow();
     }
 

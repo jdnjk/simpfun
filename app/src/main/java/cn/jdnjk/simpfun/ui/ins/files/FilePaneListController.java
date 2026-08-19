@@ -17,8 +17,6 @@ import org.json.JSONObject;
 import java.net.URLConnection;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -187,9 +185,6 @@ class FilePaneListController {
             ssh.authPassword(credential.username, credential.password);
             try (SFTPClient sftp = ssh.newSFTPClient()) {
                 List<RemoteResourceInfo> remoteItems = new ArrayList<>(sftp.ls(requestPath));
-                remoteItems.sort(Comparator
-                        .comparing((RemoteResourceInfo info) -> !info.isDirectory())
-                        .thenComparing(info -> info.getName().toLowerCase(Locale.ROOT)));
 
                 List<FileItem> items = new ArrayList<>();
                 if (!state.getRootPath().equals(requestPath)) {

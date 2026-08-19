@@ -9,4 +9,6 @@
     <item type="id" name="action_file_toolbox_fix" />
     <item type="id" name="action_task_cancel" />
     <item type="id" name="action_task_pro_queue" />
+    <item type="id" name="action_quick_command" />
+    <item type="id" name="action_add_action" />
 </resources>

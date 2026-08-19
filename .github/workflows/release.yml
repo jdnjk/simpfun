@@ -83,7 +83,7 @@ jobs:
             echo "::error::No APK produced under app/build/outputs/apk/release"
             exit 1
           fi
-          APK_DEST="simpfun-v${VERSION_NAME}-${VERSION_CODE}.apk"
+          APK_DEST="app-release.apk"
           cp "${APK_SRC}" "${APK_DEST}"
           echo "apk_path=${APK_DEST}" >> "$GITHUB_OUTPUT"
           echo "renamed to ${APK_DEST}"
@@ -124,7 +124,7 @@ jobs:
         run: gh release upload "${GITHUB_REF_NAME}" "${{ steps.apk.outputs.apk_path }}" --clobber
 
       - name: Upload ProGuard mapping as artifact
-        # mapping 含混淆前后对照，仅作 artifact 供仓库内排查，不发到 Release
+
         uses: actions/upload-artifact@v4
         with:
           name: proguard-mapping-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}

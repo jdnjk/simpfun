@@ -4,9 +4,11 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -21,6 +23,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.adapter.FileAdapter;
 import cn.jdnjk.simpfun.model.FileItem;
+import cn.jdnjk.simpfun.model.FileSortMode;
 
 class FilePaneViews {
     interface Callbacks {
@@ -44,6 +47,7 @@ class FilePaneViews {
         void onToolbarNewEntry();
         void onSwapPane();
         void onParentDirectory();
+        void onSortModeSelected(FileSortMode mode);
         void onPathClick(String path);
         void onPathLongClick();
         void onPaneTouched();
@@ -80,6 +84,7 @@ class FilePaneViews {
     private View toolbarNewButton;
     private View swapPaneButton;
     private View parentDirButton;
+    private View sortButton;
     private boolean showFab = true;
     private boolean showArchiveAction = true;
     private boolean selectionUiEnabled = true;
@@ -118,6 +123,7 @@ class FilePaneViews {
         toolbarNewButton = root.findViewById(R.id.button_toolbar_new);
         swapPaneButton = root.findViewById(R.id.button_swap_pane);
         parentDirButton = root.findViewById(R.id.button_parent_dir);
+        sortButton = root.findViewById(R.id.button_sort);
 
         adapter = new FileAdapter(state.getFileList(), callbacks::onItemClick, callbacks::onItemLongClick, callbacks::onItemMoreClick);
         recyclerView.setLayoutManager(new LinearLayoutManager(root.getContext()));
@@ -170,6 +176,9 @@ class FilePaneViews {
         }
         if (parentDirButton != null) {
             parentDirButton.setOnClickListener(v -> callbacks.onParentDirectory());
+        }
+        if (sortButton != null) {
+            sortButton.setOnClickListener(v -> showSortMenu(v));
         }
     }
 
@@ -276,6 +285,7 @@ class FilePaneViews {
         selectionBarEnabled = false;
         quickSwipeSelection = true;
         adapter.setSelectionPresentation(false, true);
+        adapter.setShowMoreButton(false);
         if (selectionBar != null) {
             selectionBar.setVisibility(View.GONE);
         }
@@ -459,6 +469,40 @@ class FilePaneViews {
         if (parentDirButton != null) {
             parentDirButton.setEnabled(!state.isAtRoot());
         }
+        updateSortButtonText();
+    }
+
+    void updateSortButtonText() {
+        if (sortButton != null && sortButton instanceof TextView) {
+            ((TextView) sortButton).setText(state.getSortMode().getLabel());
+        }
+    }
+
+    FileSortMode getSortMode() {
+        return state.getSortMode();
+    }
+
+    /**
+     * 显示排序方式选择 PopupMenu。
+     */
+    void showSortMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(anchor.getContext(), anchor);
+        FileSortMode current = state.getSortMode();
+        for (FileSortMode mode : FileSortMode.values()) {
+            MenuItem item = popup.getMenu().add(0, mode.ordinal(), mode.ordinal(), mode.getLabel());
+            if (mode == current) {
+                item.setChecked(true);
+            }
+        }
+        popup.getMenu().setGroupCheckable(0, true, true);
+        popup.setOnMenuItemClickListener(menuItem -> {
+            FileSortMode selected = FileSortMode.values()[menuItem.getItemId()];
+            if (selected != current) {
+                callbacks.onSortModeSelected(selected);
+            }
+            return true;
+        });
+        popup.show();
     }
 
     void notifyFileListChanged() {
@@ -511,6 +555,7 @@ class FilePaneViews {
         toolbarNewButton = null;
         swapPaneButton = null;
         parentDirButton = null;
+        sortButton = null;
     }
 
     private TextView createPathNode(Context context, String text, boolean current) {

@@ -44,6 +44,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
     private Set<String> selectedPaths = Collections.emptySet();
     private boolean selectionMode;
     private boolean showSelectionCheckbox = true;
+    private boolean showMoreButton = true;
     private int selectedBackgroundColorRes = R.color.md_theme_secondaryContainer;
 
     public FileAdapter(List<FileItem> data, OnItemClickListener clickListener, OnItemLongClickListener longClickListener) {
@@ -73,6 +74,11 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         notifyDataSetChanged();
     }
 
+    public void setShowMoreButton(boolean showMoreButton) {
+        this.showMoreButton = showMoreButton;
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -87,7 +93,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         boolean selectable = selectionMode && !item.isParentEntry();
         boolean selected = selectable && selectedPaths.contains(path);
         holder.bind(item, clickListener, longClickListener, moreClickListener, selectionMode, selectable, selected,
-                showSelectionCheckbox, selectedBackgroundColorRes);
+                showSelectionCheckbox, showMoreButton, selectedBackgroundColorRes);
     }
 
     @Override
@@ -115,7 +121,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
         void bind(FileItem item, OnItemClickListener clickListener, OnItemLongClickListener longClickListener,
                 OnItemMoreClickListener moreClickListener, boolean selectionMode, boolean selectable, boolean selected,
-                boolean showSelectionCheckbox, int selectedBackgroundColorRes) {
+                boolean showSelectionCheckbox, boolean showMoreButton, int selectedBackgroundColorRes) {
             name.setText(item.getName());
             if (item.isParentEntry()) {
                 icon.setImageResource(R.drawable.ic_folder_material);
@@ -134,7 +140,7 @@ public class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
 
             selectedCheckBox.setVisibility(showSelectionCheckbox && selectable ? View.VISIBLE : View.GONE);
             selectedCheckBox.setChecked(selected);
-            moreButton.setVisibility(selectionMode || item.isParentEntry() ? View.GONE : View.VISIBLE);
+            moreButton.setVisibility(selectionMode || item.isParentEntry() || !showMoreButton ? View.GONE : View.VISIBLE);
             if (selected) {
                 int selectedColor = itemView.getResources().getColor(selectedBackgroundColorRes, null);
                 itemView.setBackgroundColor(selectedColor);

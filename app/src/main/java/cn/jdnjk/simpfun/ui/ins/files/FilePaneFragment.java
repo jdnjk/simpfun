@@ -26,6 +26,8 @@ import java.util.List;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ServerManages;
 import cn.jdnjk.simpfun.model.FileItem;
+import cn.jdnjk.simpfun.model.FileSortMode;
+import cn.jdnjk.simpfun.ui.setting.SettingsSaveManager;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
 
 public class FilePaneFragment extends Fragment implements
@@ -35,6 +37,8 @@ public class FilePaneFragment extends Fragment implements
         FileTransferController.Host {
     private static final String ARG_INITIAL_PATH = "initial_path";
     private static final String ARG_EMBEDDED = "embedded";
+    private static final String ARG_PANE_SIDE = "pane_side";
+    private static final String SORT_KEY_PREFIX = "file_sort_mode";
 
     static FilePaneFragment newEmbedded() {
         return newEmbedded(null);
@@ -56,6 +60,45 @@ public class FilePaneFragment extends Fragment implements
     private FilePaneListController listController;
     private FilePaneOperations operations;
     private FileTransferController transferController;
+
+    private String getSortKey() {
+        if (getArguments() != null) {
+            String side = getArguments().getString(ARG_PANE_SIDE, "");
+            if (!side.isEmpty()) {
+                return SORT_KEY_PREFIX + "_" + side;
+            }
+        }
+        return SORT_KEY_PREFIX;
+    }
+
+    private void loadSortMode() {
+        Context ctx = getContext();
+        if (ctx == null) return;
+        String saved = SettingsSaveManager.getInstance(ctx).getString(getSortKey(), "");
+        if (!saved.isEmpty()) {
+            state.setSortMode(FileSortMode.fromName(saved));
+        }
+    }
+
+    private void saveSortMode() {
+        Context ctx = getContext();
+        if (ctx == null) return;
+        SettingsSaveManager.getInstance(ctx).putString(getSortKey(), state.getSortMode().name());
+    }
+
+    /** 由外部（如 DualFilePaneFragment）调用以切换排序方式。 */
+    void setSortMode(FileSortMode mode) {
+        state.setSortMode(mode);
+        saveSortMode();
+        if (views != null) {
+            views.updateSortButtonText();
+        }
+        loadFileList();
+    }
+
+    FileSortMode getSortMode() {
+        return state.getSortMode();
+    }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -273,6 +316,11 @@ public class FilePaneFragment extends Fragment implements
         if (!state.isAtRoot()) {
             navigateToPath(state.getParentPath());
         }
+    }
+
+    @Override
+    public void onSortModeSelected(FileSortMode mode) {
+        setSortMode(mode);
     }
 
     @Override
@@ -904,5 +952,6 @@ public class FilePaneFragment extends Fragment implements
             }
         }
         state = new FilePaneState(initialPath);
+        loadSortMode();
     }
 }
