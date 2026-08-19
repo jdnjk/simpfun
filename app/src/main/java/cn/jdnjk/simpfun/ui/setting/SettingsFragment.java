@@ -43,6 +43,7 @@ import cn.jdnjk.simpfun.utils.InstanceDetailStore;
 import cn.jdnjk.simpfun.utils.NetworkUtils;
 import cn.jdnjk.simpfun.utils.PageDataStore;
 import cn.jdnjk.simpfun.utils.StoragePermissionHelper;
+import cn.jdnjk.simpfun.utils.UpdateChecker;
 
 public class SettingsFragment extends Fragment {
     private static final String SP_TOKEN = "token";
@@ -354,6 +355,11 @@ public class SettingsFragment extends Fragment {
         });
         root.findViewById(R.id.option_quick_commands).setOnClickListener(v ->
                 showQuickCommandManagementDialog());
+        root.findViewById(R.id.option_check_update).setOnClickListener(v -> {
+            if (getActivity() != null) {
+                UpdateChecker.checkUpdate(getActivity());
+            }
+        });
     }
 
     private void showQuickCommandManagementDialog() {

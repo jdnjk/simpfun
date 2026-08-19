@@ -27,6 +27,7 @@ import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
 import cn.jdnjk.simpfun.utils.AnnouncementHelper;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
+import cn.jdnjk.simpfun.utils.UpdateChecker;
 
 public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_REFRESH_SERVER_LIST = "extra_refresh_server_list";
@@ -115,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
 
         resetMcpServerOnColdStart();
         AnnouncementHelper.maybeShowAnnouncement(this);
+        UpdateChecker.checkUpdateIfNeeded(this);
     }
 
     /**
