@@ -1,7 +1,7 @@
 # 基础界面
 -keep class cn.jdnjk.simpfun.SWebView
 -keep class cn.jdnjk.simpfun.FileEditorActivity
--keep class cn.jdnjk.simpfun.utils.EditorMenuHandler
+# -keep class cn.jdnjk.simpfun.utils.EditorMenuHandler
 -keep class cn.jdnjk.simpfun.mcp.McpServerService
 
 # ---- Debuggability / reflection metadata ----

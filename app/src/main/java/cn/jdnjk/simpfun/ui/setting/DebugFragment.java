@@ -7,15 +7,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -26,19 +27,27 @@ import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 
 import cn.jdnjk.simpfun.utils.Feedback;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.tencent.bugly.crashreport.CrashReport;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.SWebView;
 import cn.jdnjk.simpfun.notification.DebugNotificationHelper;
 import cn.jdnjk.simpfun.notification.DebugNotificationScheduler;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
+import cn.jdnjk.simpfun.utils.LogCapture;
 
 public class DebugFragment extends Fragment {
 
@@ -51,9 +60,12 @@ public class DebugFragment extends Fragment {
     private NestedScrollView scrollView;
     private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
     private final SimpleDateFormat scheduleFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "debug-io"));
 
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private ActivityResultLauncher<String> safExportLauncher;
     private Runnable pendingNotificationAction;
+    private String pendingExportLog;
     private TextView tvNotificationTime;
     private EditText etNotificationTitle;
     private EditText etNotificationContent;
@@ -93,6 +105,12 @@ public class DebugFragment extends Fragment {
             } else if (isAdded()) {
                 Feedback.error(getView(), "通知权限未授予，无法发送测试通知");
             }
+        });
+        safExportLauncher = registerForActivityResult(new ActivityResultContracts.CreateDocument("text/plain"), uri -> {
+            if (uri == null) {
+                return;
+            }
+            exportToUri(uri);
         });
     }
 
@@ -146,6 +164,9 @@ public class DebugFragment extends Fragment {
             intent.putExtra("url", url);
             startActivity(intent);
         });
+
+        View btnExportLog = view.findViewById(R.id.btn_export_log);
+        btnExportLog.setOnClickListener(v -> onExportLogClicked());
 
         swBugly.setOnCheckedChangeListener((buttonView, isChecked) -> {
             spDebug.edit().putBoolean(KEY_BUGLY_ENABLED, isChecked).apply();
@@ -215,6 +236,107 @@ public class DebugFragment extends Fragment {
         }
         pendingNotificationAction = action;
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+    }
+
+    private void onExportLogClicked() {
+        View root = getView();
+        if (root == null) return;
+        Feedback.info(root, "正在准备日志…");
+        ioExecutor.execute(() -> {
+            String content;
+            try {
+                content = LogCapture.read();
+            } catch (Exception e) {
+                content = "日志读取失败: " + e.getMessage();
+            }
+            final String logText = content;
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (!isAdded() || getView() == null) return;
+                String fileName = "debug.log";
+                safExportLauncher.launch(fileName);
+                this.pendingExportLog = logText;
+            });
+        });
+    }
+
+    private void exportToUri(Uri uri) {
+        View root = getView();
+        if (root == null) return;
+        String logText = pendingExportLog;
+        pendingExportLog = null;
+        if (logText == null) return;
+        final Context ctx = getContext();
+        if (ctx == null) return;
+
+        ioExecutor.execute(() -> {
+            final boolean ok = writeToUri(ctx, uri, logText);
+            if (!isAdded()) return;
+            getActivity().runOnUiThread(() -> {
+                if (!isAdded() || getView() == null) return;
+                if (ok) {
+                    Feedback.info(getView(), "日志已导出到所选位置");
+                } else {
+                    showFallbackExportDialog(logText);
+                }
+            });
+        });
+    }
+
+    private static boolean writeToUri(Context ctx, Uri uri, String content) {
+        try {
+            try (OutputStream os = ctx.getContentResolver().openOutputStream(uri)) {
+                if (os == null) return false;
+                os.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return true;
+        } catch (Exception e) {
+            Log.d("DebugExport", "SAF write failed", e);
+            return false;
+        }
+    }
+
+    private void showFallbackExportDialog(String logText) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("保存日志失败")
+                .setMessage("无法保存到所选位置，是否导出到应用目录？\n(Android/data/应用包名/files/log)")
+                .setPositiveButton("导出", (dialog, which) -> exportToAppLogDir(logText))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void exportToAppLogDir(String logText) {
+        Context ctx = getContext();
+        if (ctx == null) return;
+        final Context appCtx = ctx.getApplicationContext();
+        ioExecutor.execute(() -> {
+            final String path = writeToAppDir(appCtx, logText);
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                if (!isAdded() || getView() == null) return;
+                if (path == null) {
+                    Feedback.error(getView(), "导出失败，请重试");
+                } else {
+                    Feedback.info(getView(), "已导出到 " + path);
+                }
+            });
+        });
+    }
+
+    private static String writeToAppDir(Context ctx, String content) {
+        try {
+            File dir = new File(ctx.getFilesDir(), "log");
+            if (dir.exists() || dir.mkdirs()) {
+                File out = new File(dir, "debug.log");
+                try (OutputStream os = new FileOutputStream(out)) {
+                    os.write(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+                return out.getAbsolutePath();
+            }
+        } catch (Exception e) {
+            Log.d("DebugExport", "app dir write failed", e);
+        }
+        return null;
     }
 
     private void showDateTimePicker() {

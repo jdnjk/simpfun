@@ -13,7 +13,7 @@
       "languageConfiguration": "editor/textmate/cpp/language-configuration.json"
     },
     {
-      "grammar": "editor/textmate/toml/syntaxes/kotlin.tmLanguage.json",
+      "grammar": "editor/textmate/kotlin/syntaxes/kotlin.tmLanguage.json",
       "name": "Kotlin",
       "scopeName": "source.kotlin",
       "languageConfiguration": "editor/textmate/kotlin/language-configuration.json"

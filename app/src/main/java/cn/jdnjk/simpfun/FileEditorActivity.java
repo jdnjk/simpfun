@@ -355,6 +355,7 @@ public class FileEditorActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        super.getOnBackPressedDispatcher();
         if (isSaving) {
             // 正在保存，忽略返回键，避免发起并发保存
             return;

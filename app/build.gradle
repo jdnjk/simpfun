@@ -124,7 +124,7 @@ dependencies {
 
     implementation 'io.github.rosemoe:editor:0.24.6'
     implementation 'io.github.rosemoe:language-textmate:0.24.6'
-    implementation 'io.github.rosemoe:oniguruma-native:0.24.6'
+    //implementation 'io.github.rosemoe:oniguruma-native:0.24.6' love Crash
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     api 'com.alipay.sdk:alipaysdk-android:15.8.42'
