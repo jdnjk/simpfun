@@ -208,6 +208,52 @@
                 android:layout_height="wrap_content" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/option_cpu_100_percent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="76dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp">
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="18dp"
+                android:src="@drawable/ic_stats_24"
+                android:contentDescription="CPU 100% 模式"
+                app:tint="?attr/colorOnSurfaceVariant" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="CPU 100% 显示"
+                    android:textSize="18sp"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="开启后按总核数折算为百分比，关闭后不再折算直接显示原始占用"
+                    android:textSize="15sp"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+            </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switch_cpu_100_percent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

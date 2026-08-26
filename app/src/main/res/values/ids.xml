@@ -11,4 +11,5 @@
     <item type="id" name="action_task_pro_queue" />
     <item type="id" name="action_quick_command" />
     <item type="id" name="action_add_action" />
+    <item type="id" name="action_visual_config" />
 </resources>

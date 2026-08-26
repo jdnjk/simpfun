@@ -95,7 +95,7 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
         });
 
         serverItems = new ArrayList<>();
-        adapter = new ServerAdapter(serverItems, (MainActivity) requireActivity(), cardStyleManager.isModernServerCardEnabled());
+        adapter = new ServerAdapter(serverItems, (MainActivity) requireActivity(), cardStyleManager.isModernServerCardEnabled(), cardStyleManager.isCpu100PercentEnabled());
         recyclerView.setAdapter(adapter);
 
         swipeRefreshLayout.setOnRefreshListener(() -> loadInstanceList(true));
@@ -126,6 +126,7 @@ public class ServerFragment extends Fragment implements ServerStatsListener {
         super.onResume();
         if (adapter != null && cardStyleManager != null) {
             adapter.setUseModernStyle(cardStyleManager.isModernServerCardEnabled());
+            adapter.setUseCpu100Percent(cardStyleManager.isCpu100PercentEnabled());
         }
     }
 

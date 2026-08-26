@@ -950,9 +950,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void appendVersionInfoPart(StringBuilder sb, String part) {
         if (TextUtils.isEmpty(part)) return;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            if (!sb.isEmpty()) sb.append(" | ");
-        }
+        if (sb.length() > 0) sb.append(" | ");
         sb.append(part);
     }
 
@@ -1237,6 +1235,7 @@ public class CreateServer extends AppCompatActivity {
                 } else {
                     android.util.Log.d("CreateServerBind", "plain text: title=" + item.title);
                     MarkdownRenderer.clear(subtitle);
+                    subtitle.setMovementMethod(null);
                     subtitle.setText(item.subtitle);
                 }
             }

@@ -136,6 +136,13 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        Fragment top = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (top instanceof QuickCommandEditorFragment) {
+            // 编辑页有未保存改动时弹窗询问，而非直接返回
+            if (((QuickCommandEditorFragment) top).handleBackPress()) {
+                return;
+            }
+        }
         if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
             getSupportFragmentManager().popBackStack();
         } else {

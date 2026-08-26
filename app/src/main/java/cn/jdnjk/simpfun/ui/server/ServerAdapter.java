@@ -27,15 +27,22 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ServerView
     private final List<ServerItem> serverList;
     private final MainActivity activity;
     private boolean useModernStyle;
+    private boolean useCpu100Percent;
 
-    public ServerAdapter(List<ServerItem> serverList, MainActivity activity, boolean useModernStyle) {
+    public ServerAdapter(List<ServerItem> serverList, MainActivity activity, boolean useModernStyle, boolean useCpu100Percent) {
         this.serverList = serverList;
         this.activity = activity;
         this.useModernStyle = useModernStyle;
+        this.useCpu100Percent = useCpu100Percent;
     }
 
     public void setUseModernStyle(boolean useModernStyle) {
         this.useModernStyle = useModernStyle;
+        notifyDataSetChanged();
+    }
+
+    public void setUseCpu100Percent(boolean useCpu100Percent) {
+        this.useCpu100Percent = useCpu100Percent;
         notifyDataSetChanged();
     }
 
@@ -89,15 +96,21 @@ public class ServerAdapter extends RecyclerView.Adapter<ServerAdapter.ServerView
             return;
         }
 
-        int cpuPercent = ServerStatsFormatter.toCpuPercent(stats.getCpuAbsolute(), server.getCpuLimit());
+        int cpuPercentNormalized = ServerStatsFormatter.toCpuPercent(stats.getCpuAbsolute(), server.getCpuLimit());
+        int cpuPercentDisplay;
+        if (useCpu100Percent) {
+            cpuPercentDisplay = cpuPercentNormalized;
+        } else {
+            cpuPercentDisplay = (int) Math.round(stats.getCpuAbsolute());
+        }
         int memoryPercent = ServerStatsFormatter.toMemoryPercent(stats.getMemoryBytes(), stats.getMemoryLimitBytes());
 
         holder.uptime.setText(ServerStatsFormatter.formatUptime(stats.getUptimeMillis()));
         holder.uploadSpeed.setText(ServerStatsFormatter.formatSpeed(stats.getUploadBytesPerSecond()));
         holder.downloadSpeed.setText(ServerStatsFormatter.formatSpeed(stats.getDownloadBytesPerSecond()));
-        holder.cpuPercent.setText(ServerStatsFormatter.formatPercentText(cpuPercent));
+        holder.cpuPercent.setText(ServerStatsFormatter.formatPercentText(cpuPercentDisplay));
         holder.memoryPercent.setText(ServerStatsFormatter.formatPercentText(memoryPercent));
-        holder.cpuProgress.setProgressCompat(cpuPercent, false);
+        holder.cpuProgress.setProgressCompat(cpuPercentNormalized, false);
         holder.memoryProgress.setProgressCompat(memoryPercent, false);
     }
 

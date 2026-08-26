@@ -71,6 +71,8 @@ public class SettingsFragment extends Fragment {
     private EditText etSftpThreadCount;
     private Slider sliderSftpThreadCount;
     private MaterialSwitch switchServerCardStyle;
+    private MaterialSwitch switchCpu100Percent;
+    private View optionCpu100Percent;
     private MaterialSwitch switchFileDualPane;
     private Slider sliderTerminalFontSize;
     private TextView tvTerminalFontSize;
@@ -158,6 +160,8 @@ public class SettingsFragment extends Fragment {
         etSftpThreadCount = root.findViewById(R.id.et_sftp_thread_count);
         sliderSftpThreadCount = root.findViewById(R.id.slider_sftp_thread_count);
         switchServerCardStyle = root.findViewById(R.id.switch_server_card_style);
+        switchCpu100Percent = root.findViewById(R.id.switch_cpu_100_percent);
+        optionCpu100Percent = root.findViewById(R.id.option_cpu_100_percent);
         switchFileDualPane = root.findViewById(R.id.switch_file_dual_pane);
         sliderTerminalFontSize = root.findViewById(R.id.slider_terminal_font_size);
         tvTerminalFontSize = root.findViewById(R.id.tv_terminal_font_size);
@@ -264,9 +268,17 @@ public class SettingsFragment extends Fragment {
     private void bindSwitches() {
         if (switchServerCardStyle != null) {
             switchServerCardStyle.setChecked(serverCardStyleManager.isModernServerCardEnabled());
-            switchServerCardStyle.setOnCheckedChangeListener((buttonView, isChecked) ->
-                    serverCardStyleManager.setModernServerCardEnabled(isChecked));
+            switchServerCardStyle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                serverCardStyleManager.setModernServerCardEnabled(isChecked);
+                updateCpu100PercentVisibility();
+            });
         }
+        if (switchCpu100Percent != null) {
+            switchCpu100Percent.setChecked(serverCardStyleManager.isCpu100PercentEnabled());
+            switchCpu100Percent.setOnCheckedChangeListener((buttonView, isChecked) ->
+                    serverCardStyleManager.setCpu100PercentEnabled(isChecked));
+        }
+        updateCpu100PercentVisibility();
         if (switchFileDualPane != null) {
             setDualPaneSwitchChecked(filePaneModeManager.isDualFilePaneEnabled());
             switchFileDualPane.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -281,6 +293,13 @@ public class SettingsFragment extends Fragment {
                 }
             });
         }
+    }
+
+    /** CPU 100% 显示选项仅在新版卡片启用时有意义，旧版下隐藏。 */
+    private void updateCpu100PercentVisibility() {
+        if (optionCpu100Percent == null) return;
+        boolean modern = serverCardStyleManager.isModernServerCardEnabled();
+        optionCpu100Percent.setVisibility(modern ? View.VISIBLE : View.GONE);
     }
 
     private void setDualPaneSwitchChecked(boolean checked) {
@@ -384,6 +403,8 @@ public class SettingsFragment extends Fragment {
         QuickCommandEditorFragment fragment = QuickCommandEditorFragment.newInstance(index, existing);
         getActivity().getSupportFragmentManager()
                 .beginTransaction()
+                .setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left,
+                        R.anim.slide_in_left, R.anim.slide_out_right)
                 .replace(R.id.fragment_container, fragment)
                 .addToBackStack("quick_command_editor")
                 .commit();

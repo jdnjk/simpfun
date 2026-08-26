@@ -43,6 +43,9 @@ public class QuickCommandEditorFragment extends Fragment {
     private final List<View> actionRows = new ArrayList<>();
     private QuickCommandStorage storage;
     private OnSavedListener onSavedListener;
+    private String initialName;
+    private final List<String> initialActions = new ArrayList<>();
+    private boolean saved; // 已成功保存，返回时不再询问
 
     public interface OnSavedListener {
         void onSaved();
@@ -95,6 +98,11 @@ public class QuickCommandEditorFragment extends Fragment {
         } else {
             actions.add("");
         }
+
+        // 记录初始状态，用于返回时判断是否有未保存改动
+        initialName = etName.getText() != null ? etName.getText().toString().trim() : "";
+        initialActions.clear();
+        initialActions.addAll(actions);
 
         actionsContainer = root.findViewById(R.id.actions_container);
         rebuildActionRows();
@@ -227,8 +235,53 @@ public class QuickCommandEditorFragment extends Fragment {
         }
 
         Toast.makeText(requireContext(), "已保存", Toast.LENGTH_SHORT).show();
+        saved = true;
         if (onSavedListener != null) onSavedListener.onSaved();
         popBack();
+    }
+
+    /**
+     * 当前编辑内容与初始内容是否不一致（存在未保存改动）。
+     */
+    public boolean isDirty() {
+        if (saved) return false;
+        if (etName == null) return false; // view 未就绪时不拦截
+        String name = etName.getText() != null ? etName.getText().toString().trim() : "";
+        if (!name.equals(initialName)) return true;
+        // 逐条对比动作列表，忽略纯空动作（占位符行）
+        List<String> current = new ArrayList<>();
+        for (String a : actions) {
+            if (a != null && !a.trim().isEmpty()) {
+                current.add(a.trim());
+            }
+        }
+        List<String> initial = new ArrayList<>();
+        for (String a : initialActions) {
+            if (a != null && !a.trim().isEmpty()) {
+                initial.add(a.trim());
+            }
+        }
+        return !current.equals(initial);
+    }
+
+    /**
+     * 返回时调用：若有未保存改动则弹窗询问，否则直接返回 true。
+     *
+     * @return true 表示已消费返回事件（弹出询问框，不返回）；false 表示可以正常返回。
+     */
+    public boolean handleBackPress() {
+        if (!isDirty()) return false;
+        new AlertDialog.Builder(requireContext())
+                .setTitle("未保存的更改")
+                .setMessage("有未保存的修改，是否保存？")
+                .setPositiveButton("保存", (d, which) -> save())
+                .setNegativeButton("不保存", (d, which) -> {
+                    saved = true;
+                    popBack();
+                })
+                .setNeutralButton("取消", null)
+                .show();
+        return true;
     }
 
     private void popBack() {

@@ -177,6 +177,13 @@ public class DualFilePaneFragment extends Fragment {
         }
     }
 
+    /** 刷新右侧服务器面板的文件列表（从可视化配置页返回时由宿主调用）。 */
+    void reloadServerPaneList() {
+        if (rightSlot != null && rightSlot.fragment instanceof FilePaneFragment f) {
+            f.reloadFileList();
+        }
+    }
+
     void onChildPathChanged(Fragment fragment) {
         PaneSlot slot = findSlot(fragment);
         if (slot != null && slot.side == activePane) {

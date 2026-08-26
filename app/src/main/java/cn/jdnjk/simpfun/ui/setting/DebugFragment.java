@@ -272,7 +272,7 @@ public class DebugFragment extends Fragment {
         ioExecutor.execute(() -> {
             final boolean ok = writeToUri(ctx, uri, logText);
             if (!isAdded()) return;
-            getActivity().runOnUiThread(() -> {
+            requireActivity().runOnUiThread(() -> {
                 if (!isAdded() || getView() == null) return;
                 if (ok) {
                     Feedback.info(getView(), "日志已导出到所选位置");

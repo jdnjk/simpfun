@@ -36,6 +36,7 @@ public class QuickCommandMenuManager {
     }
 
     private static final int ID_RETRY = 0x1F00;
+    private static final int ID_BACK = 0x1F01;
     private static final int ID_BASE = 0x10000000;
 
     private final Context context;
@@ -149,17 +150,21 @@ public class QuickCommandMenuManager {
         }
 
         // 递归构建嵌套 SubMenu（分类 → 子 SubMenu；指令 → 叶子项）
-        buildTree(sub, rootNodes);
+        buildTree(sub, rootNodes, true);
     }
 
-    private void buildTree(SubMenu parent, List<QuickCommandNode> nodes) {
+    private void buildTree(SubMenu parent, List<QuickCommandNode> nodes, boolean isRoot) {
         for (QuickCommandNode node : nodes) {
             if (node == null) continue;
             if ("list".equals(node.type)) {
                 SubMenu child = parent.addSubMenu(Menu.NONE, nextId++, 0, node.name);
                 child.setHeaderTitle(node.name);
+                // 非根级子菜单顶部插入"返回上级"项
+                if (!isRoot) {
+                    child.add(Menu.NONE, ID_BACK, 0, "← 返回上级");
+                }
                 if (node.children != null && !node.children.isEmpty()) {
-                    buildTree(child, node.children);
+                    buildTree(child, node.children, false);
                 } else {
                     child.add(Menu.NONE, 0, 0, "空分类").setEnabled(false);
                 }
@@ -180,6 +185,11 @@ public class QuickCommandMenuManager {
         if (id == ID_RETRY) {
             reset();
             load();
+            return true;
+        }
+        if (id == ID_BACK) {
+            // 点击子菜单项后系统会关闭整棵菜单树，
+            // 此处仅消费事件（等效返回键），不执行指令。
             return true;
         }
         QuickCommandNode node = idToNode.get(id);

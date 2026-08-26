@@ -5,7 +5,6 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Spanned;
-import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -118,7 +117,7 @@ public final class MarkdownRenderer {
     /**
      * 将 Markdown 文本渲染到 TextView。
      * <p>
-     * 会自动设置 {@link LinkMovementMethod} 使链接可点击。
+     * 会自动设置 {@link ClickableLinkPassthroughMovementMethod} 使链接可点击，同时不阻止卡片点击。
      *
      * @param textView 目标 TextView
      * @param markdown 原始 Markdown 字符串，可能包含 base64 图片
@@ -128,8 +127,11 @@ public final class MarkdownRenderer {
         // 使用 markwon.setMarkdown 而不是 setText(toMarkdown(...))，
         // 这样 AsyncDrawableScheduler 才会调度图片异步加载。
         markwon.setMarkdown(textView, safe);
-        textView.setMovementMethod(LinkMovementMethod.getInstance());
+        textView.setMovementMethod(ClickableLinkPassthroughMovementMethod.getInstance());
         textView.setLinksClickable(true);
+        // setMovementMethod 内部会 setClickable(true)，导致 TextView 吃掉触摸事件，无法冒泡到父级。
+        textView.setClickable(false);
+        textView.setLongClickable(false);
     }
 
     /**
@@ -141,6 +143,7 @@ public final class MarkdownRenderer {
         // 作废在途的异步渲染（清空单参 tag），再解除图片调度。
         // 否则 View 被复用为纯文本后，后台解析完成的旧 markdown 仍会 setText 覆盖。
         textView.setTag(null);
+        textView.setMovementMethod(null);
         AsyncDrawableScheduler.unschedule(textView);
     }
 
@@ -182,8 +185,12 @@ public final class MarkdownRenderer {
                 } else {
                     textView.setText(plain);
                 }
-                textView.setMovementMethod(LinkMovementMethod.getInstance());
+                textView.setMovementMethod(ClickableLinkPassthroughMovementMethod.getInstance());
                 textView.setLinksClickable(true);
+                // setMovementMethod 内部会 setClickable(true)，导致 TextView 吃掉所有触摸事件无法冒泡到父级。
+                // 显式关闭后，点击到链接时 movement method 仍会被调用，无链接时事件继续冒泡。
+                textView.setClickable(false);
+                textView.setLongClickable(false);
                 if (parsed != null) {
                     AsyncDrawableScheduler.schedule(textView);
                 }
