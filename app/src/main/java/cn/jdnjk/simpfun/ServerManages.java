@@ -88,7 +88,7 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
         applyDrawerStatusBarInsets(drawer, navigationView);
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_stats,
+                R.id.nav_overview, R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow, R.id.nav_manage, R.id.nav_stats,
                 R.id.nav_backup, R.id.nav_rollback, R.id.nav_plans)
                 .setOpenableLayout(drawer)
                 .build();
@@ -157,6 +157,10 @@ public class ServerManages extends AppCompatActivity implements TerminalWebSocke
                 Log.i("ServerManages", "接收到 deviceId: " + deviceId);
                 fetchServerDetails();
                 wsManager.addListener(this, deviceId);
+                // 进入服务器管理页即建立终端 WS 连接（不请求历史日志），
+                // 让侧边栏电源状态随服务器启停实时刷新；
+                // 终端页复用同一连接（requestLogs=true 时只补发日志请求）。
+                wsManager.connect(this, deviceId, false);
                 if (previousDeviceId > 0 && previousDeviceId != deviceId) {
                     notifyTerminalDeviceChanged();
                 }

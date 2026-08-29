@@ -163,6 +163,15 @@
     <string name="stats_load_failed">统计加载失败</string>
     <string name="stats_load_failed_with_msg">获取统计失败: %1$s</string>
 
+    <!-- Overview (总览) related strings -->
+    <string name="nav_overview">总览</string>
+    <string name="overview_cpu_core_hint">%1$d核 · 最大%2$d%%</string>
+    <string name="overview_traffic_remain">剩余上行流量：%1$s %2$s</string>
+    <string name="overview_uptime">已运行：%1$s</string>
+    <string name="overview_chart_empty">等待统计数据…</string>
+    <string name="overview_line_chart_title">总览折线图</string>
+    <string name="overview_line_chart_subtitle">在总览页用折线图展示实时CPU/内存/网速</string>
+
     <!-- Create server related strings -->
     <string name="create_server_action_create">创建</string>
     <string name="create_server_action_reinstall">重装</string>

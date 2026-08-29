@@ -22,9 +22,12 @@ import net.schmizz.sshj.userauth.UserAuthException;
 
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -938,13 +941,19 @@ class SftpTransferCoordinator {
                 }
             }
         }
-        byte[] buffer = new byte[64 * 1024];
+        // ReadAheadRemoteFileInputStream 一次维持多个未确认的 SFTP 读请求，
+        // 网络始终有数据在途，压掉“读 64KB→等 RTT→再读”的延迟瓶颈。
+        // 并发请求数 16 与 SSHJ 内置 SFTPFileTransfer 下载实现一致。
+        final int unconfirmedReads = 16;
+        byte[] buffer = new byte[256 * 1024];
         long offset = resumeOffset;
         try (RemoteFile source = sftp.open(task.remotePath, EnumSet.of(OpenMode.READ));
-             RandomAccessFile local = new RandomAccessFile(partFile, "rw")) {
-            local.seek(resumeOffset);
+             RemoteFile.ReadAheadRemoteFileInputStream remote =
+                     source.new ReadAheadRemoteFileInputStream(unconfirmedReads, resumeOffset);
+             BufferedOutputStream local =
+                     new BufferedOutputStream(new FileOutputStream(partFile, true), 256 * 1024)) {
             while (!cancelled.get()) {
-                int read = source.read(offset, buffer, 0, buffer.length);
+                int read = remote.read(buffer, 0, buffer.length);
                 if (read <= 0) {
                     break;
                 }
@@ -952,6 +961,7 @@ class SftpTransferCoordinator {
                 offset += read;
                 progress.reportFileProgress(task, offset);
             }
+            local.flush();
         }
         if (cancelled.get()) {
             throw new IOException("传输已取消");
@@ -984,23 +994,37 @@ class SftpTransferCoordinator {
                 }
             }
         }
-        byte[] buffer = new byte[64 * 1024];
+        // RemoteFileOutputStream 一次维持多个未确认的 SFTP 写请求，
+        // 网络始终有数据在途，压掉“写 64KB→等 RTT→再写”的延迟瓶颈。
+        // 并发请求数 16 与 SSHJ 内置 SFTPFileTransfer 上传实现一致。
+        final int unconfirmedWrites = 16;
         long offset = resumeOffset;
         EnumSet<OpenMode> modes = resumeOffset > 0L
                 ? EnumSet.of(OpenMode.WRITE, OpenMode.CREAT)
                 : EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC);
-        try (RandomAccessFile local = new RandomAccessFile(task.localFile, "r");
-             RemoteFile target = sftp.open(partPath, modes)) {
-            local.seek(resumeOffset);
+        try (RemoteFile target = sftp.open(partPath, modes);
+             RemoteFile.RemoteFileOutputStream remote =
+                     target.new RemoteFileOutputStream(resumeOffset, unconfirmedWrites);
+             BufferedInputStream local =
+                     new BufferedInputStream(new FileInputStream(task.localFile), 256 * 1024)) {
+            local.skip(resumeOffset);
+            // 单次写请求不得超过服务器公告的最大包长度（与 SSHJ 内置上传实现一致）
+            int chunkSize = sftp.getSFTPEngine().getSubsystem().getRemoteMaxPacketSize()
+                    - target.getOutgoingPacketOverhead();
+            if (chunkSize <= 0) {
+                chunkSize = 256 * 1024;
+            }
+            byte[] buffer = new byte[chunkSize];
             while (!cancelled.get()) {
                 int read = local.read(buffer, 0, buffer.length);
                 if (read <= 0) {
                     break;
                 }
-                target.write(offset, buffer, 0, read);
+                remote.write(buffer, 0, read);
                 offset += read;
                 progress.reportFileProgress(task, offset);
             }
+            remote.flush();
         }
         if (cancelled.get()) {
             throw new IOException("传输已取消");
@@ -1090,21 +1114,33 @@ class SftpTransferCoordinator {
 
     private void copyRemoteFile(SFTPClient sftp, RemoteCopyTask task, TransferProgress progress) throws IOException {
         ensureRemoteDirectory(sftp, remoteParent(task.targetPath));
-        byte[] buffer = new byte[64 * 1024];
-        long offset = 0L;
+        // 与下载/上传一致：读、写两端都走流水线，避免严格同步的 RTT 等待。
+        final int unconfirmed = 16;
         try (RemoteFile source = sftp.open(task.sourcePath, EnumSet.of(OpenMode.READ));
-             RemoteFile target = sftp.open(task.targetPath, EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC))) {
+             RemoteFile target = sftp.open(task.targetPath, EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC));
+             RemoteFile.ReadAheadRemoteFileInputStream remoteIn =
+                     source.new ReadAheadRemoteFileInputStream(unconfirmed, 0L);
+             RemoteFile.RemoteFileOutputStream remoteOut =
+                     target.new RemoteFileOutputStream(0L, unconfirmed)) {
+            int chunkSize = sftp.getSFTPEngine().getSubsystem().getRemoteMaxPacketSize()
+                    - target.getOutgoingPacketOverhead();
+            if (chunkSize <= 0) {
+                chunkSize = 256 * 1024;
+            }
+            byte[] buffer = new byte[chunkSize];
+            long offset = 0L;
             while (!cancelled.get()) {
-                int read = source.read(offset, buffer, 0, buffer.length);
+                int read = remoteIn.read(buffer, 0, buffer.length);
                 if (read <= 0) {
                     return;
                 }
-                target.write(offset, buffer, 0, read);
+                remoteOut.write(buffer, 0, read);
                 offset += read;
                 if (progress != null) {
                     progress.reportRemoteFileProgress(task, offset);
                 }
             }
+            remoteOut.flush();
         }
     }
 
@@ -1225,8 +1261,17 @@ class SftpTransferCoordinator {
         SSHClient ssh = new SSHClient();
         ssh.addHostKeyVerifier(new PromiscuousVerifier());
         ssh.connect(credentials.host, credentials.port);
+        // 调大 SSH channel 窗口与包上限，减少高延迟网络下的往返次数。
+        // SSHJ 默认 2MB 窗口 / 32KB 包（ConnectionImpl），对公网传输偏保守。
+        // setTimeoutMs(0) = 无限等待（Promise.tryRetrieve 中 0 表示 wait forever），
+        // 取消与超时交由上层（用户取消 / 断点续传 / 重试）控制，避免大延迟下误判超时。
+        ssh.getConnection().setWindowSize(8L * 1024 * 1024);
+        ssh.getConnection().setMaxPacketSize(256 * 1024);
+        ssh.getConnection().setTimeoutMs(0);
         ssh.authPassword(credentials.username, credentials.password);
-        return new SftpSession(ssh, ssh.newSFTPClient());
+        SftpSession session = new SftpSession(ssh, ssh.newSFTPClient());
+        session.sftp.getSFTPEngine().setTimeoutMs(0);
+        return session;
     }
 
     private boolean isAuthFailure(Exception e) {

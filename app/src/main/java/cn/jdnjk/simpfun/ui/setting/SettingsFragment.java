@@ -57,6 +57,7 @@ public class SettingsFragment extends Fragment {
     private ThemeManager themeManager;
     private TerminalThemeManager terminalThemeManager;
     private ServerCardStyleManager serverCardStyleManager;
+    private OverviewDisplayManager overviewDisplayManager;
     private FilePaneModeManager filePaneModeManager;
     private SftpTransferSettingsManager sftpTransferSettingsManager;
     private TerminalFontSizeManager terminalFontSizeManager;
@@ -73,6 +74,7 @@ public class SettingsFragment extends Fragment {
     private MaterialSwitch switchServerCardStyle;
     private MaterialSwitch switchCpu100Percent;
     private View optionCpu100Percent;
+    private MaterialSwitch switchOverviewLineChart;
     private MaterialSwitch switchFileDualPane;
     private Slider sliderTerminalFontSize;
     private TextView tvTerminalFontSize;
@@ -102,6 +104,7 @@ public class SettingsFragment extends Fragment {
         terminalThemeManager = TerminalThemeManager.getInstance(requireContext());
         mcpSettingsManager = new McpSettingsManager(requireContext());
         serverCardStyleManager = new ServerCardStyleManager(requireContext());
+        overviewDisplayManager = new OverviewDisplayManager(requireContext());
         filePaneModeManager = new FilePaneModeManager(requireContext());
         sftpTransferSettingsManager = new SftpTransferSettingsManager(requireContext());
         terminalFontSizeManager = TerminalFontSizeManager.getInstance(requireContext());
@@ -162,6 +165,7 @@ public class SettingsFragment extends Fragment {
         switchServerCardStyle = root.findViewById(R.id.switch_server_card_style);
         switchCpu100Percent = root.findViewById(R.id.switch_cpu_100_percent);
         optionCpu100Percent = root.findViewById(R.id.option_cpu_100_percent);
+        switchOverviewLineChart = root.findViewById(R.id.switch_overview_line_chart);
         switchFileDualPane = root.findViewById(R.id.switch_file_dual_pane);
         sliderTerminalFontSize = root.findViewById(R.id.slider_terminal_font_size);
         tvTerminalFontSize = root.findViewById(R.id.tv_terminal_font_size);
@@ -277,6 +281,11 @@ public class SettingsFragment extends Fragment {
             switchCpu100Percent.setChecked(serverCardStyleManager.isCpu100PercentEnabled());
             switchCpu100Percent.setOnCheckedChangeListener((buttonView, isChecked) ->
                     serverCardStyleManager.setCpu100PercentEnabled(isChecked));
+        }
+        if (switchOverviewLineChart != null) {
+            switchOverviewLineChart.setChecked(overviewDisplayManager.isLineChartEnabled());
+            switchOverviewLineChart.setOnCheckedChangeListener((buttonView, isChecked) ->
+                    overviewDisplayManager.setLineChartEnabled(isChecked));
         }
         updateCpu100PercentVisibility();
         if (switchFileDualPane != null) {
