@@ -14,12 +14,6 @@ public class FileApi {
         void onFailure(String errorMsg);
     }
 
-    public interface DownloadCallback {
-        void onSuccess(File file);
-        void onFailure(String errorMsg);
-        default void onProgress(int progress) {}
-    }
-
     private final FileListApi fileListApi = new FileListApi();
     private final FileManageApi fileManageApi = new FileManageApi();
     private final FileTransferApi fileTransferApi = new FileTransferApi();
@@ -94,30 +88,11 @@ public class FileApi {
     }
 
     /**
-     * 下载指定文件并保存到本地
-     * @param context Context
-     * @param serverId 服务器ID
+     * 换取文件下载直链。实际下载由 {@code cn.jdnjk.simpfun.download.FileDownloader} 负责。
      * @param path 文件路径，例如 "/plugins/config.yml"
-     * @param localFile 本地保存文件的File对象
-     * @param downloadCallback 下载进度和结果回调
      */
-    public void downloadFileToLocal(Context context, int serverId, String path, File localFile, DownloadCallback downloadCallback) {
-        fileTransferApi.downloadFileToLocal(context, serverId, path, localFile, new FileTransferApi.DownloadCallback() {
-            @Override
-            public void onSuccess(File file) {
-                downloadCallback.onSuccess(file);
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                downloadCallback.onFailure(errorMsg);
-            }
-
-            @Override
-            public void onProgress(int progress) {
-                downloadCallback.onProgress(progress);
-            }
-        });
+    public void resolveDownloadLink(Context context, int serverId, String path, FileTransferApi.LinkCallback callback) {
+        fileTransferApi.resolveDownloadLink(context, serverId, path, callback);
     }
 
     /**

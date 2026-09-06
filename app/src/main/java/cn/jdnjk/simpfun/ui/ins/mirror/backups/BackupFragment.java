@@ -1,12 +1,9 @@
 package cn.jdnjk.simpfun.ui.ins.mirror.backups;
 
 import android.app.AlertDialog;
-import android.app.DownloadManager;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -35,7 +32,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.backup.MirrorApi;
+import cn.jdnjk.simpfun.download.DownloadTaskController;
+import cn.jdnjk.simpfun.download.FileDownloader;
 import cn.jdnjk.simpfun.model.BackupItem;
+import cn.jdnjk.simpfun.utils.FilePathUtils;
 
 public class BackupFragment extends Fragment {
 
@@ -46,7 +46,40 @@ public class BackupFragment extends Fragment {
     private Button btnToggleMulti;
 
     private BackupAdapter adapter;
+    private DownloadTaskController downloadController;
     private boolean isLoading = false;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        // 必须在 onCreate 构造：内部要注册 ActivityResultLauncher（通知权限）。
+        downloadController = new DownloadTaskController(this, new DownloadTaskController.Host() {
+            @Override
+            public Context getContextOrNull() {
+                return getContext();
+            }
+
+            @Override
+            public boolean isActive() {
+                return !isViewDetached();
+            }
+
+            @Override
+            public View getFeedbackRoot() {
+                return getView();
+            }
+
+            @Override
+            public int getDeviceId() {
+                return BackupFragment.this.getDeviceId();
+            }
+
+            @Override
+            public int getNotificationNavId() {
+                return R.id.nav_backup;
+            }
+        });
+    }
 
     @Nullable
     @Override
@@ -77,18 +110,22 @@ public class BackupFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         // 首次加载放在 onViewCreated：getView() 要等 onCreateView 返回后才有值，
-        // 在 onCreateView 里调用会被 loadBackups 开头的 isViewAlive() 挡掉，
+        // 在 onCreateView 里调用会被 loadBackups 开头的 isViewDetached() 挡掉，
         // 结果备份列表首次进入永远是空的。
         loadBackups(true);
     }
 
-    private boolean isViewAlive() {
+    /** 返回 true 表示视图已销毁，调用点一律 {@code if (isViewDetached()) return;}。 */
+    private boolean isViewDetached() {
         return !isAdded() || getView() == null || getContext() == null;
     }
 
     @Override
     public void onDestroyView() {
         isLoading = false;
+        if (downloadController != null) {
+            downloadController.onDestroyView();
+        }
         if (recyclerView != null) {
             recyclerView.setAdapter(null);
         }
@@ -121,7 +158,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void showSelectionMenu() {
-        if (isViewAlive() || btnToggleMulti == null) return;
+        if (isViewDetached() || btnToggleMulti == null) return;
         PopupMenu popupMenu = new PopupMenu(requireContext(), btnToggleMulti);
         popupMenu.getMenu().add("删除所选");
         popupMenu.getMenu().add("完成选择");
@@ -141,7 +178,7 @@ public class BackupFragment extends Fragment {
         if (isLoading) {
             return;
         }
-        if (isViewAlive()) {
+        if (isViewDetached()) {
             return;
         }
         isLoading = true;
@@ -206,7 +243,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void showBackupActionMenu(BackupItem item, View anchor) {
-        if (isViewAlive()) return;
+        if (isViewDetached()) return;
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         popupMenu.getMenu().add("还原");
         popupMenu.getMenu().add("重命名");
@@ -229,7 +266,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void restoreBackup(BackupItem selected) {
-        if (isViewAlive()) return;
+        if (isViewDetached()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认还原")
                 .setMessage("将还原到备份 #" + selected.getId() + "，确认继续？")
@@ -249,7 +286,7 @@ public class BackupFragment extends Fragment {
 
                         @Override
                         public void onFailure(String errorMsg) {
-                            if (isViewAlive()) return;
+                            if (isViewDetached()) return;
                             Feedback.error(getView(), "还原失败: " + errorMsg,
                                     "重试", () -> restoreBackup(selected));
                         }
@@ -260,7 +297,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void renameBackup(BackupItem selected) {
-        if (isViewAlive()) return;
+        if (isViewDetached()) return;
         final EditText input = new EditText(requireContext());
         input.setText(selected.getTag());
         input.setSelection(input.getText().length());
@@ -285,7 +322,7 @@ public class BackupFragment extends Fragment {
                     new MirrorApi(requireContext()).renameBackup(token, deviceId, selected.getId(), newTag, new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
-                            if (isViewAlive()) return;
+                            if (isViewDetached()) return;
                             showMessage("重命名成功", false);
                             loadBackups(false);
                         }
@@ -301,72 +338,54 @@ public class BackupFragment extends Fragment {
     }
 
     private void downloadBackup(BackupItem selected) {
+        if (isViewDetached()) {
+            return;
+        }
         String token = getToken();
         int deviceId = getDeviceId();
         if (token == null || deviceId <= 0) {
             showMessage("登录状态或设备ID无效", true);
             return;
         }
-
-        new MirrorApi(requireContext()).getDownloadKey(token, deviceId, selected.getId(), new MirrorApi.Callback() {
-            @Override
-            public void onSuccess(JSONObject response) {
-                if (isViewAlive()) return;
-                String uuid = response.optString("uuid", "");
-                if (uuid.isEmpty()) {
-                    showMessage("下载密钥为空", true);
-                    return;
-                }
-                enqueueSystemDownload(selected, uuid);
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                if (isViewAlive()) return;
-                Feedback.error(getView(), "获取下载密钥失败: " + errorMsg,
-                        "重试", () -> downloadBackup(selected));
-            }
-        });
-    }
-
-    private void enqueueSystemDownload(BackupItem item, String uuid) {
-        if (isViewAlive()) return;
-        try {
-            DownloadManager downloadManager = (DownloadManager) requireContext().getSystemService(Context.DOWNLOAD_SERVICE);
-            if (downloadManager == null) {
-                showMessage("系统下载器不可用", true);
-                return;
-            }
-
-            String downloadUrl = "https://sfe4-connect.simpfun.cn:1000/download?uuid=" + Uri.encode(uuid);
-            String fileName = buildDownloadFileName(item);
-
-            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
-            request.setTitle(fileName);
-            request.setDescription("正在下载备份");
-            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-            request.setAllowedOverMetered(true);
-            request.setAllowedOverRoaming(true);
-            request.setMimeType("application/octet-stream");
-            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-
-            downloadManager.enqueue(request);
-            showMessage("已加入系统下载器", false);
-        } catch (Exception e) {
-            showMessage("下载失败: " + e.getMessage(), true);
+        if (downloadController.isBusy()) {
+            showMessage(getString(R.string.download_busy), true);
+            return;
         }
+
+        // 备份下载分两步：先向 API 换一次性 uuid，再由下载引擎流式写入用户选定的位置。
+        // 落盘名优先用服务器 Content-Disposition 下发的文件名（zip），拿不到再用回退名。
+        downloadController.start(buildDownloadFileName(selected), (response, fallbackName) ->
+                        FileDownloader.parseContentDispositionFilename(response),
+                callback ->
+                new MirrorApi(requireContext()).getDownloadKey(token, deviceId, selected.getId(),
+                        new MirrorApi.Callback() {
+                            @Override
+                            public void onSuccess(JSONObject response) {
+                                String uuid = response.optString("uuid", "");
+                                if (uuid.isEmpty()) {
+                                    callback.onFailure("下载密钥为空");
+                                    return;
+                                }
+                                callback.onUrl(MirrorApi.buildBackupDownloadUrl(uuid));
+                            }
+
+                            @Override
+                            public void onFailure(String errorMsg) {
+                                callback.onFailure("获取下载密钥失败: " + errorMsg);
+                            }
+                        }));
     }
 
     private String buildDownloadFileName(BackupItem item) {
-        String tag = item.getTag() == null ? "" : item.getTag().trim().replaceAll("[^a-zA-Z0-9._-]", "_");
-        if (tag.isEmpty()) {
-            tag = "backup-" + item.getId();
-        }
-        return tag + ".bin";
+        String fallback = "backup-" + item.getId();
+        String name = FilePathUtils.sanitizeFileName(item.getTag(), fallback);
+        // 备份是 zip：若 tag 没带扩展名则补 .zip，避免存成打不开的无后缀/错误后缀文件。
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        return lower.endsWith(".zip") ? name : name + ".zip";
     }
 
     private void confirmDeleteSingleBackup(BackupItem item) {
-        if (isViewAlive()) return;
+        if (isViewDetached()) return;
         new AlertDialog.Builder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定删除备份 “" + getBackupDisplayName(item) + "” 吗？")
@@ -380,7 +399,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void deleteSelectedBackups() {
-        if (isViewAlive() || adapter == null) return;
+        if (isViewDetached() || adapter == null) return;
         List<BackupItem> selected = adapter.getSelectedItems();
         if (selected.isEmpty()) {
             showMessage("请先选择备份", true);
@@ -396,7 +415,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void deleteBackupsConcurrent(List<BackupItem> selected) {
-        if (isViewAlive()) return;
+        if (isViewDetached()) return;
         String token = getToken();
         int deviceId = getDeviceId();
         if (token == null || deviceId <= 0) {
@@ -416,7 +435,7 @@ public class BackupFragment extends Fragment {
                 public void onSuccess(JSONObject response) {
                     success.incrementAndGet();
                     if (finished.incrementAndGet() == total) {
-                        if (isViewAlive()) return;
+                        if (isViewDetached()) return;
                         showMessage("删除完成: 成功" + success.get() + "，失败" + failed.get(), false);
                         loadBackups(false);
                     }
@@ -426,7 +445,7 @@ public class BackupFragment extends Fragment {
                 public void onFailure(String errorMsg) {
                     failed.incrementAndGet();
                     if (finished.incrementAndGet() == total) {
-                        if (isViewAlive()) return;
+                        if (isViewDetached()) return;
                         showMessage("删除完成: 成功" + success.get() + "，失败" + failed.get(), false);
                         loadBackups(false);
                     }
@@ -459,7 +478,7 @@ public class BackupFragment extends Fragment {
                     new MirrorApi(requireContext()).createBackup(token, deviceId, tag, new MirrorApi.Callback() {
                         @Override
                         public void onSuccess(JSONObject response) {
-                            if (isViewAlive()) return;
+                            if (isViewDetached()) return;
                             String msg = response.optString("msg", "备份任务创建成功");
                             showMessage(msg, false);
                             loadBackups(false);
@@ -520,7 +539,7 @@ public class BackupFragment extends Fragment {
     }
 
     private void showMessage(String msg, boolean isError) {
-        if (isViewAlive()) {
+        if (isViewDetached()) {
             return;
         }
         if (isError) {

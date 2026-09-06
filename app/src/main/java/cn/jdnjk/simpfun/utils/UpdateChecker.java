@@ -3,29 +3,22 @@ package cn.jdnjk.simpfun.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
-
-import androidx.core.content.FileProvider;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import cn.jdnjk.simpfun.BuildConfig;
+import cn.jdnjk.simpfun.download.UpdateDownloadService;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -51,6 +44,11 @@ public final class UpdateChecker {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
+
+    /** 供下载前台服务复用（构建下载请求）。 */
+    public static OkHttpClient httpClient() {
+        return client;
+    }
 
     private UpdateChecker() {
     }
@@ -332,102 +330,11 @@ public final class UpdateChecker {
     }
 
     /**
-     * 下载 APK 并安装
+     * 下载 APK 并安装。交给前台服务 {@link UpdateDownloadService} 在后台下载：
+     * 通知栏展示进度并可取消，退出当前页/退后台仍继续。
      */
     private static void downloadAndInstall(Activity activity, UpdateInfo info) {
         Toast.makeText(activity, "开始下载更新...", Toast.LENGTH_SHORT).show();
-
-        new Thread(() -> {
-            try {
-                // 下载到应用缓存目录
-                File cacheDir = activity.getCacheDir();
-                File apkFile = new File(cacheDir, "simpfun_update_" + info.versionCode + ".apk");
-
-                // 如果已存在相同版本的文件，直接安装
-                if (apkFile.exists()) {
-                    Log.d(TAG, "APK 已存在，直接安装");
-                    installApk(activity, apkFile);
-                    return;
-                }
-
-                // 清理旧版本更新文件
-                File[] oldFiles = cacheDir.listFiles((dir, name) ->
-                        name.startsWith("simpfun_update_") && name.endsWith(".apk"));
-                if (oldFiles != null) {
-                    for (File f : oldFiles) {
-                        if (!f.delete()) {
-                            Log.w(TAG, "删除旧更新文件失败: " + f.getName());
-                        }
-                    }
-                }
-
-                // 下载
-                Request request = new Request.Builder()
-                        .url(info.downloadUrl)
-                        .addHeader("User-Agent", "SimpfunAPP/" + BuildConfig.VERSION_NAME)
-                        .build();
-                Response response = client.newCall(request).execute();
-                if (!response.isSuccessful()) {
-                    activity.runOnUiThread(() ->
-                            Toast.makeText(activity, "下载失败: " + response.code(), Toast.LENGTH_SHORT).show());
-                    response.close();
-                    return;
-                }
-
-                InputStream inputStream = response.body() != null ? response.body().byteStream() : null;
-                if (inputStream == null) {
-                    response.close();
-                    return;
-                }
-
-                FileOutputStream outputStream = new FileOutputStream(apkFile);
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                long totalBytes = 0;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    totalBytes += bytesRead;
-                }
-                outputStream.close();
-                inputStream.close();
-                response.close();
-
-                Log.d(TAG, "下载完成: " + totalBytes + " bytes");
-
-                installApk(activity, apkFile);
-            } catch (Exception e) {
-                Log.e(TAG, "下载更新失败", e);
-                activity.runOnUiThread(() ->
-                        Toast.makeText(activity, "下载更新失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-            }
-        }).start();
-    }
-
-    /**
-     * 安装 APK
-     */
-    private static void installApk(Activity activity, File apkFile) {
-        activity.runOnUiThread(() -> {
-            try {
-                Intent intent = new Intent(Intent.ACTION_VIEW);
-                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                Uri apkUri;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    // Android 7.0+ 使用 FileProvider
-                    apkUri = FileProvider.getUriForFile(activity,
-                            BuildConfig.APPLICATION_ID + ".fileprovider", apkFile);
-                } else {
-                    apkUri = Uri.fromFile(apkFile);
-                }
-
-                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                activity.startActivity(intent);
-            } catch (Exception e) {
-                Log.e(TAG, "安装 APK 失败", e);
-                Toast.makeText(activity, "安装失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+        UpdateDownloadService.start(activity, info);
     }
 }

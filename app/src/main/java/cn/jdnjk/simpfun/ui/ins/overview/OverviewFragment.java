@@ -72,6 +72,13 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
     private int detailGeneration;
     private boolean detailRefreshRunning;
 
+    /**
+     * 是否已离线。null 表示还没拿到状态——此时按在线渲染，
+     * 否则每次进页面都会先闪一下卡片再收起。
+     */
+    @Nullable
+    private Boolean offline;
+
     private String currentAddress = "";
     private OverviewMarkerView markerView;
 
@@ -91,6 +98,7 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
         displayManager = new OverviewDisplayManager(requireContext());
         setupChart(binding.chartOverview);
         renderStaticDetail();
+        refreshOfflineState();
         applyMode();
         return binding.getRoot();
     }
@@ -120,8 +128,9 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
         super.onResume();
         if (binding == null) return;
         // 设置页可能已改动显示模式
-        applyMode();
         renderStaticDetail();
+        refreshOfflineState();
+        applyMode();
         renderLatestSnapshot();
     }
 
@@ -133,6 +142,7 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
         chartBuffer.clear();
         chartTimes.clear();
         latestSnapshot = null;
+        offline = null;
         markerView = null;
         binding = null;
         super.onDestroyView();
@@ -145,25 +155,24 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
         if (deviceId != getDeviceId() || binding == null || !isAdded()) return;
         latestSnapshot = stats;
         renderPowerState(stats.getState());
-        boolean offline = "offline".equalsIgnoreCase(stats.getState());
+        setOffline("offline".equalsIgnoreCase(stats.getState()));
+        if (Boolean.TRUE.equals(offline)) {
+            return;
+        }
         if (displayManager != null && displayManager.isLineChartEnabled()) {
-            if (!offline) {
-                chartBuffer.add(stats);
-                chartTimes.add(SystemClock.elapsedRealtime());
-                // 只保留最近 30 秒内的点（同时按数量兜底）
-                while (!chartTimes.isEmpty()
-                        && chartTimes.get(0) < SystemClock.elapsedRealtime() - CHART_WINDOW_MS) {
-                    chartTimes.remove(0);
-                    chartBuffer.remove(0);
-                }
-                while (chartBuffer.size() > MAX_CHART_POINTS) {
-                    chartBuffer.remove(0);
-                    chartTimes.remove(0);
-                }
-                scheduleChartRedraw();
-            } else {
-                showChartEmpty();
+            chartBuffer.add(stats);
+            chartTimes.add(SystemClock.elapsedRealtime());
+            // 只保留最近 30 秒内的点（同时按数量兜底）
+            while (!chartTimes.isEmpty()
+                    && chartTimes.get(0) < SystemClock.elapsedRealtime() - CHART_WINDOW_MS) {
+                chartTimes.remove(0);
+                chartBuffer.remove(0);
             }
+            while (chartBuffer.size() > MAX_CHART_POINTS) {
+                chartBuffer.remove(0);
+                chartTimes.remove(0);
+            }
+            scheduleChartRedraw();
         } else {
             renderProgress(stats);
         }
@@ -174,6 +183,8 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
         if (deviceId != getDeviceId() || binding == null || !isAdded()) return;
         String detailStatus = detailStatus();
         renderPowerState(detailStatus);
+        // WS 断开不意味着实例已离线，但拿不到新数据，按离线收起实时卡片。
+        setOffline(true);
         binding.textUptime.setText("--");
         if (displayManager != null && displayManager.isLineChartEnabled()) {
             showChartEmpty();
@@ -241,6 +252,9 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
                 detailRefreshRunning = false;
                 if (generation == detailGeneration && isAdded()) {
                     renderStaticDetail();
+                    // 详情是异步到的，拿到 status 后才能判断要不要收起实时卡片。
+                    refreshOfflineState();
+                    applyMode();
                 }
             }
 
@@ -360,13 +374,48 @@ public class OverviewFragment extends Fragment implements ServerStatsListener {
 
     // ---------- 模式切换 ----------
 
+    /**
+     * 重新判断离线状态。WS 快照的 state 最权威；没有快照时退回缓存详情里的 status。
+     *
+     * <p>必须在「详情异步加载完成」和「onResume」时都调一次：实例已离线时
+     * stats WS 可能一直静默（没有 stats 事件，status 事件只在状态翻转时才发），
+     * 只靠 WS 回调的话 offline 会永远停在 null，卡片也就不会收起。
+     */
+    private void refreshOfflineState() {
+        if (latestSnapshot != null) {
+            setOffline("offline".equalsIgnoreCase(latestSnapshot.getState()));
+            return;
+        }
+        JSONObject detail = cachedDetail();
+        if (detail == null) {
+            // 详情还没到，按在线渲染，等详情或首帧推送来纠正。
+            return;
+        }
+        setOffline("offline".equalsIgnoreCase(detail.optString("status", "")));
+    }
+
+    /** 离线状态变化时才重排卡片，避免每秒一次的推送都触发一遍可见性设置。 */
+    private void setOffline(boolean value) {
+        if (offline != null && offline == value) {
+            return;
+        }
+        offline = value;
+        applyMode();
+    }
+
     private void applyMode() {
         if (binding == null) return;
         boolean chart = displayManager != null && displayManager.isLineChartEnabled();
-        binding.cardChart.setVisibility(chart ? View.VISIBLE : View.GONE);
-        binding.cardCpu.setVisibility(chart ? View.GONE : View.VISIBLE);
-        binding.cardMemory.setVisibility(chart ? View.GONE : View.VISIBLE);
-        binding.cardNetwork.setVisibility(chart ? View.GONE : View.VISIBLE);
+        // 已离线时 CPU / 内存 / 网速 / 折线图都没有数据可展示，整卡收起，
+        // 只留状态卡说明实例已离线。
+        boolean hideRealtime = Boolean.TRUE.equals(offline);
+        binding.cardChart.setVisibility(chart && !hideRealtime ? View.VISIBLE : View.GONE);
+        binding.cardCpu.setVisibility(!chart && !hideRealtime ? View.VISIBLE : View.GONE);
+        binding.cardMemory.setVisibility(!chart && !hideRealtime ? View.VISIBLE : View.GONE);
+        binding.cardNetwork.setVisibility(!chart && !hideRealtime ? View.VISIBLE : View.GONE);
+        if (hideRealtime) {
+            return;
+        }
         if (chart) {
             renderChart();
         } else {

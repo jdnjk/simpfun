@@ -27,6 +27,30 @@ public final class StoragePermissionHelper {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R;
     }
 
+    /**
+     * 能否把文件写入公共下载目录（/sdcard/Download）。
+     *
+     * <p>刻意比 {@link #hasLocalStorageAccess} 窄：那个方法要求「所有文件访问」，
+     * 用于文件管理器浏览整个 /sdcard；而写入下载目录在 Android 11+ 通过
+     * MediaStore 完全不需要权限。若复用前者，API 30+ 上会把本可直接写入的情况
+     * 误判为未授权。
+     *
+     * <p>Android 10 (API 29) 例外：manifest 声明了 requestLegacyExternalStorage，
+     * 应用处于 legacy 模式，MediaStore 写入仍会检查 WRITE_EXTERNAL_STORAGE。
+     */
+    public static boolean canWritePublicDownloads(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return true;
+        }
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** 公共下载目录是否需要运行时申请 WRITE_EXTERNAL_STORAGE。 */
+    public static boolean requiresWritePermissionForDownloads() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.R;
+    }
+
     public static Intent createManageAllFilesIntent(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Intent appIntent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);

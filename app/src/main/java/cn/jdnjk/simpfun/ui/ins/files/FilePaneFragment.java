@@ -426,6 +426,27 @@ public class FilePaneFragment extends Fragment implements
         }
     }
 
+    @Override
+    public void showFailureReport(String title, int succeeded, List<String> failures) {
+        Context context = getContext();
+        if (context == null || failures.isEmpty()) {
+            return;
+        }
+        StringBuilder message = new StringBuilder();
+        if (succeeded > 0) {
+            message.append("成功 ").append(succeeded).append(" 项，");
+        }
+        message.append("失败 ").append(failures.size()).append(" 项：\n");
+        for (String failure : failures) {
+            message.append('\n').append(failure);
+        }
+        new MaterialAlertDialogBuilder(context)
+                .setTitle(title)
+                .setMessage(message.toString())
+                .setPositiveButton(R.string.confirm, null)
+                .show();
+    }
+
     boolean clearSelectionForHost() {
         if (!state.isSelectionMode()) {
             return false;
@@ -590,7 +611,8 @@ public class FilePaneFragment extends Fragment implements
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         DualFilePaneFragment dualFilePaneFragment = getParentFragment() instanceof DualFilePaneFragment parent ? parent : null;
         boolean canCrossTransfer = dualFilePaneFragment != null && dualFilePaneFragment.canTransferToOppositePane(this);
-        popupMenu.getMenu().add(dualFilePaneFragment == null ? "复制到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, false))
+        int batchCount = getSelectedItemsOrSingle(item).size();
+        popupMenu.getMenu().add(withBatchCount(dualFilePaneFragment == null ? "复制到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, false), batchCount))
                 .setEnabled(canCrossTransfer)
                 .setOnMenuItemClickListener(menuItem -> {
                     if (dualFilePaneFragment != null) {
@@ -598,7 +620,7 @@ public class FilePaneFragment extends Fragment implements
                     }
                     return true;
                 });
-        popupMenu.getMenu().add(dualFilePaneFragment == null ? "移动到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, true))
+        popupMenu.getMenu().add(withBatchCount(dualFilePaneFragment == null ? "移动到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, true), batchCount))
                 .setEnabled(canCrossTransfer)
                 .setOnMenuItemClickListener(menuItem -> {
                     if (dualFilePaneFragment != null) {
@@ -606,29 +628,27 @@ public class FilePaneFragment extends Fragment implements
                     }
                     return true;
                 });
-        popupMenu.getMenu().add(R.string.file_action_delete).setOnMenuItemClickListener(menuItem -> {
-            if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
-                showDeleteSelectedConfirmDialog();
-            } else {
-                showDeleteConfirmDialog(item);
-            }
+        popupMenu.getMenu().add(withBatchCount(getString(R.string.file_action_delete), batchCount)).setOnMenuItemClickListener(menuItem -> {
+            List<String> paths = getSelectedPathsOrSingle(item);
+            showDeleteConfirmDialog(paths, describeTargets(item, paths));
             return true;
         });
         popupMenu.getMenu().add(R.string.file_action_rename).setOnMenuItemClickListener(menuItem -> {
             showRenameDialog(item);
             return true;
         });
-        popupMenu.getMenu().add(R.string.file_action_archive).setOnMenuItemClickListener(menuItem -> {
-            showArchiveFormatDialog(state.singlePathList(item));
+        popupMenu.getMenu().add(withBatchCount(getString(R.string.file_action_archive), batchCount)).setOnMenuItemClickListener(menuItem -> {
+            showArchiveFormatDialog(getSelectedPathsOrSingle(item));
             return true;
         });
         if (item.isFile()) {
-            popupMenu.getMenu().add(R.string.file_action_unarchive).setOnMenuItemClickListener(menuItem -> {
-                if (operations != null) {
-                    operations.unarchiveFile(item);
-                }
-                return true;
-            });
+            popupMenu.getMenu().add(withBatchCount(getString(R.string.file_action_unarchive), getUnarchiveTargets(item).size()))
+                    .setOnMenuItemClickListener(menuItem -> {
+                        if (operations != null) {
+                            operations.unarchiveItems(getUnarchiveTargets(item));
+                        }
+                        return true;
+                    });
         }
         popupMenu.getMenu().add("属性").setOnMenuItemClickListener(menuItem -> {
             if (dualFilePaneFragment != null) {
@@ -639,11 +659,48 @@ public class FilePaneFragment extends Fragment implements
         popupMenu.show();
     }
 
+    /**
+     * 长按/更多菜单的作用范围：长按项属于当前选中集时对整个选中集生效，否则仅对长按项生效。
+     */
     private List<FileItem> getSelectedItemsOrSingle(FileItem item) {
-        if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+        if (isPartOfSelection(item)) {
             return state.copySelectedItems();
         }
         return java.util.Collections.singletonList(item);
+    }
+
+    private List<String> getSelectedPathsOrSingle(FileItem item) {
+        if (isPartOfSelection(item)) {
+            return state.copySelectedPaths();
+        }
+        return state.singlePathList(item);
+    }
+
+    /** 解压只对压缩包有意义：批量时过滤掉目录与非压缩文件，不去发注定失败的请求。 */
+    private List<FileItem> getUnarchiveTargets(FileItem item) {
+        if (!isPartOfSelection(item)) {
+            return java.util.Collections.singletonList(item);
+        }
+        List<FileItem> targets = new java.util.ArrayList<>();
+        for (FileItem candidate : state.copySelectedItems()) {
+            if (candidate.isFile() && state.isArchiveFile(candidate)) {
+                targets.add(candidate);
+            }
+        }
+        return targets.isEmpty() ? java.util.Collections.singletonList(item) : targets;
+    }
+
+    private boolean isPartOfSelection(FileItem item) {
+        return state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item));
+    }
+
+    /** 批量操作时在菜单项后追加数量，让用户看到本次操作影响多少项。 */
+    private String withBatchCount(String label, int count) {
+        return count > 1 ? label + " (" + count + ")" : label;
+    }
+
+    private String describeTargets(FileItem item, List<String> paths) {
+        return paths.size() > 1 ? paths.size() + " 项" : item.getName();
     }
 
     private void showFileActionDialog(FileItem item) {
@@ -700,17 +757,14 @@ public class FilePaneFragment extends Fragment implements
         if (deleteAction != null) {
             deleteAction.setOnClickListener(v -> {
                 dialog.dismiss();
-                if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
-                    showDeleteSelectedConfirmDialog();
-                } else {
-                    showDeleteConfirmDialog(item);
-                }
+                List<String> paths = getSelectedPathsOrSingle(item);
+                showDeleteConfirmDialog(paths, describeTargets(item, paths));
             });
         }
         if (copyAction != null) {
             copyAction.setOnClickListener(v -> {
                 dialog.dismiss();
-                if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+                if (isPartOfSelection(item)) {
                     onSelectionCopy();
                 } else if (operations != null) {
                     operations.copyFileOrFolder(item);
@@ -726,7 +780,7 @@ public class FilePaneFragment extends Fragment implements
         if (archiveAction != null) {
             archiveAction.setOnClickListener(v -> {
                 dialog.dismiss();
-                showArchiveFormatDialog(state.singlePathList(item));
+                showArchiveFormatDialog(getSelectedPathsOrSingle(item));
             });
         }
         if (unarchiveAction != null) {
@@ -734,17 +788,13 @@ public class FilePaneFragment extends Fragment implements
             unarchiveAction.setOnClickListener(v -> {
                 dialog.dismiss();
                 if (operations != null) {
-                    operations.unarchiveFile(item);
+                    operations.unarchiveItems(getUnarchiveTargets(item));
                 }
             });
         }
 
         dialog.setContentView(view);
         dialog.show();
-    }
-
-    private void showDeleteConfirmDialog(FileItem item) {
-        showDeleteConfirmDialog(state.singlePathList(item), item.getName());
     }
 
     private void showDeleteSelectedConfirmDialog() {
@@ -800,7 +850,13 @@ public class FilePaneFragment extends Fragment implements
     }
 
     private void prepareMove(FileItem item) {
-        state.prepareMove(item);
+        if (isPartOfSelection(item)) {
+            if (!state.prepareMoveSelected()) {
+                return;
+            }
+        } else {
+            state.prepareMove(item);
+        }
         renderNavigationState();
         toast("请选择目标目录后点击移动到当前目录", Toast.LENGTH_LONG);
     }

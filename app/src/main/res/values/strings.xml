@@ -43,6 +43,25 @@
     <!-- Download and icon related strings -->
     <string name="download_in_progress">下载中...</string>
     <string name="download_failed_format">下载失败: %s</string>
+    <string name="download_move_to_background">转后台</string>
+    <string name="download_preparing">准备下载</string>
+    <string name="download_progress_format">%1$d%% · %2$s</string>
+    <string name="download_complete_format">下载完成：%1$s</string>
+    <string name="download_canceled">已取消下载</string>
+    <string name="download_backgrounded">下载已切入后台</string>
+    <string name="download_busy">已有下载任务正在进行</string>
+    <string name="download_notification_denied">通知权限未授予，下载继续在前台</string>
+    <string name="download_saved_to_app_private">已保存到应用专属目录</string>
+    <string name="download_no_storage_permission">未获得存储权限，已保存到应用专属目录</string>
+    <string name="download_tree_permission_lost">自定义目录的授权已失效，已保存到应用专属目录</string>
+    <string name="download_tree_not_writable">所选目录不可写，请重新选择</string>
+    <string name="download_location_title">下载保存位置</string>
+    <string name="download_location_app_private">应用专属目录</string>
+    <string name="download_location_public">系统下载目录</string>
+    <string name="download_location_custom">自定义目录</string>
+    <string name="download_location_default_format">默认（%1$s）</string>
+    <string name="download_location_custom_format">自定义目录（%1$s）</string>
+    <string name="download_location_permission_denied">未授予存储权限，已改为保存到应用专属目录</string>
     <string name="open_editor_failed_format">无法打开编辑器: %s</string>
     <string name="percent_format">%1$d%%</string>
     <string name="file_name_placeholder">文件名</string>

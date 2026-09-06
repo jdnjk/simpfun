@@ -42,7 +42,7 @@ public class SWebView extends AppCompatActivity {
         WebSettings webSettings = webView.getSettings();
         webSettings.setDomStorageEnabled(true);
         webSettings.setJavaScriptEnabled(true);
-        webSettings.setUserAgentString("Mozilla/5.0 (Linux; U; Android; zh-cn;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 SimpfunAPP/" + BuildConfig.VERSION_NAME);
+        webSettings.setUserAgentString("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36 SimpfunAPP/" + BuildConfig.VERSION_NAME);
         webView.setWebViewClient(new AliPayCompatWebViewClient());
         setupBackNavigation();
         loadUrlFromIntent();

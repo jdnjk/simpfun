@@ -47,7 +47,10 @@ import cn.jdnjk.simpfun.api.ins.FileApi;
 import cn.jdnjk.simpfun.api.ins.file.FileTransferApi;
 import cn.jdnjk.simpfun.model.FileItem;
 import cn.jdnjk.simpfun.notification.TaskQueueNotificationHelper;
+import cn.jdnjk.simpfun.download.DownloadTaskController;
+import cn.jdnjk.simpfun.editor.EditorContentRepository;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
+import cn.jdnjk.simpfun.utils.NotificationPermissionHelper;
 
 class FileTransferController {
     public Fragment getFragment() {
@@ -65,7 +68,7 @@ class FileTransferController {
 
     private static final String TAG = "FileTransferController";
     private static final long MAX_UPLOAD_SIZE_BYTES = 1000L * 1024L * 1024L;
-    private static final long MAX_EDITOR_SIZE_BYTES = 5L * 1024L * 1024L;
+    private static final long MAX_EDITOR_SIZE_BYTES = EditorContentRepository.MAX_CONTENT_BYTES;
 
     /**
      * 已知的二进制文件扩展名。这些文件无法在线编辑（服务端 /file/fetch 会返回 500），
@@ -93,11 +96,10 @@ class FileTransferController {
     private final ExecutorService fileExecutor = Executors.newSingleThreadExecutor();
     private final ActivityResultLauncher<Intent> editorLauncher;
     private final ActivityResultLauncher<String> filePickerLauncher;
-    private final ActivityResultLauncher<String> notificationPermissionLauncher;
+    private final NotificationPermissionHelper notificationPermissionHelper;
+    private final DownloadTaskController downloadController;
 
-    private Runnable pendingNotificationAction;
     private androidx.appcompat.app.AlertDialog uploadDialog;
-    private androidx.appcompat.app.AlertDialog downloadDialog;
     private LinearProgressIndicator uploadProgressIndicator;
     private TextView uploadStatusText;
     private TextView uploadFileNameText;
@@ -119,14 +121,8 @@ class FileTransferController {
         this.fragment = fragment;
         this.state = state;
         this.host = host;
-        notificationPermissionLauncher = fragment.registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-            Runnable action = pendingNotificationAction;
-            pendingNotificationAction = null;
-            if (isGranted && host.isActive()) {
-                if (action != null) {
-                    action.run();
-                }
-            } else if (!isGranted && host.isActive()) {
+        notificationPermissionHelper = new NotificationPermissionHelper(fragment, () -> {
+            if (host.isActive()) {
                 host.toast("通知权限未授予，上传继续在前台", Toast.LENGTH_LONG);
             }
         });
@@ -138,6 +134,33 @@ class FileTransferController {
         editorLauncher = fragment.registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                 handleEditorResult();
+            }
+        });
+        downloadController = new DownloadTaskController(fragment, new DownloadTaskController.Host() {
+            @Override
+            public Context getContextOrNull() {
+                return host.getContextOrNull();
+            }
+
+            @Override
+            public boolean isActive() {
+                return host.isActive();
+            }
+
+            @Override
+            public View getFeedbackRoot() {
+                return fragment.getView();
+            }
+
+            @Override
+            public int getDeviceId() {
+                Context context = host.getContextOrNull();
+                return context == null ? -1 : host.getDeviceId(context);
+            }
+
+            @Override
+            public int getNotificationNavId() {
+                return R.id.nav_gallery;
             }
         });
     }
@@ -192,8 +215,8 @@ class FileTransferController {
     }
 
     void onDestroyView() {
-        pendingNotificationAction = null;
-        dismissDownloadDialog();
+        notificationPermissionHelper.clearPending();
+        downloadController.onDestroyView();
         if (currentUploadHandle != null && !currentUploadBackgrounded) {
             currentUploadCancelled = true;
             currentUploadHandle.cancel();
@@ -496,17 +519,7 @@ class FileTransferController {
     }
 
     private void withNotificationPermission(@NonNull Runnable action) {
-        Context context = host.getContextOrNull();
-        if (context == null) {
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
-                || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            action.run();
-            return;
-        }
-        pendingNotificationAction = action;
-        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        notificationPermissionHelper.withPermission(action);
     }
 
     private int calculateProgress(long uploadedBytes, long totalBytes) {
@@ -575,92 +588,24 @@ class FileTransferController {
             host.toast(context.getString(R.string.invalid_device_id), Toast.LENGTH_SHORT);
             return;
         }
-        if (downloadDialog != null) {
-            host.toast("已有下载任务正在进行", Toast.LENGTH_SHORT);
-            return;
-        }
-
-        View dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_download_progress, null);
-        final LinearProgressIndicator progressIndicator = dialogView.findViewById(R.id.progress_download);
-        final TextView textPercent = dialogView.findViewById(R.id.text_download_percent);
-        final androidx.appcompat.app.AlertDialog progressDialog = new MaterialAlertDialogBuilder(context)
-                .setTitle(false ? R.string.file_action_open : R.string.file_action_download)
-                .setView(dialogView)
-                .setCancelable(false)
-                .create();
-        downloadDialog = progressDialog;
-        progressDialog.show();
 
         String remotePath = FilePathUtils.appendPath(state.getCurrentPath(), item.getName());
-        File downloadsRoot = context.getExternalFilesDir("downloads");
-        File remoteDir = new File(downloadsRoot == null ? context.getCacheDir() : downloadsRoot,
-                Integer.toHexString(remotePath.hashCode()));
-        File local = new File(remoteDir, FilePathUtils.sanitizeFileName(item.getName(), "downloaded_file"));
-        if (local.getParentFile() != null && !local.getParentFile().exists()) {
-            boolean mk = local.getParentFile().mkdirs();
-            if (!mk && !local.getParentFile().exists()) {
-                host.toast(context.getString(R.string.download_failed_format, "无法创建本地目录"), Toast.LENGTH_SHORT);
-                dismissDownloadDialog(progressDialog);
-                return;
-            }
-        }
+        String fileName = FilePathUtils.sanitizeFileName(item.getName(), "downloaded_file");
+        Context appContext = context.getApplicationContext();
+        // 服务端要求两段式：先换直链，再由下载引擎流式写入用户选定的位置。
+        downloadController.start(fileName, callback ->
+                new FileApi().resolveDownloadLink(appContext, deviceId, remotePath,
+                        new FileTransferApi.LinkCallback() {
+                            @Override
+                            public void onLink(String url) {
+                                callback.onUrl(url);
+                            }
 
-        new FileApi().downloadFileToLocal(context, deviceId, remotePath, local, new FileApi.DownloadCallback() {
-            @Override
-            public void onProgress(int progress) {
-                if (!host.isActive()) {
-                    return;
-                }
-                progressIndicator.setIndeterminate(false);
-                try {
-                    progressIndicator.setProgressCompat(progress, true);
-                } catch (Throwable t) {
-                    progressIndicator.setProgress(progress);
-                }
-                textPercent.setText(textPercent.getContext().getString(R.string.percent_format, progress));
-            }
-
-            @Override
-            public void onSuccess(File file) {
-                dismissDownloadDialog(progressDialog);
-                if (!host.isActive()) {
-                    return;
-                }
-                if (false) {
-                    openInternalEditor(remotePath, deviceId, item.getName());
-                } else {
-                    host.toast("下载完成: " + file.getAbsolutePath(), Toast.LENGTH_LONG);
-                }
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                dismissDownloadDialog(progressDialog);
-                if (!host.isActive()) {
-                    return;
-                }
-                Context activeContext = host.getContextOrNull();
-                if (activeContext != null) {
-                    host.toast(activeContext.getString(R.string.download_failed_format, errorMsg), Toast.LENGTH_SHORT);
-                }
-            }
-        });
-    }
-
-    private void dismissDownloadDialog() {
-        if (downloadDialog != null) {
-            downloadDialog.dismiss();
-            downloadDialog = null;
-        }
-    }
-
-    private void dismissDownloadDialog(androidx.appcompat.app.AlertDialog dialog) {
-        if (dialog != null) {
-            dialog.dismiss();
-        }
-        if (downloadDialog == dialog) {
-            downloadDialog = null;
-        }
+                            @Override
+                            public void onFailure(String errorMsg) {
+                                callback.onFailure(errorMsg);
+                            }
+                        }));
     }
 
     private void openInternalEditor(String remotePath, int deviceId, String displayName) {

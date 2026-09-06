@@ -18,7 +18,6 @@ import net.schmizz.sshj.sftp.RemoteFile;
 import net.schmizz.sshj.sftp.RemoteResourceInfo;
 import net.schmizz.sshj.sftp.SFTPClient;
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
-import net.schmizz.sshj.userauth.UserAuthException;
 
 import org.json.JSONObject;
 
@@ -51,6 +50,7 @@ import cn.jdnjk.simpfun.model.FileItem;
 import cn.jdnjk.simpfun.ui.setting.SftpTransferSettingsManager;
 import cn.jdnjk.simpfun.utils.FilePathUtils;
 import cn.jdnjk.simpfun.utils.SftpCredentialStore;
+import cn.jdnjk.simpfun.utils.SftpSupport;
 
 class SftpTransferCoordinator {
     private static final int MAX_TRANSFER_ATTEMPTS = 3;
@@ -1257,7 +1257,7 @@ class SftpTransferCoordinator {
     }
 
     private SftpSession openSession(SftpCredentials credentials) throws IOException {
-        ensureBouncyCastleRegistered();
+        SftpSupport.ensureBouncyCastleRegistered();
         SSHClient ssh = new SSHClient();
         ssh.addHostKeyVerifier(new PromiscuousVerifier());
         ssh.connect(credentials.host, credentials.port);
@@ -1275,18 +1275,7 @@ class SftpTransferCoordinator {
     }
 
     private boolean isAuthFailure(Exception e) {
-        Throwable current = e;
-        while (current != null) {
-            if (current instanceof UserAuthException) {
-                return true;
-            }
-            String message = current.getMessage();
-            if (message != null && message.toLowerCase(Locale.ROOT).contains("auth")) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
+        return SftpSupport.isAuthFailure(e);
     }
 
     private void fetchCredentials(CredentialsCallback callback) {
@@ -1327,14 +1316,7 @@ class SftpTransferCoordinator {
     }
 
     static void ensureBouncyCastleRegistered() {
-        try {
-            java.security.Provider bc = java.security.Security.getProvider("BC");
-            if (bc == null || !bc.getClass().getName().equals("org.bouncycastle.jce.provider.BouncyCastleProvider")) {
-                java.security.Security.removeProvider("BC");
-                java.security.Security.insertProviderAt(new org.bouncycastle.jce.provider.BouncyCastleProvider(), 1);
-            }
-        } catch (Exception ignored) {
-        }
+        SftpSupport.ensureBouncyCastleRegistered();
     }
 
     private String token() {

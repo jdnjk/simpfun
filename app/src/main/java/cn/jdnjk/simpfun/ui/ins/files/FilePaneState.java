@@ -376,7 +376,7 @@ class FilePaneState {
         return false;
     }
 
-    private String getFileNameFromPath(String path) {
+    static String getFileNameFromPath(String path) {
         if (path == null || path.isEmpty()) {
             return "";
         }

@@ -23,9 +23,13 @@ class FilePaneOperations {
         void clearPendingMoveAndRender();
         void reloadFileList();
         void toast(String message, int length);
+        /** 批量操作部分失败时展示可滚动的失败清单，而不是塞进一条 toast。 */
+        void showFailureReport(String title, int succeeded, List<String> failures);
     }
 
     private static final String TOOLBOX_FIX_ACTION = "fix_permission_and_charset";
+    /** 批量请求的并发上限，避免一次选中几十项时把服务器和连接池打满。 */
+    private static final int MAX_CONCURRENT_REQUESTS = 16;
     private final FilePaneState state;
     private final Host host;
     private String inFlightOperation;
@@ -142,33 +146,12 @@ class FilePaneOperations {
             return;
         }
         int deviceId = host.getDeviceId(context);
-        List<String> copied = new ArrayList<>();
-        copyNext(context, deviceId, paths, copied, 0);
-    }
-
-    private void copyNext(Context context, int deviceId, List<String> paths, List<String> copied, int index) {
-        if (index >= paths.size()) {
-            finishFileOperation();
-            if (!host.isActive()) return;
-            host.toast(copied.size() > 1 ? "已创建 " + copied.size() + " 个副本" : "副本创建成功", Toast.LENGTH_SHORT);
-            host.reloadFileList();
-            return;
+        List<BatchTask> tasks = new ArrayList<>(paths.size());
+        for (String path : paths) {
+            tasks.add(new BatchTask(FilePaneState.getFileNameFromPath(path),
+                    callback -> new FileApi().copyFileOrFolder(context, deviceId, path, callback)));
         }
-        String path = paths.get(index);
-        new FileApi().copyFileOrFolder(context, deviceId, path, new FileApi.Callback() {
-            @Override
-            public void onSuccess(JSONObject data) {
-                copied.add(path);
-                copyNext(context, deviceId, paths, copied, index + 1);
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                finishFileOperation();
-                if (!host.isActive()) return;
-                host.toast("创建副本失败: " + errorMsg, Toast.LENGTH_SHORT);
-            }
-        });
+        new BatchRunner("创建副本", tasks).start();
     }
 
     void movePendingToCurrentPath() {
@@ -236,7 +219,7 @@ class FilePaneOperations {
                 finishFileOperation();
                 if (!host.isActive()) return;
                 host.clearSelectionAndRender();
-                host.toast("压缩成功", Toast.LENGTH_SHORT);
+                host.toast("已发送压缩任务", Toast.LENGTH_SHORT);
                 host.reloadFileList();
             }
 
@@ -244,33 +227,24 @@ class FilePaneOperations {
             public void onFailure(String errorMsg) {
                 finishFileOperation();
                 if (!host.isActive()) return;
-                host.toast("压缩失败: " + errorMsg, Toast.LENGTH_SHORT);
+                host.toast("发送压缩任务失败: " + errorMsg, Toast.LENGTH_SHORT);
             }
         });
     }
 
-    void unarchiveFile(FileItem item) {
+    void unarchiveItems(List<FileItem> items) {
         Context context = getReadyContext();
-        if (context == null || !ensureDeviceId(context) || !beginFileOperation("解压")) {
+        if (context == null || items == null || items.isEmpty() || !ensureDeviceId(context) || !beginFileOperation("解压")) {
             return;
         }
         int deviceId = host.getDeviceId(context);
-        new FileApi().unzipFile(context, deviceId, state.getCurrentPath(), item.getName(), new FileApi.Callback() {
-            @Override
-            public void onSuccess(JSONObject data) {
-                finishFileOperation();
-                if (!host.isActive()) return;
-                host.toast("解压成功", Toast.LENGTH_SHORT);
-                host.reloadFileList();
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                finishFileOperation();
-                if (!host.isActive()) return;
-                host.toast("解压失败: " + errorMsg, Toast.LENGTH_SHORT);
-            }
-        });
+        String root = state.getCurrentPath();
+        List<BatchTask> tasks = new ArrayList<>(items.size());
+        for (FileItem item : items) {
+            String name = item.getName();
+            tasks.add(new BatchTask(name, callback -> new FileApi().unzipFile(context, deviceId, root, name, callback)));
+        }
+        new BatchRunner("解压", tasks).start();
     }
 
     void runToolboxFix() {
@@ -320,5 +294,101 @@ class FilePaneOperations {
 
     private void finishFileOperation() {
         inFlightOperation = null;
+    }
+
+    private interface BatchStep {
+        void run(FileApi.Callback callback);
+    }
+
+    /** 批量中的一项：label 用于失败清单，step 发起该项的单次请求。 */
+    private static final class BatchTask {
+        final String label;
+        final BatchStep step;
+
+        BatchTask(String label, BatchStep step) {
+            this.label = label;
+            this.step = step;
+        }
+    }
+
+    /**
+     * 批量执行只支持单项的接口：最多 {@link #MAX_CONCURRENT_REQUESTS} 个请求同时在飞，完成一个补一个，
+     * 所以选中多少项都会全部处理，只是并发被限制。单项失败不中断整批，结束后统一汇报失败清单。
+     * <p>
+     * FileBaseApi 把网络回调都投递到主线程，因此计数字段无需加锁；但参数校验失败会同步回调，
+     * 使 {@link #pump()} 重入，故用 pumping 标志把补位交回最外层循环，避免 finish 执行两次。
+     */
+    private final class BatchRunner {
+        private final String operation;
+        private final List<BatchTask> tasks;
+        private final List<String> failures = new ArrayList<>();
+        private int nextIndex;
+        private int inFlight;
+        private int succeeded;
+        private boolean pumping;
+
+        BatchRunner(String operation, List<BatchTask> tasks) {
+            this.operation = operation;
+            this.tasks = tasks;
+        }
+
+        void start() {
+            pump();
+        }
+
+        private void pump() {
+            if (pumping) {
+                return;
+            }
+            pumping = true;
+            try {
+                while (inFlight < MAX_CONCURRENT_REQUESTS && nextIndex < tasks.size()) {
+                    dispatch(tasks.get(nextIndex++));
+                }
+            } finally {
+                pumping = false;
+            }
+            if (inFlight == 0) {
+                finish();
+            }
+        }
+
+        private void dispatch(BatchTask task) {
+            inFlight++;
+            task.step.run(new FileApi.Callback() {
+                @Override
+                public void onSuccess(JSONObject data) {
+                    succeeded++;
+                    onStepDone();
+                }
+
+                @Override
+                public void onFailure(String errorMsg) {
+                    failures.add(task.label + "：" + errorMsg);
+                    onStepDone();
+                }
+            });
+        }
+
+        private void onStepDone() {
+            inFlight--;
+            pump();
+        }
+
+        private void finish() {
+            finishFileOperation();
+            if (!host.isActive()) {
+                return;
+            }
+            if (succeeded > 0) {
+                host.clearSelectionAndRender();
+                host.reloadFileList();
+            }
+            if (failures.isEmpty()) {
+                host.toast(succeeded > 1 ? "已" + operation + " " + succeeded + " 项" : operation + "成功", Toast.LENGTH_SHORT);
+            } else {
+                host.showFailureReport(operation + "结果", succeeded, failures);
+            }
+        }
     }
 }

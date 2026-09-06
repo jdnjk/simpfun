@@ -48,6 +48,7 @@ import cn.jdnjk.simpfun.notification.DebugNotificationHelper;
 import cn.jdnjk.simpfun.notification.DebugNotificationScheduler;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 import cn.jdnjk.simpfun.utils.LogCapture;
+import cn.jdnjk.simpfun.utils.NotificationPermissionHelper;
 
 public class DebugFragment extends Fragment {
 
@@ -62,9 +63,8 @@ public class DebugFragment extends Fragment {
     private final SimpleDateFormat scheduleFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "debug-io"));
 
-    private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private NotificationPermissionHelper notificationPermissionHelper;
     private ActivityResultLauncher<String> safExportLauncher;
-    private Runnable pendingNotificationAction;
     private String pendingExportLog;
     private TextView tvNotificationTime;
     private EditText etNotificationTitle;
@@ -85,6 +85,9 @@ public class DebugFragment extends Fragment {
     @Override
     public void onDestroyView() {
         bottomNavBinding.detach(scrollView);
+        if (notificationPermissionHelper != null) {
+            notificationPermissionHelper.clearPending();
+        }
         scrollView = null;
         tvNotificationTime = null;
         etNotificationTitle = null;
@@ -95,17 +98,8 @@ public class DebugFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        notificationPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-            Runnable action = pendingNotificationAction;
-            pendingNotificationAction = null;
-            if (isGranted) {
-                if (action != null) {
-                    action.run();
-                }
-            } else if (isAdded()) {
-                Feedback.error(getView(), "通知权限未授予，无法发送测试通知");
-            }
-        });
+        notificationPermissionHelper = new NotificationPermissionHelper(this,
+                () -> Feedback.error(getView(), "通知权限未授予，无法发送测试通知"));
         safExportLauncher = registerForActivityResult(new ActivityResultContracts.CreateDocument("text/plain"), uri -> {
             if (uri == null) {
                 return;
@@ -225,17 +219,7 @@ public class DebugFragment extends Fragment {
     }
 
     private void withNotificationPermission(@NonNull Runnable action) {
-        Context context = getContext();
-        if (context == null) {
-            return;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
-                || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            action.run();
-            return;
-        }
-        pendingNotificationAction = action;
-        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        notificationPermissionHelper.withPermission(action);
     }
 
     private void onExportLogClicked() {

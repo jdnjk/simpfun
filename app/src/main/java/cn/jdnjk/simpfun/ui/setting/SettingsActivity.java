@@ -17,7 +17,8 @@ import cn.jdnjk.simpfun.utils.ThemeUtils;
 import androidx.fragment.app.Fragment;
 
 public class SettingsActivity extends AppCompatActivity {
-    private static final String TUTORIAL_DOCUMENTATION_URL = "https://www.yuque.com/simpfox/simpdoc/main";
+    public static final String TUTORIAL_DOCUMENTATION_URL = "https://www.yuque.com/simpfox/simpdoc/main";
+    public static final String QQ_GROUP_HELP_URL = "https://www.yuque.com/simpfox/simpdoc/joinqqgroup";
     private static final int DEBUG_TAP_THRESHOLD = 5;
     private static final long DEBUG_TAP_WINDOW_MS = 1000L;
     private static final String DEFAULT_TITLE = "设置";
@@ -26,6 +27,8 @@ public class SettingsActivity extends AppCompatActivity {
     private final Runnable resetTapRunnable = () -> debugTapCount = 0;
     private MaterialToolbar toolbar;
     private MenuItem helpMenuItem;
+    /** 顶栏问号当前打开的目标。子页面可覆盖（如 QQ 绑定页指向加群文档），离开后复原。 */
+    private String helpUrl = TUTORIAL_DOCUMENTATION_URL;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,9 +99,22 @@ public class SettingsActivity extends AppCompatActivity {
         if (helpMenuItem != null) helpMenuItem.setVisible(true);
     }
 
+    /**
+     * 子页面覆盖顶栏问号打开的链接（如 QQ 绑定页指向加群文档）。
+     * 页面 onDestroyView 时应调 {@link #restoreDefaultHelpUrl()} 复原。
+     */
+    public void overrideHelpUrl(String url) {
+        helpUrl = (url == null || url.trim().isEmpty()) ? TUTORIAL_DOCUMENTATION_URL : url;
+    }
+
+    /** 复原顶栏问号到默认教程链接。 */
+    public void restoreDefaultHelpUrl() {
+        helpUrl = TUTORIAL_DOCUMENTATION_URL;
+    }
+
     private void openTutorialDocumentation() {
         try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(TUTORIAL_DOCUMENTATION_URL)));
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(helpUrl)));
         } catch (Exception e) {
             openTutorialDocumentationInWebView();
         }
@@ -107,7 +123,7 @@ public class SettingsActivity extends AppCompatActivity {
     private void openTutorialDocumentationInWebView() {
         try {
             Intent intent = new Intent(this, SWebView.class);
-            intent.putExtra("url", TUTORIAL_DOCUMENTATION_URL);
+            intent.putExtra("url", helpUrl);
             startActivity(intent);
         } catch (Exception e) {
             Toast.makeText(this, "无法打开教程文档", Toast.LENGTH_SHORT).show();

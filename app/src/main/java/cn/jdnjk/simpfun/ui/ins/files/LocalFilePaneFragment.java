@@ -482,7 +482,8 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
         DualFilePaneFragment dualFilePaneFragment = getParentFragment() instanceof DualFilePaneFragment parent ? parent : null;
         boolean canCrossTransfer = dualFilePaneFragment != null && dualFilePaneFragment.canTransferToOppositePane(this);
-        popupMenu.getMenu().add(dualFilePaneFragment == null ? "复制到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, false))
+        int batchCount = getSelectedItemsOrSingle(item).size();
+        popupMenu.getMenu().add(withBatchCount(dualFilePaneFragment == null ? "复制到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, false), batchCount))
                 .setEnabled(canCrossTransfer)
                 .setOnMenuItemClickListener(menuItem -> {
                     if (dualFilePaneFragment != null) {
@@ -490,7 +491,7 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                     }
                     return true;
                 });
-        popupMenu.getMenu().add(dualFilePaneFragment == null ? "移动到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, true))
+        popupMenu.getMenu().add(withBatchCount(dualFilePaneFragment == null ? "移动到另一页" : dualFilePaneFragment.getCrossTransferMenuLabel(this, true), batchCount))
                 .setEnabled(canCrossTransfer)
                 .setOnMenuItemClickListener(menuItem -> {
                     if (dualFilePaneFragment != null) {
@@ -498,14 +499,10 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
                     }
                     return true;
                 });
-        popupMenu.getMenu().add(R.string.file_action_delete).setOnMenuItemClickListener(menuItem -> {
+        popupMenu.getMenu().add(withBatchCount(getString(R.string.file_action_delete), batchCount)).setOnMenuItemClickListener(menuItem -> {
             // 处于多选状态且长按的是已选文件时，删除整个选中集；否则只删除当前文件
-            if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
-                List<String> selected = state.copySelectedPaths();
-                showDeleteConfirmDialog(selected, selected.size() + " 项");
-            } else {
-                showDeleteConfirmDialog(state.singlePathList(item), item.getName());
-            }
+            List<String> paths = getSelectedPathsOrSingle(item);
+            showDeleteConfirmDialog(paths, paths.size() > 1 ? paths.size() + " 项" : item.getName());
             return true;
         });
         popupMenu.getMenu().add(R.string.file_action_rename).setOnMenuItemClickListener(menuItem -> {
@@ -521,11 +518,30 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         popupMenu.show();
     }
 
+    /**
+     * 长按/更多菜单的作用范围：长按项属于当前选中集时对整个选中集生效，否则仅对长按项生效。
+     */
     private List<FileItem> getSelectedItemsOrSingle(FileItem item) {
-        if (state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item))) {
+        if (isPartOfSelection(item)) {
             return state.copySelectedItems();
         }
         return java.util.Collections.singletonList(item);
+    }
+
+    private List<String> getSelectedPathsOrSingle(FileItem item) {
+        if (isPartOfSelection(item)) {
+            return state.copySelectedPaths();
+        }
+        return state.singlePathList(item);
+    }
+
+    private boolean isPartOfSelection(FileItem item) {
+        return state.isSelectionMode() && state.getSelectedPaths().contains(state.getItemPath(item));
+    }
+
+    /** 批量操作时在菜单项后追加数量，让用户看到本次操作影响多少项。 */
+    private String withBatchCount(String label, int count) {
+        return count > 1 ? label + " (" + count + ")" : label;
     }
 
     private void showLocalActionDialog(FileItem item) {

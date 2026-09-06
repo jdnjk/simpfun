@@ -21,8 +21,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import cn.jdnjk.simpfun.api.ins.FileApi;
-import cn.jdnjk.simpfun.api.ins.file.FileCallback;
+import cn.jdnjk.simpfun.editor.EditorContentRepository;
+import cn.jdnjk.simpfun.ui.setting.FilePaneModeManager;
 import cn.jdnjk.simpfun.utils.EditorMenuHandler;
 import cn.jdnjk.simpfun.utils.Feedback;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
@@ -42,7 +42,6 @@ import android.widget.ProgressBar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import io.github.rosemoe.sora.event.ContentChangeEvent;
 import io.github.rosemoe.sora.event.SelectionChangeEvent;
-import org.json.JSONObject;
 
 public class FileEditorActivity extends AppCompatActivity {
 
@@ -60,7 +59,7 @@ public class FileEditorActivity extends AppCompatActivity {
     private static boolean textMateInited = false;
     private ActivityResultLauncher<android.content.Intent> saveAsLauncher;
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
-    private final FileApi fileApi = new FileApi();
+    private EditorContentRepository contentRepository;
 
     private static final Map<String, String> EXTENSION_TO_SCOPE = new HashMap<>();
 
@@ -295,10 +294,10 @@ public class FileEditorActivity extends AppCompatActivity {
     }
 
     /**
-     * 通过 API 保存文件内容到服务器。
+     * 保存文件内容到服务器。通道选择与回退由 {@link EditorContentRepository} 决定。
      */
     private void saveFile() {
-        if (remotePath == null || serverId <= 0) {
+        if (remotePath == null || serverId <= 0 || contentRepository == null) {
             Feedback.error(this, "路径无效");
             return;
         }
@@ -309,9 +308,9 @@ public class FileEditorActivity extends AppCompatActivity {
         final String text = getTextToSave();
         setEditorEnabled(false);
 
-        fileApi.saveFileContent(this, serverId, remotePath, text, new FileCallback() {
+        contentRepository.save(text, new EditorContentRepository.SaveCallback() {
             @Override
-            public void onSuccess(JSONObject data) {
+            public void onSaved(EditorContentRepository.Channel channel) {
                 isSaving = false;
                 if (isFinishing() || isDestroyed()) return;
                 isModified = false;
@@ -389,7 +388,7 @@ public class FileEditorActivity extends AppCompatActivity {
      * 保存文件后退出（不提示保存结果）
      */
     private void saveFileAndFinish() {
-        if (remotePath == null || serverId <= 0) {
+        if (remotePath == null || serverId <= 0 || contentRepository == null) {
             finish();
             return;
         }
@@ -400,9 +399,9 @@ public class FileEditorActivity extends AppCompatActivity {
         final String text = getTextToSave();
         setEditorEnabled(false);
 
-        fileApi.saveFileContent(this, serverId, remotePath, text, new FileCallback() {
+        contentRepository.save(text, new EditorContentRepository.SaveCallback() {
             @Override
-            public void onSuccess(JSONObject data) {
+            public void onSaved(EditorContentRepository.Channel channel) {
                 isSaving = false;
                 if (isFinishing() || isDestroyed()) return;
                 isModified = false;
@@ -500,6 +499,10 @@ public class FileEditorActivity extends AppCompatActivity {
                 int lastSlash = remotePath.lastIndexOf('/');
                 fileName = lastSlash >= 0 ? remotePath.substring(lastSlash + 1) : remotePath;
             }
+            // 双页文件管理器本来就在用 SFTP 列目录，编辑器沿用同一条通道；
+            // 单页模式下先试在线编辑接口，失败再换下载直链。
+            boolean preferSftp = new FilePaneModeManager(this).isDualFilePaneEnabled();
+            contentRepository = new EditorContentRepository(this, serverId, remotePath, preferSftp);
             applyLanguageForCurrentFile();
             fetchContent();
         } else {
@@ -511,17 +514,19 @@ public class FileEditorActivity extends AppCompatActivity {
     }
 
     /**
-     * 通过 API 从服务器获取文件内容
+     * 读取文件内容。通道选择与回退由 {@link EditorContentRepository} 决定。
      */
     private void fetchContent() {
+        if (contentRepository == null) {
+            return;
+        }
         if (loadingIndicator != null) {
             loadingIndicator.setVisibility(View.VISIBLE);
         }
-        fileApi.fetchFileContent(this, serverId, remotePath, new FileCallback() {
+        contentRepository.load(new EditorContentRepository.LoadCallback() {
             @Override
-            public void onSuccess(JSONObject data) {
+            public void onContent(String content, EditorContentRepository.Channel channel) {
                 if (isFinishing() || isDestroyed()) return;
-                String content = data.optString("content", "");
                 codeEditor.setText(content);
                 codeEditor.setEnabled(true);
                 isModified = false;
@@ -592,6 +597,10 @@ public class FileEditorActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (contentRepository != null) {
+            contentRepository.close();
+            contentRepository = null;
+        }
         ioExecutor.shutdownNow();
         super.onDestroy();
     }

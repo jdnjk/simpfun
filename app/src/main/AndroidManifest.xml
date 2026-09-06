@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
                      tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -90,6 +91,10 @@
                 android:name=".notification.TestNotificationReceiver"
                 android:enabled="true"
                 android:exported="false" />
+        <receiver
+                android:name=".notification.DownloadCancelReceiver"
+                android:enabled="true"
+                android:exported="false" />
         <service
                 android:name=".mcp.McpServerService"
                 android:exported="false"
@@ -98,6 +103,10 @@
                     android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                     android:value="Local LAN MCP server for AI assistants (personal use)" />
         </service>
+        <service
+                android:name=".download.UpdateDownloadService"
+                android:exported="false"
+                android:foregroundServiceType="dataSync" />
         <provider
                 android:name="androidx.core.content.FileProvider"
                 android:authorities="${applicationId}.fileprovider"

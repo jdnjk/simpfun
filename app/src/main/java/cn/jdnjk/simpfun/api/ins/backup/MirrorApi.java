@@ -1,6 +1,7 @@
 package cn.jdnjk.simpfun.api.ins.backup;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import androidx.annotation.Nullable;
@@ -22,7 +23,11 @@ import static cn.jdnjk.simpfun.api.ApiClient.BASE_INS_URL;
 
 public class MirrorApi {
 
-    private static final String DOWNLOAD_URL = "https://api.simpfun.cn/download";
+    /**
+     * 备份下载节点。这个 host 在任何 API 响应里都推导不出来，只能硬编码。
+     * 下载本身不需要 Authorization —— getDownloadKey 换到的 uuid 就是凭证。
+     */
+    private static final String BACKUP_DOWNLOAD_BASE = "https://sfe4-connect.simpfun.cn:1000/download";
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public MirrorApi(Context context) {
@@ -33,9 +38,9 @@ public class MirrorApi {
         void onFailure(String errorMsg);
     }
 
-    public interface DownloadCallback {
-        void onSuccess(byte[] fileBytes);
-        void onFailure(String errorMsg);
+    /** 用 getDownloadKey 换来的 uuid 拼出备份下载地址。 */
+    public static String buildBackupDownloadUrl(String uuid) {
+        return BACKUP_DOWNLOAD_BASE + "?uuid=" + Uri.encode(uuid);
     }
 
     /**
@@ -199,35 +204,6 @@ public class MirrorApi {
     }
 
     /**
-     * 下载备份（二进制文件）
-     * @param uuid 下载密钥
-     * @param callback 下载回调
-     */
-    public void downloadBackup(String uuid, DownloadCallback callback) {
-        if (uuid == null || uuid.trim().isEmpty()) {
-            invokeDownloadCallback(callback, null, false, "下载密钥不能为空");
-            return;
-        }
-
-        HttpUrl baseUrl = HttpUrl.parse(DOWNLOAD_URL);
-        if (baseUrl == null) {
-            invokeDownloadCallback(callback, null, false, "无效的URL");
-            return;
-        }
-
-        HttpUrl url = baseUrl.newBuilder()
-                .addQueryParameter("uuid", uuid)
-                .build();
-
-        Request request = new Request.Builder()
-                .url(url)
-                .get()
-                .build();
-
-        executeDownloadRequest(request, callback);
-    }
-
-    /**
      * 创建备份
      * @param token 用户Token
      * @param serverId 实例ID
@@ -317,54 +293,10 @@ public class MirrorApi {
         });
     }
 
-    private void executeDownloadRequest(Request request, DownloadCallback callback) {
-        OkHttpClient client = ApiClient.getInstance().getClient();
-        client.newCall(request).enqueue(new okhttp3.Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                mainHandler.post(() -> invokeDownloadCallback(callback, null, false, "网络请求失败: " + e.getMessage()));
-            }
-
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) {
-                mainHandler.post(() -> {
-                    try {
-                        if (!response.isSuccessful()) {
-                            String body = Objects.requireNonNull(response.body()).string();
-                            try {
-                                JSONObject json = new JSONObject(body);
-                                String message = json.optString("message", "下载失败");
-                                invokeDownloadCallback(callback, null, false, message);
-                            } catch (JSONException e) {
-                                invokeDownloadCallback(callback, null, false, "下载失败");
-                            }
-                            return;
-                        }
-
-                        byte[] bytes = Objects.requireNonNull(response.body()).bytes();
-                        invokeDownloadCallback(callback, bytes, true, null);
-                    } catch (Exception e) {
-                        invokeDownloadCallback(callback, null, false, "未知错误");
-                    }
-                });
-            }
-        });
-    }
-
     private void invokeCallback(Callback callback, @Nullable JSONObject response, boolean success, @Nullable String errorMsg) {
         if (callback != null) {
             if (success) {
                 callback.onSuccess(response);
-            } else {
-                callback.onFailure(errorMsg);
-            }
-        }
-    }
-
-    private void invokeDownloadCallback(DownloadCallback callback, @Nullable byte[] fileBytes, boolean success, @Nullable String errorMsg) {
-        if (callback != null) {
-            if (success) {
-                callback.onSuccess(fileBytes == null ? new byte[0] : fileBytes);
             } else {
                 callback.onFailure(errorMsg);
             }

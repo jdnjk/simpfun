@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -26,14 +27,12 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.slider.Slider;
 
-import org.json.JSONObject;
-
 import java.util.List;
 import java.util.Locale;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.UserApi;
+import cn.jdnjk.simpfun.download.DownloadLocationManager;
 import cn.jdnjk.simpfun.model.QuickCommandNode;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.mcp.McpServerService;
@@ -81,6 +80,10 @@ public class SettingsFragment extends Fragment {
     private NestedScrollView scrollView;
     private ActivityResultLauncher<Intent> manageAllFilesLauncher;
     private ActivityResultLauncher<String> readStoragePermissionLauncher;
+    private ActivityResultLauncher<String> downloadWritePermissionLauncher;
+    private ActivityResultLauncher<Uri> downloadTreeLauncher;
+    private DownloadLocationManager downloadLocationManager;
+    private TextView tvDownloadLocation;
     private boolean pendingEnableDualPane;
     private boolean suppressDualPaneSwitchChange;
     private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
@@ -98,6 +101,10 @@ public class SettingsFragment extends Fragment {
                 Toast.makeText(requireContext(), "未获得本地存储访问权限", Toast.LENGTH_SHORT).show();
             }
         });
+        downloadWritePermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                granted -> onDownloadWritePermissionResult(Boolean.TRUE.equals(granted)));
+        downloadTreeLauncher = registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(),
+                this::onCustomTreePicked);
         sp = requireContext().getSharedPreferences(SP_TOKEN, 0);
         userInfo = requireContext().getSharedPreferences(SP_USER_INFO, 0);
         themeManager = ThemeManager.getInstance(requireContext());
@@ -109,6 +116,7 @@ public class SettingsFragment extends Fragment {
         sftpTransferSettingsManager = new SftpTransferSettingsManager(requireContext());
         terminalFontSizeManager = TerminalFontSizeManager.getInstance(requireContext());
         quickCommandStorage = new QuickCommandStorage(requireContext());
+        downloadLocationManager = new DownloadLocationManager(requireContext());
     }
 
     @Nullable
@@ -126,6 +134,7 @@ public class SettingsFragment extends Fragment {
         loadUserInfo();
         updateSftpThreadCountDisplay();
         updateTerminalFontSizeDisplay();
+        updateDownloadLocationDisplay();
         bindSwitches();
         bindMcpSwitch(root);
 
@@ -139,6 +148,8 @@ public class SettingsFragment extends Fragment {
             enableDualPaneSetting();
         }
         updateMcpDisplay();
+        // SAF 目录授权可能在离开期间被撤销，回到页面时重新渲染一次。
+        updateDownloadLocationDisplay();
     }
 
     @Override
@@ -173,6 +184,7 @@ public class SettingsFragment extends Fragment {
         tvMcpUrl = root.findViewById(R.id.tv_mcp_url);
         tvMcpPort = root.findViewById(R.id.tv_mcp_port);
         optionMcpUrl = root.findViewById(R.id.option_mcp_url);
+        tvDownloadLocation = root.findViewById(R.id.tv_download_location_current);
 
         TextView tvVersion = root.findViewById(R.id.tv_version);
         String currentVersion = BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ")";
@@ -375,7 +387,7 @@ public class SettingsFragment extends Fragment {
         root.findViewById(R.id.option_terminal_theme).setOnClickListener(v -> showTerminalThemeDialog());
         root.findViewById(R.id.option_login_browser).setOnClickListener(v -> openBrowserLogin());
         root.findViewById(R.id.option_logout).setOnClickListener(v -> showLogoutDialog());
-        root.findViewById(R.id.option_bind_qq).setOnClickListener(v -> showBindQQDialog());
+        root.findViewById(R.id.option_bind_qq).setOnClickListener(v -> openQqBindPage());
         root.findViewById(R.id.option_troubleshoot).setOnClickListener(v -> {
             if (getActivity() instanceof SettingsActivity activity) {
                 activity.openTroubleshootPage();
@@ -383,6 +395,7 @@ public class SettingsFragment extends Fragment {
         });
         root.findViewById(R.id.option_quick_commands).setOnClickListener(v ->
                 showQuickCommandManagementDialog());
+        root.findViewById(R.id.option_download_location).setOnClickListener(v -> showDownloadLocationDialog());
         root.findViewById(R.id.option_check_update).setOnClickListener(v -> {
             if (getActivity() != null) {
                 UpdateChecker.checkUpdate(getActivity());
@@ -511,6 +524,118 @@ public class SettingsFragment extends Fragment {
                 .show();
     }
 
+    /** 下载位置：三种模式单选。选中后按需申请权限或拉起目录选择器。 */
+    private void showDownloadLocationDialog() {
+        String[] options = {
+                getString(R.string.download_location_app_private),
+                getString(R.string.download_location_public),
+                getString(R.string.download_location_custom)
+        };
+        int current = downloadLocationManager.getMode() - DownloadLocationManager.MODE_APP_PRIVATE;
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.download_location_title)
+                .setSingleChoiceItems(options, current, (dialog, which) -> {
+                    dialog.dismiss();
+                    applyDownloadMode(which + DownloadLocationManager.MODE_APP_PRIVATE);
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void applyDownloadMode(int mode) {
+        if (mode == DownloadLocationManager.MODE_PUBLIC_DOWNLOADS) {
+            // API 30+ 走 MediaStore 不需要权限；更低版本才需要 WRITE_EXTERNAL_STORAGE。
+            if (!StoragePermissionHelper.canWritePublicDownloads(requireContext())) {
+                downloadWritePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                return;
+            }
+        } else if (mode == DownloadLocationManager.MODE_CUSTOM_TREE) {
+            // 授权成功后才在回调里落库，避免选了个不可写目录还把模式改了。
+            downloadTreeLauncher.launch(null);
+            return;
+        }
+        downloadLocationManager.setMode(mode);
+        updateDownloadLocationDisplay();
+    }
+
+    private void onDownloadWritePermissionResult(boolean granted) {
+        if (granted) {
+            downloadLocationManager.setMode(DownloadLocationManager.MODE_PUBLIC_DOWNLOADS);
+        } else {
+            downloadLocationManager.setMode(DownloadLocationManager.MODE_APP_PRIVATE);
+            Toast.makeText(requireContext(), R.string.download_location_permission_denied, Toast.LENGTH_LONG).show();
+        }
+        updateDownloadLocationDisplay();
+    }
+
+    private void onCustomTreePicked(@Nullable Uri treeUri) {
+        if (treeUri == null) {
+            return;
+        }
+        try {
+            requireContext().getContentResolver().takePersistableUriPermission(treeUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        } catch (SecurityException e) {
+            Toast.makeText(requireContext(), R.string.download_tree_not_writable, Toast.LENGTH_LONG).show();
+            return;
+        }
+        releasePreviousDownloadTree(treeUri.toString());
+        downloadLocationManager.setCustomTreeUri(treeUri.toString());
+        downloadLocationManager.setMode(DownloadLocationManager.MODE_CUSTOM_TREE);
+        updateDownloadLocationDisplay();
+    }
+
+    /** 释放上一个目录的持久授权，否则每换一次目录都会多留一条永久授权记录。 */
+    private void releasePreviousDownloadTree(String newUri) {
+        String previous = downloadLocationManager.getCustomTreeUri();
+        if (previous.isEmpty() || previous.equals(newUri)) {
+            return;
+        }
+        try {
+            requireContext().getContentResolver().releasePersistableUriPermission(Uri.parse(previous),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        } catch (Exception ignored) {
+            // 授权可能已经失效，忽略即可。
+        }
+    }
+
+    private void updateDownloadLocationDisplay() {
+        if (tvDownloadLocation == null) {
+            return;
+        }
+        tvDownloadLocation.setText(describeDownloadLocation());
+    }
+
+    private String describeDownloadLocation() {
+        int mode = downloadLocationManager.getMode();
+        if (mode == DownloadLocationManager.MODE_CUSTOM_TREE) {
+            return getString(R.string.download_location_custom_format, describeCustomTree());
+        }
+        String name = mode == DownloadLocationManager.MODE_PUBLIC_DOWNLOADS
+                ? getString(R.string.download_location_public)
+                : getString(R.string.download_location_app_private);
+        // 用户没显式选过时，值是按权限状态推导出来的，标注成「默认」避免误解为手选。
+        return downloadLocationManager.isModeExplicit()
+                ? name
+                : getString(R.string.download_location_default_format, name);
+    }
+
+    /** 只从 tree Uri 里取目录名，不查 ContentResolver——设置页渲染不该做 IO。 */
+    private String describeCustomTree() {
+        String saved = downloadLocationManager.getCustomTreeUri();
+        if (saved.isEmpty()) {
+            return getString(R.string.download_location_app_private);
+        }
+        try {
+            String documentId = DocumentsContract.getTreeDocumentId(Uri.parse(saved));
+            int colon = documentId.indexOf(':');
+            String path = colon >= 0 ? documentId.substring(colon + 1) : documentId;
+            return path.isEmpty() ? documentId : path;
+        } catch (Exception e) {
+            return saved;
+        }
+    }
+
     private void showTerminalThemeDialog() {
         String[] terminalThemeOptions = {"跟随主题", "强制浅色", "强制深色"};
         int currentTerminalTheme = terminalThemeManager.getTerminalThemeMode();
@@ -566,56 +691,15 @@ public class SettingsFragment extends Fragment {
         }
     }
 
-    private void showBindQQDialog() {
-        final EditText editText = new EditText(requireContext());
-        long currentQq = userInfo.getLong("qq", 0);
-        if (currentQq != 0) {
-            editText.setText(String.valueOf(currentQq));
-        }
-        editText.setHint("请输入 QQ 号码");
-
-        int padding = (int) (16 * getResources().getDisplayMetrics().density);
-        editText.setPadding(padding * 2, padding, padding * 2, padding);
-
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("绑定 QQ 号")
-                .setView(editText)
-                .setPositiveButton("确定", (dialog, which) -> {
-                    String qqStr = editText.getText().toString().trim();
-                    if (qqStr.isEmpty()) {
-                        Toast.makeText(requireContext(), "请输入 QQ 号码", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    try {
-                        long qq = Long.parseLong(qqStr);
-                        bindQQ(qq);
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(requireContext(), "请输入有效的 QQ 号码", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void bindQQ(long qq) {
-        String token = sp.getString("token", "");
-        if (token.isEmpty()) {
-            Toast.makeText(requireContext(), "尚未登录", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        new UserApi(requireContext()).bindQQ(token, qq, new UserApi.InstanceCallback() {
-            @Override
-            public void onSuccess(JSONObject data) {
-                Toast.makeText(requireContext(), "绑定成功", Toast.LENGTH_SHORT).show();
-                userInfo.edit().putLong("qq", qq).apply();
-                loadUserInfo();
-            }
-
-            @Override
-            public void onFailure(String errorMsg) {
-                Toast.makeText(requireContext(), "绑定失败: " + errorMsg, Toast.LENGTH_SHORT).show();
-            }
-        });
+    /** 进入「QQ 绑定与交流群」子页面。 */
+    private void openQqBindPage() {
+        if (getActivity() == null) return;
+        getActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left,
+                        R.anim.slide_in_left, R.anim.slide_out_right)
+                .replace(R.id.fragment_container, new QqBindFragment())
+                .addToBackStack("qq_bind")
+                .commit();
     }
 }
