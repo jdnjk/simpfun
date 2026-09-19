@@ -50,6 +50,22 @@ android {
         } else {
             buildConfigField "String", "BUGLY_ID", "null"
         }
+        def shiplyIdEnv = System.getenv("SHIPLY_ID")
+        def shiplyIdProp = project.hasProperty("shiply_id") ? project.getProperty("shiply_id") : null
+        def shiplyId = shiplyIdEnv ?: shiplyIdProp ?: null
+        if (shiplyId != null) {
+            buildConfigField "String", "SHIPLY_ID", "\"${shiplyId}\""
+        } else {
+            buildConfigField "String", "SHIPLY_ID", "null"
+        }
+        def shiplyKeyEnv = System.getenv("SHIPLY_KEY")
+        def shiplyKeyProp = project.hasProperty("shiply_key") ? project.getProperty("shiply_key") : null
+        def shiplyKey = shiplyKeyEnv ?: shiplyKeyProp ?: null
+        if (shiplyKey != null) {
+            buildConfigField "String", "SHIPLY_KEY", "\"${shiplyKey}\""
+        } else {
+            buildConfigField "String", "SHIPLY_KEY", "null"
+        }
         def mstEnv = System.getenv("MST_ID")
         def mstProp = project.hasProperty("mst_id") ? project.getProperty("mst_id") : null
         def mstId = mstEnv ?: mstProp ?: null
@@ -128,6 +144,9 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     api 'com.alipay.sdk:alipaysdk-android:15.8.42'
+
+    implementation("com.tencent.shiply:upgrade:2.2.0")
+    implementation("com.tencent.shiply:upgrade-diff-pkg-patch:2.2.0") // 差量APK下载与合成
 
     implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'com.google.android.material:material:1.14.0'

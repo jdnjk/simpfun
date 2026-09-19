@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import androidx.appcompat.app.AlertDialog;
@@ -12,8 +13,14 @@ import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.auth.AuthActivity;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 import com.tencent.bugly.crashreport.CrashReport;
+import com.tencent.shiply.processor.DiffPkgHandler;
+import com.tencent.shiply.processor.OriginBasePkgFile;
+import com.tencent.upgrade.bean.UpgradeConfig;
+import com.tencent.upgrade.core.UpgradeManager;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 import static cn.jdnjk.simpfun.BuildConfig.*;
 
@@ -198,5 +205,20 @@ public class SplashActivity extends AppCompatActivity {
         SharedPreferences sp1 = getSharedPreferences("user_info", MODE_PRIVATE);
         String uid = String.valueOf(sp1.getInt("uid",-1));
         CrashReport.setUserId(username + "/" + uid);
+
+        Map<String, String> map = new HashMap<>();
+        map.put("UID", uid);
+        UpgradeConfig.Builder builder = new UpgradeConfig.Builder();
+        builder.appId(BuildConfig.SHIPLY_ID)
+                .appKey(BuildConfig.SHIPLY_KEY)
+                .systemVersion(String.valueOf(Build.VERSION.SDK_INT))
+                .customParams(map) // 自定义属性键值对，用于匹配shiply前端创建任务时设置的自定义下发条件
+                .internalInitMMKVForRDelivery(true)
+                .userId(username + "/" + uid)
+                // 差量APK处理器，负责差量包下载与合成（在走SDK下载链路时生效）
+                .diffPkgHandler(new DiffPkgHandler())
+                // 差量基准包基于原始APK文件生成（本项目无渠道包，不支持渠道包差量也够用）
+                .basePkgFileForDiffUpgrade(new OriginBasePkgFile());
+        UpgradeManager.getInstance().init(SplashActivity.this, builder.build());
     }
 }

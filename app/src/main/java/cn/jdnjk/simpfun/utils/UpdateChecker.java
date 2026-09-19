@@ -2,7 +2,6 @@ package cn.jdnjk.simpfun.utils;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -11,29 +10,30 @@ import android.widget.Toast;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import com.tencent.upgrade.bean.ApkBasicInfo;
+import com.tencent.upgrade.bean.UpgradeStrategy;
+import com.tencent.upgrade.callback.UpgradeStrategyRequestCallback;
+import com.tencent.upgrade.core.UpgradeManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.download.UpdateDownloadService;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public final class UpdateChecker {
 
     private static final String TAG = "UpdateChecker";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    private static final String SHIPLY_URL = "https://shiply.tds.qq.com/cgi/v1/alpha/get-download-info";
-    private static final String SHIPLY_BODY = "{\"short_cut_url\": \"a6cd053496c642b29b06f01e7810e481\"}";
+    // Shiply SDK 通过 UpgradeManager 管理，无需手动维护请求 URL/Body
     private static final String GITHUB_API = "https://api.github.com/repos/jdnjk/simpfun/releases";
 
     private static final String PREFS_NAME = "update_prefs";
@@ -78,7 +78,9 @@ public final class UpdateChecker {
     }
 
     /**
-     * 检查更新（自动模式，24小时内只检查一次）
+     * 检查更新（自动模式，24小时内只检查一次）。
+     * 自动场景按文档建议走 checkUpgrade(false)：优先使用 SDK 缓存的灰度策略，
+     * 缓存有效期默认 1 天，不会每次启动都强制请求网络。
      */
     public static void checkUpdateIfNeeded(Activity activity) {
         Context context = activity.getApplicationContext();
@@ -114,7 +116,8 @@ public final class UpdateChecker {
         new Thread(() -> {
             UpdateInfo info = null;
             try {
-                info = checkShiply();
+                // 静默拉取最新策略：强制走网络请求（文档方式一），保证红点信息实时
+                info = checkShiply(true);
                 if (info == null) {
                     info = checkGithub();
                 }
@@ -128,18 +131,24 @@ public final class UpdateChecker {
         }).start();
     }
 
-    private static void checkUpdate(Activity activity, boolean showNoUpdateToast) {
+    /**
+     * 检查更新
+     *
+     * @param userManual true：用户主动点击「检测升级」，强制发起网络请求，忽略限频；
+     *                   false：首启自动检查，优先使用 SDK 缓存策略，遵循灰度平台限频配置
+     */
+    private static void checkUpdate(Activity activity, boolean userManual) {
         new Thread(() -> {
             try {
                 // 优先尝试腾讯云 API
-                UpdateInfo info = checkShiply();
+                UpdateInfo info = checkShiply(userManual);
                 if (info == null) {
                     // 备用：GitHub Releases
                     info = checkGithub();
                 }
 
                 final UpdateInfo finalInfo = info;
-                final boolean showToast = showNoUpdateToast;
+                final boolean showToast = userManual;
                 activity.runOnUiThread(() -> {
                     if (finalInfo == null) {
                         if (showToast) {
@@ -159,7 +168,7 @@ public final class UpdateChecker {
                 Log.e(TAG, "检查更新异常", e);
                 final String msg = e.getMessage();
                 activity.runOnUiThread(() -> {
-                    if (showNoUpdateToast) {
+                    if (userManual) {
                         Toast.makeText(activity, "检查更新失败: " + msg, Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -168,64 +177,60 @@ public final class UpdateChecker {
     }
 
     /**
-     * 通过腾讯云 Shiply API 检查更新
+     * 通过腾讯云 Shiply SDK 检查更新。
+     * 用 CountDownLatch 将异步回调桥接为同步返回，超时 10s 视为失败。
+     *
+     * @param userManual true：强制发起网络请求（文档方式一，忽略限频）；
+     *                   false：首启自动检查场景，SDK 优先返回缓存策略（缓存时长默认1天）
      */
-    private static UpdateInfo checkShiply() {
+    private static UpdateInfo checkShiply(boolean userManual) {
+        CountDownLatch latch = new CountDownLatch(1);
+        UpdateInfo[] result = {null};
+
+        UpgradeManager.getInstance().checkUpgrade(userManual, null, new UpgradeStrategyRequestCallback() {
+            @Override
+            public void onReceiveStrategy(UpgradeStrategy strategy) {
+                try {
+                    if (strategy == null) return;
+                    ApkBasicInfo apk = strategy.getApkBasicInfo();
+                    if (apk == null) return;
+                    int versionCode = apk.getVersionCode();
+                    String versionName = apk.getVersionName();
+                    String downloadUrl = apk.getDownloadUrl();
+                    if (versionCode == 0 || TextUtils.isEmpty(downloadUrl)) return;
+
+                    String updateDesc = "";
+                    if (strategy.getClientInfo() != null) {
+                        updateDesc = strategy.getClientInfo().getDescription();
+                        if (updateDesc == null) updateDesc = "";
+                    }
+
+                    result[0] = new UpdateInfo(versionCode, versionName, downloadUrl, updateDesc, "");
+                } finally {
+                    latch.countDown();
+                }
+            }
+
+            @Override
+            public void onFail(int i, String s) {
+                Log.w(TAG, "Shiply SDK 检查失败: errCode=" + i + " msg=" + s);
+                latch.countDown();
+            }
+
+            @Override
+            public void onReceivedNoStrategy() {
+                Log.i(TAG, "Shiply SDK 检查结果：无更新策略");
+                latch.countDown();
+            }
+        });
+
         try {
-            Request request = new Request.Builder()
-                    .url(SHIPLY_URL)
-                    .post(RequestBody.create(JSON, SHIPLY_BODY))
-                    .addHeader("User-Agent", "SimpfunAPP/" + BuildConfig.VERSION_NAME)
-                    .build();
-            Response response = client.newCall(request).execute();
-            if (!response.isSuccessful()) {
-                Log.w(TAG, "Shiply API 返回非成功状态码: " + response.code());
-                response.close();
-                return null;
-            }
-            String body = response.body() != null ? response.body().string() : null;
-            response.close();
-            if (body == null) {
-                return null;
-            }
-
-            JSONObject json = new JSONObject(body);
-            int retCode = json.optInt("ret_code", -1);
-            if (retCode != 0) {
-                Log.w(TAG, "Shiply API ret_code != 0: " + retCode);
-                return null;
-            }
-
-            JSONArray infos = json.optJSONArray("infos");
-            if (infos == null || infos.length() == 0) {
-                return null;
-            }
-
-            JSONObject first = infos.getJSONObject(0);
-            int versionCode = first.optInt("version_code", 0);
-            String versionName = first.optString("version_name", "");
-            String downloadUrl = first.optString("download_url", "");
-            String updateDesc = first.optString("update_desc", "");
-            String updatedAt = first.optString("updated_at", "");
-
-            if (versionCode == 0 || TextUtils.isEmpty(downloadUrl)) {
-                return null;
-            }
-
-            // 转换 unix 时间戳为可读格式
-            String formattedTime = updatedAt;
-            try {
-                long ts = Long.parseLong(updatedAt) * 1000L;
-                formattedTime = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                        .format(new Date(ts));
-            } catch (Exception ignored) {
-            }
-
-            return new UpdateInfo(versionCode, versionName, downloadUrl, updateDesc, formattedTime);
-        } catch (Exception e) {
-            Log.w(TAG, "Shiply 检查失败", e);
-            return null;
+            latch.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            Log.w(TAG, "Shiply 检查被中断");
         }
+        return result[0];
     }
 
     /**
