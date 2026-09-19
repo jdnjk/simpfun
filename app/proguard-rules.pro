@@ -58,8 +58,8 @@
 
 # ---- Tencent Bugly ----
 # 官方 SDK 依赖反射和上报符号信息，保守保留。
--keep class com.tencent.bugly.** { *; }
--dontwarn com.tencent.bugly.**
+-keep class com.tencent.** { *; }
+-dontwarn com.tencent.**
 
 # ---- Alipay SDK ----
 # 支付 SDK 内部有 Binder/反射/外部 App 兼容逻辑，保守保留。
