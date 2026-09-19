@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,6 +25,7 @@ import java.util.Map;
 
 import static cn.jdnjk.simpfun.BuildConfig.*;
 
+@SuppressLint("CustomSplashScreen")
 public class SplashActivity extends AppCompatActivity {
     private static final String SETTINGS_SP = "setting_sp";
     private static final String LEGACY_DEBUG_SP = "debug_settings";

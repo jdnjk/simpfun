@@ -17,8 +17,6 @@ import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
 
-import fi.iki.elonen.NanoHTTPD;
-
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
 
@@ -88,7 +86,7 @@ public class McpServerService extends Service {
 
         try {
             server = new McpHttpServer(port, sessionManager, dispatcher);
-            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true);
+            server.start((int) McpConstants.SOCKET_READ_TIMEOUT_MS, true);
             running = true;
             Log.i(TAG, "MCP server started on port " + port);
         } catch (IOException e) {

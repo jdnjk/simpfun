@@ -10,12 +10,15 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -31,14 +34,17 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.tencent.bugly.crashreport.CrashReport;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -47,8 +53,13 @@ import cn.jdnjk.simpfun.SWebView;
 import cn.jdnjk.simpfun.notification.DebugNotificationHelper;
 import cn.jdnjk.simpfun.notification.DebugNotificationScheduler;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
+import cn.jdnjk.simpfun.utils.ClipboardUtils;
 import cn.jdnjk.simpfun.utils.LogCapture;
 import cn.jdnjk.simpfun.utils.NotificationPermissionHelper;
+import com.google.android.material.color.MaterialColors;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class DebugFragment extends Fragment {
 
@@ -57,6 +68,7 @@ public class DebugFragment extends Fragment {
 
     private static final String SP_TOKEN = "token";
     private static final String KEY_TOKEN = "token";
+    private static final String SP_USER_INFO = "user_info";
 
     private NestedScrollView scrollView;
     private final BottomNavScrollHelper.Binding bottomNavBinding = new BottomNavScrollHelper.Binding();
@@ -162,6 +174,9 @@ public class DebugFragment extends Fragment {
         View btnExportLog = view.findViewById(R.id.btn_export_log);
         btnExportLog.setOnClickListener(v -> onExportLogClicked());
 
+        View btnDeviceInfo = view.findViewById(R.id.btn_device_info);
+        btnDeviceInfo.setOnClickListener(v -> showDeviceInfoDialog());
+
         swBugly.setOnCheckedChangeListener((buttonView, isChecked) -> {
             spDebug.edit().putBoolean(KEY_BUGLY_ENABLED, isChecked).apply();
             if (!isChecked) {
@@ -220,6 +235,124 @@ public class DebugFragment extends Fragment {
 
     private void withNotificationPermission(@NonNull Runnable action) {
         notificationPermissionHelper.withPermission(action);
+    }
+
+    /** 弹出 MD2 对话框，展示设备系统/硬件与当前账号信息。 */
+    private void showDeviceInfoDialog() {
+        Context ctx = getContext();
+        if (ctx == null || !isAdded()) return;
+        SharedPreferences userInfo = ctx.getSharedPreferences(SP_USER_INFO, Context.MODE_PRIVATE);
+
+        LinkedHashMap<String, String> entries = new LinkedHashMap<>();
+        entries.put("Android 版本", "Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+        entries.put("系统版本号", firstNonEmpty(Build.DISPLAY, "未知"));
+        entries.put("系统语言", getSystemLanguage());
+        entries.put("时区", TimeZone.getDefault().getID());
+        entries.put("CPU 型号", firstNonEmpty(Build.HARDWARE, "未知"));
+        entries.put("CPU 名称", getCpuName());
+        entries.put("CPU 架构", Build.SUPPORTED_ABIS == null || Build.SUPPORTED_ABIS.length == 0
+                ? "未知" : String.join(" / ", Build.SUPPORTED_ABIS));
+        entries.put("设备厂商", firstNonEmpty(Build.MANUFACTURER, "未知"));
+        entries.put("设备型号", firstNonEmpty(Build.MODEL, "未知"));
+        String deviceName = Settings.Global.getString(ctx.getContentResolver(), "device_name");
+        if (TextUtils.isEmpty(deviceName)) {
+            deviceName = Build.DEVICE;
+        }
+        entries.put("设备名称", firstNonEmpty(deviceName, "未知"));
+        entries.put("用户名", firstNonEmpty(userInfo.getString("username", ""), "未登录"));
+        entries.put("UID", String.valueOf(userInfo.getInt("uid", -1)));
+        long qq = userInfo.getLong("qq", 0L);
+        entries.put("绑定 QQ", qq != 0L ? String.valueOf(qq) : "未绑定");
+        entries.put("应用版本", getAppVersion(ctx));
+
+        LinearLayout container = new LinearLayout(ctx);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(dp(4), dp(8), dp(4), dp(8));
+        StringBuilder all = new StringBuilder();
+        for (Map.Entry<String, String> entry : entries.entrySet()) {
+            TextView label = new TextView(ctx);
+            label.setText(entry.getKey());
+            label.setTextSize(13);
+            label.setTextColor(MaterialColors.getColor(ctx,
+                    com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF000000));
+            label.setPadding(0, dp(10), 0, dp(2));
+            TextView value = new TextView(ctx);
+            value.setText(entry.getValue());
+            value.setTextSize(16);
+            value.setTextColor(MaterialColors.getColor(ctx,
+                    com.google.android.material.R.attr.colorOnSurface, 0xFF000000));
+            value.setTextIsSelectable(true);
+            container.addView(label);
+            container.addView(value);
+            all.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+        }
+        ScrollView scrollView = new ScrollView(ctx);
+        scrollView.addView(container);
+
+        // MD1（AppCompat 经典）外观：应用全局主题是 Material3，这里显式传 AppCompat 对话框主题覆盖
+        new androidx.appcompat.app.AlertDialog.Builder(ctx,
+                androidx.appcompat.R.style.ThemeOverlay_AppCompat_Dialog_Alert)
+                .setTitle("设备信息")
+                .setView(scrollView)
+                .setPositiveButton("复制全部", (dialog, which) ->
+                        ClipboardUtils.copyPlainText(ctx, "设备信息", all.toString().trim(), "设备信息已复制"))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private static String firstNonEmpty(String value, String fallback) {
+        return TextUtils.isEmpty(value) ? fallback : value;
+    }
+
+    /** 系统语言，如「简体中文 (zh-CN)」。 */
+    private static String getSystemLanguage() {
+        Locale locale = Locale.getDefault();
+        String display = locale.getDisplayLanguage();
+        if (!TextUtils.isEmpty(locale.getDisplayCountry())) {
+            display += " (" + locale.getDisplayCountry() + ")";
+        }
+        String tag = locale.toLanguageTag();
+        return tag.isEmpty() ? display : display + " [" + tag + "]";
+    }
+
+    /** CPU 具体名称：优先 SoC 型号（Android 12+），再读 /proc/cpuinfo 的 Hardware，最后回退 Build.HARDWARE。 */
+    private static String getCpuName() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            String socModel = Build.SOC_MODEL;
+            if (!TextUtils.isEmpty(socModel) && !"unknown".equalsIgnoreCase(socModel)) {
+                return socModel;
+            }
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader("/proc/cpuinfo"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.toLowerCase(Locale.ROOT).startsWith("hardware")) {
+                    int idx = line.indexOf(':');
+                    if (idx >= 0) {
+                        String value = line.substring(idx + 1).trim();
+                        if (!value.isEmpty()) {
+                            return value;
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return firstNonEmpty(Build.HARDWARE, "未知");
+    }
+
+    private static String getAppVersion(Context ctx) {
+        try {
+            android.content.pm.PackageInfo pi =
+                    ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0);
+            return pi.versionName + " (" + pi.versionCode + ")";
+        } catch (Exception e) {
+            return "未知";
+        }
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void onExportLogClicked() {

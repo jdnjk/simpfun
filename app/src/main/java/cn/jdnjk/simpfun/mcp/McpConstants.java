@@ -18,6 +18,10 @@ public final class McpConstants {
 
     public static final int MAX_BODY_BYTES = 1_000_000;
 
+    public static final long SOCKET_READ_TIMEOUT_MS = 30_000;
+
+    public static final long SSE_HEARTBEAT_INTERVAL_MS = 15_000;
+
     public static final long REGULAR_TOOL_TIMEOUT_MS = 130_000;
     public static final long AI_TOOL_TIMEOUT_MS = 210_000;
 
