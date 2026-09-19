@@ -4,7 +4,7 @@ import android.content.Context;
 
 public class TerminalFontSizeManager {
     private static final String TERMINAL_FONT_SIZE_KEY = "terminal_font_size";
-    public static final float DEFAULT_FONT_SIZE = 14f;
+    public static final float DEFAULT_FONT_SIZE = 16f;
     private static TerminalFontSizeManager instance;
     private final SettingsSaveManager saveManager;
 

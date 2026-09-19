@@ -88,6 +88,7 @@ public class QqBindFragment extends Fragment {
 
         if (getActivity() instanceof SettingsActivity activity) {
             activity.setAppBarTitle("QQ 绑定与交流群");
+            activity.setHelpEnabled(true);
             // 顶栏问号本页指向「加入 QQ 群」帮助文档，离开时复原。
             activity.overrideHelpUrl(SettingsActivity.QQ_GROUP_HELP_URL);
         }

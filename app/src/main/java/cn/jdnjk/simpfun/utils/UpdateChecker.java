@@ -3,6 +3,8 @@ package cn.jdnjk.simpfun.utils;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
@@ -44,6 +46,7 @@ public final class UpdateChecker {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 
     /** 供下载前台服务复用（构建下载请求）。 */
     public static OkHttpClient httpClient() {
@@ -97,6 +100,32 @@ public final class UpdateChecker {
      */
     public static void checkUpdate(Activity activity) {
         checkUpdate(activity, true);
+    }
+
+    /** 更新检查回调：info 为 null 表示检查失败。 */
+    public interface UpdateCallback {
+        void onResult(UpdateInfo info);
+    }
+
+    /**
+     * 后台静默获取最新版本信息（不弹任何 UI），供设置页红点等场景使用。
+     */
+    public static void fetchLatestUpdate(UpdateCallback callback) {
+        new Thread(() -> {
+            UpdateInfo info = null;
+            try {
+                info = checkShiply();
+                if (info == null) {
+                    info = checkGithub();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "检查更新异常", e);
+            }
+            final UpdateInfo finalInfo = info;
+            if (callback != null) {
+                MAIN_HANDLER.post(() -> callback.onResult(finalInfo));
+            }
+        }).start();
     }
 
     private static void checkUpdate(Activity activity, boolean showNoUpdateToast) {

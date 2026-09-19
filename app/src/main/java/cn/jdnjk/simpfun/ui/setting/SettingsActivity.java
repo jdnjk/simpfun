@@ -1,6 +1,8 @@
 package cn.jdnjk.simpfun.ui.setting;
 
+import android.animation.ValueAnimator;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -9,12 +11,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.widget.NestedScrollView;
+import androidx.fragment.app.Fragment;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.R.attr;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.SWebView;
 import cn.jdnjk.simpfun.ui.troubleshoot.TroubleshootActivity;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
-import androidx.fragment.app.Fragment;
 
 public class SettingsActivity extends AppCompatActivity {
     public static final String TUTORIAL_DOCUMENTATION_URL = "https://www.yuque.com/simpfox/simpdoc/main";
@@ -27,6 +31,9 @@ public class SettingsActivity extends AppCompatActivity {
     private final Runnable resetTapRunnable = () -> debugTapCount = 0;
     private MaterialToolbar toolbar;
     private MenuItem helpMenuItem;
+    private ValueAnimator toolbarBgAnimator;
+    private int toolbarBgColor;
+    private int toolbarScrollTriggerPx;
     /** 顶栏问号当前打开的目标。子页面可覆盖（如 QQ 绑定页指向加群文档），离开后复原。 */
     private String helpUrl = TUTORIAL_DOCUMENTATION_URL;
 
@@ -39,6 +46,10 @@ public class SettingsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_settings);
 
         toolbar = findViewById(R.id.toolbar);
+        toolbarBgColor = resolveColor(attr.colorSurface, android.R.color.white);
+        toolbar.setBackgroundColor(toolbarBgColor);
+        float density = getResources().getDisplayMetrics().density;
+        toolbarScrollTriggerPx = (int) (24 * density);
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
         toolbar.setTitle(DEFAULT_TITLE);
         toolbar.setOnMenuItemClickListener(item -> {
@@ -73,6 +84,87 @@ public class SettingsActivity extends AppCompatActivity {
                     .add(R.id.fragment_container, new SettingsFragment())
                     .commit();
         }
+    }
+
+    /**
+     * 子页面滑动进入（从右侧推入），返回时反向播放（滑回右侧）。
+     */
+    public void navigateTo(Fragment fragment, String tag) {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left,
+                        R.anim.slide_in_left, R.anim.slide_out_right)
+                .replace(R.id.fragment_container, fragment)
+                .addToBackStack(tag)
+                .commit();
+    }
+
+    /**
+     * 顶栏随内容滚动从 surface 过渡到 surfaceContainer（M3 顶栏标准行为）。
+     */
+    public void bindToolbarScroll(NestedScrollView scrollView) {
+        if (toolbar == null || scrollView == null) return;
+        scrollView.setOnScrollChangeListener((NestedScrollView v, int scrollX, int scrollY,
+                                              int oldScrollX, int oldScrollY) ->
+                applyToolbarScrollFraction(scrollView));
+        applyToolbarScrollFraction(scrollView);
+    }
+
+    public void unbindToolbarScroll(NestedScrollView scrollView) {
+        if (scrollView != null) {
+            scrollView.setOnScrollChangeListener(
+                    (androidx.core.widget.NestedScrollView.OnScrollChangeListener) null);
+        }
+        applyToolbarColorFraction(0f);
+    }
+
+    private void applyToolbarScrollFraction(NestedScrollView scrollView) {
+        float fraction = Math.min(1f, Math.max(0f,
+                scrollView.getScrollY() / (float) toolbarScrollTriggerPx));
+        applyToolbarColorFraction(fraction);
+    }
+
+    private void applyToolbarColorFraction(float fraction) {
+        int surface = resolveColor(attr.colorSurface, android.R.color.white);
+        int surfaceContainer = resolveColor(attr.colorSurfaceContainer, android.R.color.white);
+        int target = blendArgb(surface, surfaceContainer, fraction);
+        if (target == toolbarBgColor) return;
+        if (toolbarBgAnimator != null && toolbarBgAnimator.isRunning()) {
+            toolbarBgAnimator.cancel();
+        }
+        toolbarBgAnimator = ValueAnimator.ofArgb(toolbarBgColor, target);
+        toolbarBgAnimator.setDuration(120);
+        toolbarBgAnimator.addUpdateListener(a -> {
+            toolbarBgColor = (int) a.getAnimatedValue();
+            toolbar.setBackgroundColor(toolbarBgColor);
+        });
+        toolbarBgAnimator.start();
+    }
+
+    private int resolveColor(int attrRes, int fallback) {
+        android.util.TypedValue tv = new android.util.TypedValue();
+        if (getTheme().resolveAttribute(attrRes, tv, true)) {
+            int res = tv.resourceId != 0 ? tv.resourceId : tv.data;
+            return getColor(res);
+        }
+        return getColor(fallback);
+    }
+
+    private static int blendArgb(int c1, int c2, float fraction) {
+        int a = Math.round(Color.alpha(c1) * (1 - fraction) + Color.alpha(c2) * fraction);
+        int r = Math.round(Color.red(c1) * (1 - fraction) + Color.red(c2) * fraction);
+        int g = Math.round(Color.green(c1) * (1 - fraction) + Color.green(c2) * fraction);
+        int b = Math.round(Color.blue(c1) * (1 - fraction) + Color.blue(c2) * fraction);
+        return Color.argb(a, r, g, b);
+    }
+
+    /** 子页面按需显示/隐藏顶栏问号按钮。 */
+    public void setHelpEnabled(boolean enabled) {
+        if (toolbar == null) return;
+        if (helpMenuItem == null) {
+            helpMenuItem = toolbar.getMenu().findItem(R.id.action_settings_help);
+        }
+        if (helpMenuItem != null) helpMenuItem.setVisible(enabled);
     }
 
     /**
@@ -162,7 +254,9 @@ public class SettingsActivity extends AppCompatActivity {
         if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
             getSupportFragmentManager().popBackStack();
         } else {
-            super.onBackPressed();
+            // 设置首页返回个人中心：反向播放进入时的滑动过渡
+            finish();
+            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
         }
     }
 }

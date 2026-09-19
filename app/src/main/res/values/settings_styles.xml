@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="ShapeAppearance.Simpfun.Item" parent="">
+        <item name="cornerSize">8dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Simpfun.Item.First">
+        <item name="cornerSizeTopLeft">28dp</item>
+        <item name="cornerSizeTopRight">28dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Simpfun.Item.Middle" />
+
+    <style name="ShapeAppearance.Simpfun.Item.Last">
+        <item name="cornerSizeBottomLeft">28dp</item>
+        <item name="cornerSizeBottomRight">28dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Simpfun.Item.Single">
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <style name="TextAppearance.Simpfun.SectionHeader" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:lineHeight">21sp</item>
+    </style>
+
+    <style name="Widget.Simpfun.Settings.Item" parent="Widget.Material3.CardView.Filled">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="cardBackgroundColor">?attr/colorSurfaceContainerLow</item>
+        <item name="cardElevation">0dp</item>
+        <item name="cardCornerRadius">8dp</item>
+        <item name="rippleColor">?attr/colorSurfaceContainerHighest</item>
+        <item name="contentPadding">0dp</item>
+    </style>
+
+    <style name="Widget.Simpfun.Settings.InfoCard" parent="Widget.Material3.CardView.Filled">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="contentPadding">0dp</item>
+    </style>
+
+    <style name="Widget.Simpfun.Slider" parent="Widget.Material3.Slider">
+        <item name="trackColorActive">?attr/colorPrimary</item>
+        <item name="trackColorInactive">?attr/colorSecondaryContainer</item>
+        <item name="thumbColor">?attr/colorPrimary</item>
+        <item name="haloColor">?attr/colorPrimaryContainer</item>
+        <item name="trackHeight">16dp</item>
+        <item name="thumbWidth">4dp</item>
+        <item name="thumbHeight">44dp</item>
+        <item name="labelBehavior">gone</item>
+    </style>
+
+    <style name="Widget.Simpfun.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+        <item name="boxStrokeColor">@color/settings_input_stroke</item>
+        <item name="hintTextColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="Widget.Simpfun.TextInputLayout.Dropdown" parent="Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+        <item name="boxStrokeColor">@color/settings_input_stroke</item>
+        <item name="hintTextColor">?attr/colorPrimary</item>
+    </style>
+
+</resources>

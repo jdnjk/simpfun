@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/scroll_settings"
+    android:id="@+id/scroll_about"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
@@ -13,93 +12,95 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingStart="16dp"
-        android:paddingTop="8dp"
+        android:paddingTop="24dp"
         android:paddingEnd="16dp"
         android:paddingBottom="32dp">
+
+        <ImageView
+            android:layout_width="92dp"
+            android:layout_height="92dp"
+            android:layout_gravity="center_horizontal"
+            android:contentDescription="@string/app_name"
+            android:src="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/tv_about_app_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:text="@string/app_name"
+            android:textAppearance="?attr/textAppearanceHeadlineMedium"
+            android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_about_version"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="4dp"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <TextView
             style="@style/TextAppearance.Simpfun.SectionHeader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
+            android:layout_marginTop="28dp"
             android:layout_marginBottom="12dp"
-            android:text="偏好设置" />
+            android:text="应用信息" />
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/option_account"
+            android:id="@+id/option_changelog"
             style="@style/Widget.Simpfun.Settings.Item"
             android:clickable="true"
             android:focusable="true"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.First">
 
             <include
-                android:id="@+id/row_account"
+                android:id="@+id/row_changelog"
                 layout="@layout/view_settings_entry_row" />
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/option_appearance"
+            android:id="@+id/option_feedback"
             style="@style/Widget.Simpfun.Settings.Item"
             android:layout_marginTop="3dp"
             android:clickable="true"
             android:focusable="true"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.Middle">
 
-            <include layout="@layout/view_settings_entry_row" />
+            <include
+                android:id="@+id/row_feedback"
+                layout="@layout/view_settings_entry_row" />
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/option_files"
+            android:id="@+id/option_github"
             style="@style/Widget.Simpfun.Settings.Item"
             android:layout_marginTop="3dp"
             android:clickable="true"
             android:focusable="true"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.Middle">
 
-            <include layout="@layout/view_settings_entry_row" />
+            <include
+                android:id="@+id/row_github"
+                layout="@layout/view_settings_entry_row" />
         </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/option_services"
-            style="@style/Widget.Simpfun.Settings.Item"
-            android:layout_marginTop="3dp"
-            android:clickable="true"
-            android:focusable="true"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.Last">
-
-            <include layout="@layout/view_settings_entry_row" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <TextView
-            style="@style/TextAppearance.Simpfun.SectionHeader"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="12dp"
-            android:text="关于应用" />
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/option_check_update"
             style="@style/Widget.Simpfun.Settings.Item"
-            android:clickable="true"
-            android:focusable="true"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.First">
-
-            <include
-                android:id="@+id/row_check_update"
-                layout="@layout/view_settings_entry_row" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/option_about"
-            style="@style/Widget.Simpfun.Settings.Item"
             android:layout_marginTop="3dp"
             android:clickable="true"
             android:focusable="true"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.Last">
 
-            <include layout="@layout/view_settings_entry_row" />
+            <include
+                android:id="@+id/row_check_update"
+                layout="@layout/view_settings_entry_row" />
         </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>

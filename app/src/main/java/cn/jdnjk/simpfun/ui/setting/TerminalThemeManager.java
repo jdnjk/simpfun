@@ -36,14 +36,6 @@ public class TerminalThemeManager {
         return saveManager.getInt(TERMINAL_THEME_MODE_KEY, TERMINAL_THEME_FOLLOW_SYSTEM);
     }
 
-    public String getTerminalThemeName(int themeMode) {
-        return switch (themeMode) {
-            case TERMINAL_THEME_FORCE_LIGHT -> "强制浅色";
-            case TERMINAL_THEME_FORCE_DARK -> "强制深色";
-            default -> "跟随主题";
-        };
-    }
-
     public int getTerminalBackgroundColor() {
         int themeMode = getTerminalThemeMode();
         return switch (themeMode) {

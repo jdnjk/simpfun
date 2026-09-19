@@ -9,3 +9,4 @@ app/debug/
 .qoder
 /app/release.keystore
 /*.apk
+/.*.json
