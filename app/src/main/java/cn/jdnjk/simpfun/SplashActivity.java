@@ -204,12 +204,13 @@ public class SplashActivity extends AppCompatActivity {
         CrashReport.initCrashReport(getApplicationContext(), BUGLY_ID, DEBUG, strategy);
         SharedPreferences sp = getSharedPreferences("user_info", MODE_PRIVATE);
         String username = sp.getString("username", null);
-        SharedPreferences sp1 = getSharedPreferences("user_info", MODE_PRIVATE);
-        String uid = String.valueOf(sp1.getInt("uid",-1));
+        String uid = String.valueOf(sp.getInt("uid",-1));
+        String qq = String.valueOf(sp.getLong("qq", -1L));
         CrashReport.setUserId(username + "/" + uid);
 
         Map<String, String> map = new HashMap<>();
         map.put("UID", uid);
+        map.put("QQ", qq);
         UpgradeConfig.Builder builder = new UpgradeConfig.Builder();
         builder.appId(BuildConfig.SHIPLY_ID)
                 .appKey(BuildConfig.SHIPLY_KEY)

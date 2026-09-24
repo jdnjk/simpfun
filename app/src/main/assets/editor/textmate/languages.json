@@ -4,71 +4,83 @@
       "grammar": "editor/textmate/cpp/syntaxes/c.tmLanguage.json",
       "name": "C",
       "scopeName": "source.c",
-      "languageConfiguration": "editor/textmate/cpp/language-configuration.json"
+      "languageConfiguration": "editor/textmate/cpp/language-configuration.json",
+      "extensions": [".c", ".h"]
     },
     {
       "grammar": "editor/textmate/cpp/syntaxes/cpp.tmLanguage.json",
       "name": "C++",
       "scopeName": "source.cpp",
-      "languageConfiguration": "editor/textmate/cpp/language-configuration.json"
+      "languageConfiguration": "editor/textmate/cpp/language-configuration.json",
+      "extensions": [".cpp", ".cc", ".cxx", ".c++", ".hpp", ".hh", ".hxx"]
     },
     {
       "grammar": "editor/textmate/kotlin/syntaxes/kotlin.tmLanguage.json",
       "name": "Kotlin",
       "scopeName": "source.kotlin",
-      "languageConfiguration": "editor/textmate/kotlin/language-configuration.json"
+      "languageConfiguration": "editor/textmate/kotlin/language-configuration.json",
+      "extensions": [".kt", ".kts", ".ktm"]
     },
     {
       "grammar": "editor/textmate/toml/syntaxes/toml.tmLanguage.json",
       "name": "TOML",
-      "scopeName": "source.toml"
+      "scopeName": "source.toml",
+      "extensions": [".toml"]
     },
     {
       "grammar": "editor/textmate/java/syntaxes/java.tmLanguage.json",
       "name": "Java",
       "scopeName": "source.java",
-      "languageConfiguration": "editor/textmate/java/language-configuration.json"
+      "languageConfiguration": "editor/textmate/java/language-configuration.json",
+      "extensions": [".java", ".jav"]
     },
     {
       "grammar": "editor/textmate/ini/syntaxes/ini.tmLanguage.json",
       "name": "INI",
       "scopeName": "source.ini",
-      "languageConfiguration": "editor/textmate/ini/language-configuration.json"
+      "languageConfiguration": "editor/textmate/ini/language-configuration.json",
+      "extensions": [".ini", ".conf", ".cfg", ".properties"]
     },
     {
       "grammar": "editor/textmate/bat/syntaxes/batchfile.tmLanguage.json",
       "name": "Batch",
       "scopeName": "source.batchfile",
-      "languageConfiguration": "editor/textmate/bat/language-configuration.json"
+      "languageConfiguration": "editor/textmate/bat/language-configuration.json",
+      "extensions": [".bat", ".cmd"]
     },
     {
       "grammar": "editor/textmate/shellscript/syntaxes/shell-unix-bash.tmLanguage.json",
       "name": "Shell Script",
       "scopeName": "source.shell",
-      "languageConfiguration": "editor/textmate/shellscript/language-configuration.json"
+      "languageConfiguration": "editor/textmate/shellscript/language-configuration.json",
+      "extensions": [".sh", ".bash", ".bashrc", ".profile"]
     },
     {
       "grammar": "editor/textmate/yaml/syntaxes/yaml.tmLanguage.json",
       "name": "YAML",
       "scopeName": "source.yaml",
-      "languageConfiguration": "editor/textmate/yaml/language-configuration.json"
+      "languageConfiguration": "editor/textmate/yaml/language-configuration.json",
+      "extensions": [".yaml", ".yml"]
     },
     {
       "grammar": "editor/textmate/json/syntaxes/json.tmLanguage.json",
       "name": "JSON",
       "scopeName": "source.json",
-      "languageConfiguration": "editor/textmate/json/language-configuration.json"
+      "languageConfiguration": "editor/textmate/json/language-configuration.json",
+      "extensions": [".json"]
     },
     {
       "grammar": "editor/textmate/xml/syntaxes/xml.tmLanguage.json",
       "name": "XML",
       "scopeName": "text.xml",
-      "languageConfiguration": "editor/textmate/xml/language-configuration.json"
+      "languageConfiguration": "editor/textmate/xml/language-configuration.json",
+      "extensions": [".xml"]
     },
     {
       "grammar": "editor/textmate/log/syntaxes/log.tmLanguage.json",
       "name": "Log",
-      "scopeName": "text.log"
+      "scopeName": "text.log",
+      "extensions": [".log"]
     },
     {
       "grammar": "editor/textmate/html/syntaxes/html.tmLanguage.json",
@@ -77,13 +89,15 @@
       "languageConfiguration": "editor/textmate/html/language-configuration.json",
       "embeddedLanguages": {
         "source.js": "javascript"
-      }
+      },
+      "extensions": [".html", ".htm"]
     },
     {
       "grammar": "editor/textmate/javascript/syntaxes/JavaScript.tmLanguage.json",
       "name": "JavaScript",
       "scopeName": "source.js",
-      "languageConfiguration": "editor/textmate/javascript/language-configuration.json"
+      "languageConfiguration": "editor/textmate/javascript/language-configuration.json",
+      "extensions": [".js", ".mjs", ".cjs"]
     },
     {
       "name": "Markdown",
@@ -94,7 +108,8 @@
         "meta.embedded.block.html": "html",
         "source.js": "javascript",
         "meta.embedded.block.xml": "xml"
-      }
+      },
+      "extensions": [".md", ".markdown"]
     }
   ]
 }

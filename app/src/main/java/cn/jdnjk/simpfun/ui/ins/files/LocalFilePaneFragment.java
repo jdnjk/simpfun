@@ -953,6 +953,11 @@ public class LocalFilePaneFragment extends Fragment implements FilePaneViews.Cal
         onPathChangedAfterStateUpdate();
     }
 
+    /** 由宿主（双页搜索对话框）调用：跳转到指定目录。 */
+    void navigateToPathForHost(String path) {
+        navigateToPath(path);
+    }
+
     private void onPathChangedAfterStateUpdate() {
         state.clearSelection();
         renderSelection();

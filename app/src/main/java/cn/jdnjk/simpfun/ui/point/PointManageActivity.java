@@ -1,6 +1,5 @@
 package cn.jdnjk.simpfun.ui.point;
 
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.MenuItem;
 
@@ -10,9 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
@@ -30,7 +27,6 @@ public class PointManageActivity extends AppCompatActivity {
     public static final String TAB_DIAMONDS = "diamonds";
 
     public static final String EXTRA_RECHARGE_TAB = "recharge_tab";
-    public static final int RECHARGE_TAB_POINTS = 0;
     public static final int RECHARGE_TAB_TRAFFIC = 1;
     public static final String EXTRA_PRESELECT_INSTANCE = "preselect_instance";
 
@@ -64,13 +60,8 @@ public class PointManageActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        getWindow().setStatusBarColor(Color.TRANSPARENT);
-        WindowInsetsControllerCompat windowInsetsController =
-                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-        if (windowInsetsController != null) {
-            windowInsetsController.setAppearanceLightStatusBars(true);
-        }
+
+        ThemeUtils.applyEdgeToEdge(this);
         setContentView(R.layout.activity_point_manage);
 
         Toolbar toolbar = findViewById(R.id.toolbar);

@@ -15,7 +15,6 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import java.io.OutputStream;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -25,6 +24,7 @@ import cn.jdnjk.simpfun.editor.EditorContentRepository;
 import cn.jdnjk.simpfun.ui.setting.FilePaneModeManager;
 import cn.jdnjk.simpfun.utils.EditorMenuHandler;
 import cn.jdnjk.simpfun.utils.Feedback;
+import cn.jdnjk.simpfun.utils.TextMateLanguageRegistry;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
 import io.github.rosemoe.sora.widget.CodeEditor;
@@ -61,59 +61,8 @@ public class FileEditorActivity extends AppCompatActivity {
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
     private EditorContentRepository contentRepository;
 
-    private static final Map<String, String> EXTENSION_TO_SCOPE = new HashMap<>();
 
-    static {
-        EXTENSION_TO_SCOPE.put(".json", "source.json");
-
-        EXTENSION_TO_SCOPE.put(".log", "text.log");
-
-        EXTENSION_TO_SCOPE.put(".yaml", "source.yaml");
-        EXTENSION_TO_SCOPE.put(".yml", "source.yaml");
-
-        EXTENSION_TO_SCOPE.put(".js", "source.js");
-
-        EXTENSION_TO_SCOPE.put(".html", "text.html.basic");
-        EXTENSION_TO_SCOPE.put(".htm", "text.html.basic");
-
-        EXTENSION_TO_SCOPE.put(".xml", "text.xml");
-
-        EXTENSION_TO_SCOPE.put(".md", "text.html.markdown");
-        EXTENSION_TO_SCOPE.put(".markdown", "text.html.markdown");
-
-        EXTENSION_TO_SCOPE.put(".sh", "source.shell");
-        EXTENSION_TO_SCOPE.put(".bash", "source.shell");
-        EXTENSION_TO_SCOPE.put(".bashrc", "source.shell");
-        EXTENSION_TO_SCOPE.put(".profile", "source.shell");
-
-        EXTENSION_TO_SCOPE.put(".ini", "source.ini");
-        EXTENSION_TO_SCOPE.put(".conf", "source.ini");
-        EXTENSION_TO_SCOPE.put(".cfg", "source.ini");
-        EXTENSION_TO_SCOPE.put(".properties", "source.ini");
-
-        EXTENSION_TO_SCOPE.put(".bat", "source.batchfile");
-        EXTENSION_TO_SCOPE.put(".cmd", "source.batchfile");
-
-        EXTENSION_TO_SCOPE.put(".java", "source.java");
-        EXTENSION_TO_SCOPE.put(".jav", "source.java");
-
-        EXTENSION_TO_SCOPE.put(".toml", "source.toml");
-
-        EXTENSION_TO_SCOPE.put(".kts", "source.kotlin");
-        EXTENSION_TO_SCOPE.put(".kt", "source.kotlin");
-        EXTENSION_TO_SCOPE.put(".ktm", "source.kotlin");
-
-        EXTENSION_TO_SCOPE.put(".c", "source.c");
-        EXTENSION_TO_SCOPE.put(".h", "source.c");
-
-        EXTENSION_TO_SCOPE.put(".cpp", "source.cpp");
-        EXTENSION_TO_SCOPE.put(".cc", "source.cpp");
-        EXTENSION_TO_SCOPE.put(".cxx", "source.cpp");
-        EXTENSION_TO_SCOPE.put(".c++", "source.cpp");
-        EXTENSION_TO_SCOPE.put(".hpp", "source.cpp");
-        EXTENSION_TO_SCOPE.put(".hh", "source.cpp");
-        EXTENSION_TO_SCOPE.put(".hxx", "source.cpp");
-    }
+    private static volatile Map<String, String> extensionToScope;
 
     private void ensureTextMateInited() {
         if (textMateInited) return;
@@ -160,6 +109,7 @@ public class FileEditorActivity extends AppCompatActivity {
             }
             // GrammarRegistry.loadGrammars 会自行读取文件内容，这里仅用于存在性检查
             GrammarRegistry.getInstance().loadGrammars(languagesPath);
+            extensionToScope = TextMateLanguageRegistry.getExtensionMap(getApplicationContext());
             textMateInited = true;
         } catch (Exception e) {
             Log.w("FileEditorActivity", "TextMate初始化失败", e);
@@ -172,6 +122,23 @@ public class FileEditorActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * 按最长后缀匹配查找文件路径对应的 scope。
+     * 用最长匹配是为了兼容 ".bashrc"、".profile" 这类文件名后缀，
+     * 避免被更短的键抢先匹配。
+     */
+    private String resolveScope(String lowerPath) {
+        Map<String, String> map = extensionToScope;
+        if (map == null || map.isEmpty()) return null;
+        String bestKey = null;
+        for (String key : map.keySet()) {
+            if (lowerPath.endsWith(key) && (bestKey == null || key.length() > bestKey.length())) {
+                bestKey = key;
+            }
+        }
+        return bestKey == null ? null : map.get(bestKey);
+    }
+
     private void applyLanguageForCurrentFile() {
         if (remotePath == null) return;
         try {
@@ -182,16 +149,7 @@ public class FileEditorActivity extends AppCompatActivity {
                 applyEditorThemeByAppTheme();
             }
 
-            String lower = remotePath.toLowerCase();
-            String scope = null;
-
-            // 根据文件扩展名查找对应的scope
-            for (Map.Entry<String, String> entry : EXTENSION_TO_SCOPE.entrySet()) {
-                if (lower.endsWith(entry.getKey())) {
-                    scope = entry.getValue();
-                    break;
-                }
-            }
+            String scope = resolveScope(remotePath.toLowerCase());
 
             setLanguage(scope);
 

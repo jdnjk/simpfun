@@ -12,6 +12,7 @@ public class McpSession {
     public volatile boolean initialized;
     public volatile JSONObject clientInfo;
     public final long createdAt;
+    public volatile McpSseStream sseStream;
 
     public McpSession() {
         this.sessionId = UUID.randomUUID().toString();

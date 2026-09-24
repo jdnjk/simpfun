@@ -58,6 +58,7 @@ public class EditorMenuHandler {
     public void showMenu(View anchor) {
         PopupMenu popup = new PopupMenu(activity, anchor);
         popup.getMenuInflater().inflate(R.menu.editor_menu, popup.getMenu());
+        tintMenuIcons(popup.getMenu());
         android.view.MenuItem wordWrapItem = popup.getMenu().findItem(R.id.action_wordwrap);
         if (wordWrapItem != null) {
             wordWrapItem.setChecked(wordWrapEnabled);
@@ -121,6 +122,27 @@ public class EditorMenuHandler {
         });
 
         popup.show();
+    }
+
+    private void tintMenuIcons(android.view.Menu menu) {
+        int color = resolveThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant);
+        for (int i = 0; i < menu.size(); i++) {
+            android.view.MenuItem item = menu.getItem(i);
+            android.graphics.drawable.Drawable icon = item.getIcon();
+            if (icon != null) {
+                androidx.core.view.MenuItemCompat.setIconTintList(item,
+                        android.content.res.ColorStateList.valueOf(color));
+            }
+            if (item.hasSubMenu()) {
+                tintMenuIcons(item.getSubMenu());
+            }
+        }
+    }
+
+    private int resolveThemeColor(int attr) {
+        android.util.TypedValue value = new android.util.TypedValue();
+        activity.getTheme().resolveAttribute(attr, value, true);
+        return value.data;
     }
 
     private void handleSaveAs() {
@@ -218,41 +240,42 @@ public class EditorMenuHandler {
     }
 
     private void showSyntaxDialog() {
-        String[][] syntaxes = {
-            {"Auto Detect", null},
-            {"Batch", "source.batchfile"},
-            {"C", "source.c"},
-            {"C++", "source.cpp"},
-            {"HTML", "text.html.basic"},
-            {"INI", "source.ini"},
-            {"Java", "source.java"},
-            {"JavaScript", "source.js"},
-            {"JSON", "source.json"},
-            {"Kotlin", "source.kotlin"},
-            {"Log", "text.log"},
-            {"Markdown", "text.html.markdown"},
-            {"Python", "source.python"},
-            {"Shell Script", "source.shell"},
-            {"TOML", "source.toml"},
-            {"XML", "text.xml"},
-            {"YAML", "source.yaml"}
-        };
+        List<TextMateLanguageRegistry.Language> languages;
+        try {
+            languages = TextMateLanguageRegistry.getLanguages(activity);
+        } catch (Exception e) {
+            Toast.makeText(activity, "读取语言列表失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        String[] displayNames = new String[syntaxes.length];
-        for (int i = 0; i < syntaxes.length; i++) {
-            displayNames[i] = syntaxes[i][0];
+        List<String> names = new ArrayList<>();
+        for (TextMateLanguageRegistry.Language lang : languages) {
+            names.add(lang.name);
+        }
+        java.util.Collections.sort(names);
+
+        String[] displayNames = new String[names.size() + 1];
+        displayNames[0] = "自动检测";
+        for (int i = 0; i < names.size(); i++) {
+            displayNames[i + 1] = names.get(i);
         }
 
         new MaterialAlertDialogBuilder(activity)
                 .setTitle("选择语法")
                 .setItems(displayNames, (dialog, which) -> {
-                    String scope = syntaxes[which][1];
                     if (activity instanceof cn.jdnjk.simpfun.FileEditorActivity) {
-                        if (scope == null) {
+                        if (which == 0) {
                             ((cn.jdnjk.simpfun.FileEditorActivity) activity).applyLanguageAuto();
-                        } else {
-                            ((cn.jdnjk.simpfun.FileEditorActivity) activity).setLanguage(scope);
+                            return;
                         }
+                        String scope = null;
+                        for (TextMateLanguageRegistry.Language lang : languages) {
+                            if (lang.name.equals(displayNames[which])) {
+                                scope = lang.scopeName;
+                                break;
+                            }
+                        }
+                        ((cn.jdnjk.simpfun.FileEditorActivity) activity).setLanguage(scope);
                     }
                 })
                 .show();

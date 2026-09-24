@@ -90,6 +90,19 @@
                 android:layout_marginTop="4dp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:text="Subtitle" />
+
+            <TextView
+                android:id="@+id/item_expand_toggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="展开"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

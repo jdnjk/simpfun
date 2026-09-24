@@ -4,6 +4,15 @@
     <!-- Use MD2 by default for better compatibility on older Android versions. -->
     <style name="ThemeOverlay.Simpfun.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog" />
 
+    <style name="ShapeAppearance.Simpfun.Dialog" parent="ShapeAppearance.Material3.Corner.None">
+        <item name="cornerSize">4dp</item>
+    </style>
+
+    <style name="ThemeOverlay.Simpfun.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Simpfun.Dialog</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Simpfun.Dialog</item>
+    </style>
+
     <style name="FileActionText">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>

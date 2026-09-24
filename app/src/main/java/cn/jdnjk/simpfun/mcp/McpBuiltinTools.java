@@ -8,7 +8,11 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import cn.jdnjk.simpfun.ui.ins.files.FileSearchEngine;
 
 import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.api.ins.FileApi;
@@ -36,6 +40,7 @@ public class McpBuiltinTools {
                 new ServerPowerTool(ctx, "server_restart", PowerApi.Action.RESTART, "重启简幻欢服务器"),
                 new ServerPowerTool(ctx, "server_kill", PowerApi.Action.KILL, "强制结束简幻欢服务器"),
                 new FileListTool(ctx),
+                new FileSearchTool(ctx),
                 new FileReadTool(ctx),
                 new FileWriteTool(ctx),
                 new FileDeleteTool(ctx),
@@ -233,6 +238,159 @@ public class McpBuiltinTools {
                         @Override public void onFailure(String errorMsg) { fail.accept(errorMsg); }
                     }));
             return McpToolResult.ok(data.toString());
+        }
+    }
+
+    // ---------- file_search ----------
+    private static class FileSearchTool extends BaseTool {
+        private static final int MAX_DIRS = 500;
+
+        FileSearchTool(Context context) { super(context); }
+        @Override public String getName() { return "file_search"; }
+        @Override public String getDescription() {
+            return "在简幻欢服务器指定目录下按文件名搜索文件。pattern 支持通配符（* 任意序列、? 单字符），regex=true 时按正则解析；"
+                    + "recursive=true 时递归搜索子目录；min_size/max_size（单位字节，-1 表示不限制）可按大小过滤。";
+        }
+        @Override public JSONObject getInputSchema() {
+            JSONObject schema = new JSONObject();
+            try {
+                schema.put("type", "object");
+                JSONObject props = new JSONObject();
+                JSONObject sid = new JSONObject();
+                sid.put("type", "integer");
+                sid.put("description", "服务器 ID");
+                props.put("server_id", sid);
+                JSONObject path = new JSONObject();
+                path.put("type", "string");
+                path.put("description", "搜索起始目录，例如 /");
+                props.put("path", path);
+                JSONObject pattern = new JSONObject();
+                pattern.put("type", "string");
+                pattern.put("description", "文件名匹配表达式，如 *.jar 或 config(?).yml");
+                props.put("pattern", pattern);
+                JSONObject recursive = new JSONObject();
+                recursive.put("type", "boolean");
+                recursive.put("description", "是否递归搜索子目录，默认 false");
+                props.put("recursive", recursive);
+                JSONObject regex = new JSONObject();
+                regex.put("type", "boolean");
+                regex.put("description", "pattern 是否按正则表达式解析，默认 false（通配符）");
+                props.put("regex", regex);
+                JSONObject caseSensitive = new JSONObject();
+                caseSensitive.put("type", "boolean");
+                caseSensitive.put("description", "是否区分大小写，默认 false");
+                props.put("case_sensitive", caseSensitive);
+                JSONObject minSize = new JSONObject();
+                minSize.put("type", "number");
+                minSize.put("description", "最小文件大小（字节），-1 或缺省表示任意");
+                props.put("min_size", minSize);
+                JSONObject maxSize = new JSONObject();
+                maxSize.put("type", "number");
+                maxSize.put("description", "最大文件大小（字节），-1 或缺省表示任意");
+                props.put("max_size", maxSize);
+                JSONObject limit = new JSONObject();
+                limit.put("type", "integer");
+                limit.put("description", "最多返回条数，默认 200，上限 500");
+                props.put("limit", limit);
+                schema.put("properties", props);
+                schema.put("required", new JSONArray().put("server_id").put("path").put("pattern"));
+            } catch (Exception ignored) {}
+            return schema;
+        }
+        @Override public McpToolResult invoke(JSONObject args) throws McpToolException {
+            requireToken();
+            int serverId = requireServerId(args);
+            String root = args.optString("path", "/");
+            String pattern = args.optString("pattern", "").trim();
+            if (pattern.isEmpty()) {
+                throw new McpToolException("缺少必需参数: pattern");
+            }
+            FileSearchEngine.Options options = new FileSearchEngine.Options();
+            options.pattern = pattern;
+            options.recursive = args.optBoolean("recursive", false);
+            options.regex = args.optBoolean("regex", false);
+            options.caseSensitive = args.optBoolean("case_sensitive", false);
+            long minSize = (long) args.optDouble("min_size", -1d);
+            long maxSize = (long) args.optDouble("max_size", -1d);
+            if (minSize >= 0 || maxSize >= 0) {
+                options.sizeEnabled = true;
+                options.minBytes = minSize;
+                options.maxBytes = maxSize;
+            }
+            int limit = Math.max(1, Math.min(500, args.optInt("limit", 200)));
+            FileSearchEngine.Matcher matcher;
+            try {
+                matcher = FileSearchEngine.buildMatcher(options);
+            } catch (java.util.regex.PatternSyntaxException e) {
+                throw new McpToolException("pattern 无效: " + e.getDescription());
+            }
+
+            List<FileSearchEngine.Match> results = new ArrayList<>();
+            List<String> queue = new ArrayList<>();
+            Set<String> visited = new HashSet<>();
+            queue.add(root);
+            String error = null;
+            while (!queue.isEmpty() && results.size() < limit && visited.size() < MAX_DIRS) {
+                String dir = queue.remove(0);
+                if (!visited.add(dir)) {
+                    continue;
+                }
+                final String currentDir = dir;
+                JSONObject data;
+                try {
+                    data = bridge.await(McpConstants.REGULAR_TOOL_TIMEOUT_MS, (ok, fail) ->
+                            new FileApi().getFileList(appContext, serverId, currentDir, new FileApi.Callback() {
+                                @Override public void onSuccess(JSONObject data) { ok.accept(data); }
+                                @Override public void onFailure(String errorMsg) { fail.accept(errorMsg); }
+                            }));
+                } catch (McpToolException e) {
+                    // 单个目录失败跳过，继续搜索其余目录
+                    if (visited.size() == 1) {
+                        error = e.getMessage();
+                        break;
+                    }
+                    continue;
+                }
+                try {
+                    JSONArray list = data.getJSONArray("list");
+                    for (int i = 0; i < list.length() && results.size() < limit; i++) {
+                        JSONObject obj = list.getJSONObject(i);
+                        String name = obj.optString("name");
+                        if (name.isEmpty() || ".".equals(name) || "..".equals(name)) continue;
+                        boolean isFile = obj.optBoolean("file", true);
+                        long size = isFile ? obj.optLong("size", 0L) : 0L;
+                        if (matcher.matches(name) && FileSearchEngine.sizeMatches(options, size)) {
+                            results.add(new FileSearchEngine.Match(
+                                    FileSearchEngine.joinPath(dir, name), name, !isFile, size));
+                        }
+                        if (options.recursive && !isFile) {
+                            queue.add(FileSearchEngine.joinPath(dir, name));
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
+            JSONObject out = new JSONObject();
+            try {
+                out.put("count", results.size());
+                out.put("truncated", !queue.isEmpty() || visited.size() >= MAX_DIRS);
+                out.put("searched_dirs", visited.size());
+                if (error != null) {
+                    out.put("error", error);
+                }
+                JSONArray arr = new JSONArray();
+                for (FileSearchEngine.Match m : results) {
+                    JSONObject item = new JSONObject();
+                    item.put("path", m.path);
+                    item.put("name", m.name);
+                    item.put("dir", m.dir);
+                    item.put("size", m.size);
+                    arr.put(item);
+                }
+                out.put("list", arr);
+            } catch (Exception ignored) {}
+            return McpToolResult.ok(out.toString());
         }
     }
 

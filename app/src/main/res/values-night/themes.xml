@@ -48,6 +48,7 @@
         <item name="colorSurfaceContainerHigh">@color/md_theme_surfaceContainerHigh</item>
         <item name="colorSurfaceContainerHighest">@color/md_theme_surfaceContainerHighest</item>
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Simpfun.BottomSheet</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Simpfun.MaterialAlertDialog</item>
     </style>
 
     <style name="Theme.Simpfun.Splash" parent="Theme.Simpfun">

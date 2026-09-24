@@ -4,10 +4,10 @@ import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
-import android.view.KeyEvent;
+import android.text.TextWatcher;
 import android.view.View;
-import android.view.inputmethod.EditorInfo;
 import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -83,6 +83,8 @@ public class CreateServer extends AppCompatActivity {
     private EditText etSearch;
     private HorizontalScrollView hsPagination;
     private LinearLayout paginationContainer;
+    private HorizontalScrollView hsPaginationBottom;
+    private LinearLayout paginationContainerBottom;
     private LinearLayout layoutGradeFilter;
     private android.widget.Spinner spGrade;
     private HorizontalScrollView hsSteps;
@@ -97,6 +99,10 @@ public class CreateServer extends AppCompatActivity {
     private String imageKindSearchQuery = "";
     private int imageKindCurrentPage = 1;
     private static final int IMAGE_KIND_PAGE_SIZE = 10;
+
+    // 第三方镜像简介限制：超过部分折叠（默认仅显示前200字/前15行）
+    private static final int DESC_MAX_CHARS = 200;
+    private static final int DESC_MAX_LINES = 15;
 
     private Integer gameId; // 选择的游戏/镜像分类
     private Integer imageKindId; // 镜像服务端/Kind id 或 customlist 的 id
@@ -141,6 +147,8 @@ public class CreateServer extends AppCompatActivity {
         etSearch = findViewById(R.id.et_search);
         hsPagination = findViewById(R.id.hs_pagination);
         paginationContainer = findViewById(R.id.pagination_container);
+        hsPaginationBottom = findViewById(R.id.hs_pagination_bottom);
+        paginationContainerBottom = findViewById(R.id.pagination_container_bottom);
         layoutGradeFilter = findViewById(R.id.layout_grade_filter);
         spGrade = findViewById(R.id.sp_grade);
         TextView tvCpuModelLink = findViewById(R.id.tv_cpu_model_link);
@@ -176,20 +184,15 @@ public class CreateServer extends AppCompatActivity {
 
         btnAction.setOnClickListener(v -> onActionButton());
 
-        layoutSearch.setEndIconOnClickListener(v -> {
-            imageKindSearchQuery = etSearch.getText().toString().trim();
-            imageKindCurrentPage = 1;
-            applyImageKindFiltersAndPagination();
-        });
-
-        etSearch.setOnEditorActionListener((tv, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
-                imageKindSearchQuery = etSearch.getText().toString().trim();
+        // 输入即搜索：文本有变动直接触发过滤（endIcon 为 clear_text，清空时同样自动触发）
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) {
+                imageKindSearchQuery = s.toString().trim();
                 imageKindCurrentPage = 1;
                 applyImageKindFiltersAndPagination();
-                return true;
             }
-            return false;
         });
 
         token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
@@ -261,7 +264,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void renderCurrentStep() {
         layoutSearch.setVisibility(View.GONE);
-        hsPagination.setVisibility(View.GONE);
+        setPaginationVisible(View.GONE);
         layoutReinstallOptions.setVisibility(View.GONE);
 
         MenuItem refreshItem = toolbar.getMenu().findItem(R.id.action_refresh);
@@ -506,7 +509,15 @@ public class CreateServer extends AppCompatActivity {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
                 if (isCustom) {
-                    fullImageKindList.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), o.optString("description")));
+                    String desc = o.optString("description");
+                    String truncated = truncateDescription(desc);
+                    boolean collapsible = !truncated.equals(desc);
+                    if (collapsible && !truncated.isEmpty()) truncated = truncated + "…";
+                    ListItem li = ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), truncated);
+                    li.fullSubtitle = desc;
+                    li.collapsible = collapsible;
+                    li.expanded = false;
+                    fullImageKindList.add(li);
                 } else {
                     String desc = o.optString("description");
                     String link = o.optString("link");
@@ -754,7 +765,7 @@ public class CreateServer extends AppCompatActivity {
         if (versionId == null || specId == null) return;
         // 进入确认页取消搜索与分页
         layoutSearch.setVisibility(View.GONE);
-        hsPagination.setVisibility(View.GONE);
+        setPaginationVisible(View.GONE);
         executeCall(CServerApi.getConfirmation(isCustom, versionId, specId, token), json -> {
             List<ListItem> items = new ArrayList<>();
             JSONObject d = json.optJSONObject("data");
@@ -954,6 +965,33 @@ public class CreateServer extends AppCompatActivity {
         sb.append(part);
     }
 
+    /**
+     * 截断第三方镜像简介：最多保留 {@link #DESC_MAX_CHARS} 个字符（含换行符），
+     * 且最多 {@link #DESC_MAX_LINES} 行（按 \n 分割）。未超限时原样返回。
+     */
+    private String truncateDescription(String desc) {
+        if (TextUtils.isEmpty(desc)) return "";
+        String[] lines = desc.replace("\r\n", "\n").split("\n", -1);
+        StringBuilder sb = new StringBuilder();
+        int chars = 0;   // 已占用字符数（含换行符）
+        int lineCount = 0;
+        for (String line : lines) {
+            if (lineCount >= DESC_MAX_LINES || chars >= DESC_MAX_CHARS) break;
+            if (lineCount > 0) {
+                sb.append('\n');
+                chars++;
+            }
+            int remain = DESC_MAX_CHARS - chars;
+            if (line.length() > remain) line = line.substring(0, remain);
+            sb.append(line);
+            chars += line.length();
+            lineCount++;
+        }
+        String result = sb.toString();
+        while (result.endsWith("\n")) result = result.substring(0, result.length() - 1);
+        return result;
+    }
+
     private String firstNonEmpty(String first, String second) {
         return !TextUtils.isEmpty(first) ? first : second;
     }
@@ -1077,6 +1115,10 @@ public class CreateServer extends AppCompatActivity {
     private static class ListItem {
         int id; String title; String subtitle; String imageUrl; boolean showImage; boolean selectable = true; boolean isGroup = false; int point = -1; boolean full = false; // full: 标记已满状态
         boolean markdown;
+        // 第三方镜像简介折叠：fullSubtitle 保存未截断的完整简介，collapsible 标记超限可展开，expanded 为当前展开状态
+        String fullSubtitle;
+        boolean collapsible;
+        boolean expanded;
         // Spec specific fields
         String grade; String specName; int cpu; int ram; int disk; int traffic;
 
@@ -1201,6 +1243,7 @@ public class CreateServer extends AppCompatActivity {
     private static class GenericViewHolder extends RecyclerView.ViewHolder {
         private final TextView title; private final TextView subtitle; private final View img; private final View container;
         private final TextView flagFull; private final TextView flagPoint; // 新增标签
+        private final TextView expandToggle; // 第三方镜像简介 展开/收起
         GenericViewHolder(View itemView){
             super(itemView);
             title=itemView.findViewById(R.id.item_title);
@@ -1209,6 +1252,7 @@ public class CreateServer extends AppCompatActivity {
             container=itemView;
             flagFull=itemView.findViewById(R.id.item_flag_full);
             flagPoint=itemView.findViewById(R.id.item_flag_point);
+            expandToggle=itemView.findViewById(R.id.item_expand_toggle);
             if (container instanceof MaterialCardView card) {
                 card.setCardBackgroundColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorSurfaceContainerLow));
                 card.setStrokeColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorOutlineVariant));
@@ -1237,6 +1281,27 @@ public class CreateServer extends AppCompatActivity {
                     MarkdownRenderer.clear(subtitle);
                     subtitle.setMovementMethod(null);
                     subtitle.setText(item.subtitle);
+                }
+            }
+            // 第三方镜像简介：超过限制时折叠，点击展开/收起
+            if (expandToggle != null) {
+                if (item.collapsible && item.fullSubtitle != null) {
+                    expandToggle.setVisibility(View.VISIBLE);
+                    expandToggle.setText(item.expanded ? "收起" : "展开");
+                    expandToggle.setOnClickListener(v -> {
+                        item.expanded = !item.expanded;
+                        String show = item.expanded ? item.fullSubtitle : item.subtitle;
+                        if (item.markdown) {
+                            MarkdownRenderer.renderAsync(subtitle, show);
+                        } else {
+                            MarkdownRenderer.clear(subtitle);
+                            subtitle.setText(show);
+                        }
+                        expandToggle.setText(item.expanded ? "收起" : "展开");
+                    });
+                } else {
+                    expandToggle.setVisibility(View.GONE);
+                    expandToggle.setOnClickListener(null);
                 }
             }
             if (item.showImage && img instanceof android.widget.ImageView){ img.setVisibility(View.VISIBLE); Glide.with(img.getContext()).load(item.imageUrl).into((android.widget.ImageView) img);} else { img.setVisibility(item.showImage?View.VISIBLE:View.GONE);}
@@ -1284,14 +1349,16 @@ public class CreateServer extends AppCompatActivity {
         List<ListItem> filtered = new ArrayList<>();
         String q = imageKindSearchQuery == null ? "" : imageKindSearchQuery.toLowerCase();
         for (ListItem li : fullImageKindList) {
-            if (TextUtils.isEmpty(q) || li.title.toLowerCase().contains(q) || (li.subtitle != null && li.subtitle.toLowerCase().contains(q))) {
+
+            String desc = li.fullSubtitle != null ? li.fullSubtitle : li.subtitle;
+            if (TextUtils.isEmpty(q) || li.title.toLowerCase().contains(q) || (desc != null && desc.toLowerCase().contains(q))) {
                 filtered.add(li);
             }
         }
         int total = filtered.size();
         List<ListItem> visibleItems = new ArrayList<>();
         if (total <= IMAGE_KIND_PAGE_SIZE) {
-            hsPagination.setVisibility(View.GONE);
+            setPaginationVisible(View.GONE);
             visibleItems.addAll(filtered);
         } else {
             int pages = (int) Math.ceil(total * 1.0 / IMAGE_KIND_PAGE_SIZE);
@@ -1304,33 +1371,44 @@ public class CreateServer extends AppCompatActivity {
         replaceData(visibleItems);
     }
 
+    private void setPaginationVisible(int visibility) {
+        hsPagination.setVisibility(visibility);
+        hsPaginationBottom.setVisibility(visibility);
+    }
+
     private void buildPaginationControls(int pages) {
         paginationContainer.removeAllViews();
-        hsPagination.setVisibility(pages > 1 ? View.VISIBLE : View.GONE);
+        paginationContainerBottom.removeAllViews();
+        setPaginationVisible(pages > 1 ? View.VISIBLE : View.GONE);
         if (pages <= 1) return;
 
         for (int i = 1; i <= pages; i++) {
             final int p = i;
-            TextView tv = new TextView(this);
-            tv.setText(String.valueOf(p));
-            tv.setTextSize(16);
-            tv.setPadding(dp(12), dp(8), dp(12), dp(8));
-            tv.setGravity(android.view.Gravity.CENTER);
-
-            if (p == imageKindCurrentPage) {
-                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
-                tv.setTypeface(null, android.graphics.Typeface.BOLD);
-                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorPrimaryContainer, 8));
-            } else {
-                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
-                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorSurfaceContainer, 8));
-                tv.setOnClickListener(v -> {
-                    imageKindCurrentPage = p;
-                    applyImageKindFiltersAndPagination();
-                });
-            }
-            paginationContainer.addView(tv);
+            paginationContainer.addView(buildPageTextView(p));
+            paginationContainerBottom.addView(buildPageTextView(p));
         }
+    }
+
+    private TextView buildPageTextView(int p) {
+        TextView tv = new TextView(this);
+        tv.setText(String.valueOf(p));
+        tv.setTextSize(16);
+        tv.setPadding(dp(12), dp(8), dp(12), dp(8));
+        tv.setGravity(android.view.Gravity.CENTER);
+
+        if (p == imageKindCurrentPage) {
+            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
+            tv.setTypeface(null, android.graphics.Typeface.BOLD);
+            tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorPrimaryContainer, 8));
+        } else {
+            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
+            tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorSurfaceContainer, 8));
+            tv.setOnClickListener(v -> {
+                imageKindCurrentPage = p;
+                applyImageKindFiltersAndPagination();
+            });
+        }
+        return tv;
     }
 
     private void refreshCurrentStep() {

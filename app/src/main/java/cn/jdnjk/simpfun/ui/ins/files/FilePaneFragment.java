@@ -112,6 +112,23 @@ public class FilePaneFragment extends Fragment implements
                     handleBackPressed(this);
                 }
             });
+            requireActivity().addMenuProvider(new androidx.core.view.MenuProvider() {
+                @Override
+                public void onCreateMenu(@NonNull android.view.Menu menu, @NonNull android.view.MenuInflater inflater) {
+                    android.view.MenuItem item = menu.add(android.view.Menu.NONE,
+                            R.id.action_file_search, 0, "搜索");
+                    item.setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER);
+                }
+
+                @Override
+                public boolean onMenuItemSelected(@NonNull android.view.MenuItem item) {
+                    if (item.getItemId() == R.id.action_file_search) {
+                        openSearchDialog();
+                        return true;
+                    }
+                    return false;
+                }
+            }, this, androidx.lifecycle.Lifecycle.State.RESUMED);
         }
     }
 
@@ -496,6 +513,25 @@ public class FilePaneFragment extends Fragment implements
 
     void showEditPathDialogForHost() {
         showEditPathDialog();
+    }
+
+    void navigateToPathForHost(String path) {
+        navigateToPath(path);
+    }
+
+    private void openSearchDialog() {
+        Context context = getContext();
+        if (context == null) {
+            return;
+        }
+        int deviceId = getDeviceId(context);
+        FileSearchDialog.show(context, new FileSearchDialog.Target() {
+            @Override public boolean isLocal() { return false; }
+            @Override public String currentPath() { return state.getCurrentPath(); }
+            @Override public int deviceId() { return deviceId; }
+            @Override public boolean useSftpBackend() { return false; }
+            @Override public void navigateTo(String path) { navigateToPath(path); }
+        });
     }
 
     private void handleBackPressed(OnBackPressedCallback callback) {

@@ -12,6 +12,9 @@ public final class McpConstants {
     public static final String PROTOCOL_VERSION_FALLBACK = "2025-03-26";
 
     public static final String ENDPOINT_PATH = "/mcp";
+    public static final String STREAM_PATH = "/mcp/stream";
+    public static final String SSE_PATH = "/mcp/sse";
+    public static final String SSE_SESSION_QUERY = "session_id";
     public static final int DEFAULT_PORT = 8090;
 
     public static final String HEADER_SESSION = "Mcp-Session-Id";

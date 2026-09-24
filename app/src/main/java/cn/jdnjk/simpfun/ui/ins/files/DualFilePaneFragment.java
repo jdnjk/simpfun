@@ -289,6 +289,8 @@ public class DualFilePaneFragment extends Fragment {
                 serverItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
                 MenuItem fixItem = menu.add(Menu.NONE, R.id.action_file_toolbox_fix, 2, R.string.file_action_toolbox_fix);
                 fixItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+                MenuItem searchItem = menu.add(Menu.NONE, R.id.action_file_search, 3, "搜索");
+                searchItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
             }
 
             @Override
@@ -306,9 +308,48 @@ public class DualFilePaneFragment extends Fragment {
                     handleToolbarAction("fix");
                     return true;
                 }
+                if (itemId == R.id.action_file_search) {
+                    showActivePaneSearch();
+                    return true;
+                }
                 return false;
             }
         }, getViewLifecycleOwner(), Lifecycle.State.RESUMED);
+    }
+
+    /**
+     * 打开文件搜索对话框，范围为当前选中的那侧面板。
+     */
+    private void showActivePaneSearch() {
+        Fragment fragment = getActiveFragment();
+        PaneSlot slot = getActiveSlot();
+        if (slot == null || fragment == null || !isAdded()) {
+            return;
+        }
+        if (fragment instanceof LocalFilePaneFragment localFilePaneFragment) {
+            FileSearchDialog.show(requireContext(), new FileSearchDialog.Target() {
+                @Override public boolean isLocal() { return true; }
+                @Override public String currentPath() { return localFilePaneFragment.getCurrentPathForHost(); }
+                @Override public int deviceId() { return -1; }
+                @Override public boolean useSftpBackend() { return false; }
+                @Override public void navigateTo(String path) {
+                    activatePane(slot.side);
+                    localFilePaneFragment.navigateToPathForHost(path);
+                }
+            });
+        } else if (fragment instanceof FilePaneFragment filePaneFragment) {
+            int deviceId = getActivity() instanceof ServerManages activity ? activity.getDeviceId() : -1;
+            FileSearchDialog.show(requireContext(), new FileSearchDialog.Target() {
+                @Override public boolean isLocal() { return false; }
+                @Override public String currentPath() { return filePaneFragment.getCurrentPathForHost(); }
+                @Override public int deviceId() { return deviceId; }
+                @Override public boolean useSftpBackend() { return true; }
+                @Override public void navigateTo(String path) {
+                    activatePane(slot.side);
+                    filePaneFragment.navigateToPathForHost(path);
+                }
+            });
+        }
     }
 
     private void switchActivePaneTo(PaneKind kind) {

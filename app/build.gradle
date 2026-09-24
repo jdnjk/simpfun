@@ -146,7 +146,7 @@ dependencies {
     api 'com.alipay.sdk:alipaysdk-android:15.8.42'
 
     implementation("com.tencent.shiply:upgrade:2.2.0")
-    implementation("com.tencent.shiply:upgrade-diff-pkg-patch:2.2.0") // 差量APK下载与合成
+    implementation("com.tencent.shiply:upgrade-diff-pkg-patch:2.2.0")
 
     implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'com.google.android.material:material:1.14.0'
