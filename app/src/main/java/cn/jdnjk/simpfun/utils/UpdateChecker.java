@@ -180,32 +180,18 @@ public final class UpdateChecker {
      * 通过腾讯云 Shiply SDK 检查更新。
      * 用 CountDownLatch 将异步回调桥接为同步返回，超时 10s 视为失败。
      *
-     * @param userManual true：强制发起网络请求（文档方式一，忽略限频）；
+     * @param userManual true：手动点击「检测升级」，强制发起网络请求并忽略免打扰期；
      *                   false：首启自动检查场景，SDK 优先返回缓存策略（缓存时长默认1天）
      */
     private static UpdateInfo checkShiply(boolean userManual) {
         CountDownLatch latch = new CountDownLatch(1);
         UpdateInfo[] result = {null};
 
-        UpgradeManager.getInstance().checkUpgrade(userManual, null, new UpgradeStrategyRequestCallback() {
+        UpgradeStrategyRequestCallback callback = new UpgradeStrategyRequestCallback() {
             @Override
             public void onReceiveStrategy(UpgradeStrategy strategy) {
                 try {
-                    if (strategy == null) return;
-                    ApkBasicInfo apk = strategy.getApkBasicInfo();
-                    if (apk == null) return;
-                    int versionCode = apk.getVersionCode();
-                    String versionName = apk.getVersionName();
-                    String downloadUrl = apk.getDownloadUrl();
-                    if (versionCode == 0 || TextUtils.isEmpty(downloadUrl)) return;
-
-                    String updateDesc = "";
-                    if (strategy.getClientInfo() != null) {
-                        updateDesc = strategy.getClientInfo().getDescription();
-                        if (updateDesc == null) updateDesc = "";
-                    }
-
-                    result[0] = new UpdateInfo(versionCode, versionName, downloadUrl, updateDesc, "");
+                    result[0] = strategyToUpdateInfo(strategy);
                 } finally {
                     latch.countDown();
                 }
@@ -222,7 +208,18 @@ public final class UpdateChecker {
                 Log.i(TAG, "Shiply SDK 检查结果：无更新策略");
                 latch.countDown();
             }
-        });
+        };
+
+        if (userManual) {
+            // 五参重载：forceRequestRemoteStrategy / requestRemoteWhenCacheIsInvalid / ignoreNoDisturbPeriod
+            // 手动检查必须 ignoreNoDisturbPeriod = true：收到新策略后 SDK 会进入
+            // undisturbedDuration（后台配置，当前 3 天）免打扰期，期间两参重载
+            // checkUpgrade(true, null, cb) 会被 NoDisturbHelper 直接短路成
+            // onReceivedNoStrategy，导致用户手动检查更新误报失败。
+            UpgradeManager.getInstance().checkUpgrade(true, true, true, null, callback);
+        } else {
+            UpgradeManager.getInstance().checkUpgrade(false, null, callback);
+        }
 
         try {
             latch.await(10, TimeUnit.SECONDS);
@@ -230,7 +227,34 @@ public final class UpdateChecker {
             Thread.currentThread().interrupt();
             Log.w(TAG, "Shiply 检查被中断");
         }
+
+        // 兜底：手动检查若仍未拿到策略（如被免打扰/限频短路），
+        // 直接读 SDK 本地缓存的策略再判断一次
+        if (result[0] == null && userManual) {
+            UpdateInfo cached = strategyToUpdateInfo(UpgradeManager.getInstance().getCachedStrategy());
+            if (cached != null) {
+                Log.i(TAG, "Shiply 网络检查未返回策略，使用本地缓存策略兜底");
+                return cached;
+            }
+        }
         return result[0];
+    }
+
+    /** 将 Shiply 策略转换为应用内 UpdateInfo，字段无效时返回 null。 */
+    private static UpdateInfo strategyToUpdateInfo(UpgradeStrategy strategy) {
+        if (strategy == null) return null;
+        ApkBasicInfo apk = strategy.getApkBasicInfo();
+        if (apk == null) return null;
+        int versionCode = apk.getVersionCode();
+        String downloadUrl = apk.getDownloadUrl();
+        if (versionCode == 0 || TextUtils.isEmpty(downloadUrl)) return null;
+
+        String updateDesc = "";
+        if (strategy.getClientInfo() != null) {
+            updateDesc = strategy.getClientInfo().getDescription();
+            if (updateDesc == null) updateDesc = "";
+        }
+        return new UpdateInfo(versionCode, apk.getVersionName(), downloadUrl, updateDesc, "");
     }
 
     /**

@@ -1,7 +1,5 @@
 package cn.jdnjk.simpfun.ui.setting;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -178,12 +176,8 @@ public class ServicesToolsFragment extends Fragment {
         // 仅在 MCP 服务成功运行时显示；点按复制完整地址
         cardMcpUrl.setOnClickListener(v -> {
             String url = tvMcpUrl.getText().toString();
-            ClipboardManager cm = (ClipboardManager)
-                    requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
-            if (cm != null) {
-                cm.setPrimaryClip(ClipData.newPlainText("MCP URL", url));
-                Toast.makeText(requireContext(), "已复制服务地址", Toast.LENGTH_SHORT).show();
-            }
+            cn.jdnjk.simpfun.utils.ClipboardUtils.copyPlainText(requireContext(),
+                    "MCP URL", url, "已复制服务地址");
         });
     }
 

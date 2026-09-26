@@ -68,12 +68,23 @@ public final class ClipboardUtils {
 
         try {
             clipboard.setPrimaryClip(clip);
+            // 写后读回校验：部分国产 ROM（MIUI/澎湃、ColorOS、HarmonyOS 等）会静默拦截写入，
+            // 应用前台时读自己刚写入的剪贴板不受 Android 10 后台限制，可用来确认真正写成功
+            CharSequence written = null;
+            if (clipboard.hasPrimaryClip() && clipboard.getPrimaryClip() != null
+                    && clipboard.getPrimaryClip().getItemCount() > 0) {
+                written = clipboard.getPrimaryClip().getItemAt(0).getText();
+            }
+            if (written == null || written.length() == 0) {
+                Toast.makeText(context, "复制失败：请在系统设置中允许本应用使用剪贴板", Toast.LENGTH_LONG).show();
+                return false;
+            }
             if (successToast != null && !successToast.isEmpty()) {
                 Toast.makeText(context, successToast, Toast.LENGTH_SHORT).show();
             }
             return true;
         } catch (RuntimeException e) {
-            Toast.makeText(context, "复制失败", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "复制失败：请在系统设置中允许本应用使用剪贴板", Toast.LENGTH_LONG).show();
             return false;
         }
     }

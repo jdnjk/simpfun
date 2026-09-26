@@ -17,7 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 
+import cn.jdnjk.simpfun.BuildConfig;
 import cn.jdnjk.simpfun.api.ApiClient;
 import cn.jdnjk.simpfun.api.ins.TermApi;
 import okhttp3.OkHttpClient;
@@ -29,6 +31,11 @@ import okhttp3.WebSocketListener;
 public class TerminalWebSocketManager {
     private static final String TAG = "TermWSManager";
     private static final String CLEAR_SCREEN_SEQUENCE = "[H[2J[3J";
+
+    // 预编译的 ANSI 清理正则（原先每行调用 String.replaceAll 都会重新编译 Pattern）
+    private static final Pattern P_CURSOR_KEYS = Pattern.compile("\\x1B\\[\\?1[hl]\\x1B[=>]");
+    private static final Pattern P_BRACKETED_PASTE = Pattern.compile("\\x1B\\[\\?2004[hl]");
+    private static final Pattern P_CLEAR_LINE = Pattern.compile("\\x1B\\[[0-9;?]*[JK]");
     private static TerminalWebSocketManager instance;
 
     private WebSocket webSocket;
@@ -167,7 +174,7 @@ public class TerminalWebSocketManager {
                 if (!isCurrentConnection(deviceId, generation)) {
                     return;
                 }
-                Log.d(TAG, "WS Incoming: " + text);
+                debugLog("WS Incoming: " + text);
                 processMessage(text);
             }
 
@@ -212,7 +219,7 @@ public class TerminalWebSocketManager {
         try {
             JSONObject msg = new JSONObject(text);
             String event = msg.optString("event");
-            //Log.d(TAG, "WS Event: " + event + " | payload=" + text);
+            //debugLog("WS Event: " + event + " | payload=" + text);
 
             switch (event) {
                 case "auth success" -> {
@@ -226,7 +233,7 @@ public class TerminalWebSocketManager {
                     for (int i = 0; i < args.length(); i++) {
                         String rawLine = args.getString(i);
                         if (containsClearScreenSequence(rawLine)) {
-                            Log.d(TAG, "WS Console: clear screen sequence detected");
+                            debugLog("WS Console: clear screen sequence detected");
                             clearBuffer();
                             mainHandler.post(this::notifyConsoleCleared);
                         }
@@ -235,7 +242,7 @@ public class TerminalWebSocketManager {
                         if (line.isEmpty()) {
                             continue;
                         }
-                        Log.d(TAG, "WS Console: " + line);
+                        debugLog("WS Console: " + line);
                         addToBuffer(line);
                         mainHandler.post(() -> notifyLogReceived(line));
                     }
@@ -264,7 +271,7 @@ public class TerminalWebSocketManager {
     }
 
     private String sanitizeLog(String line) {
-        return line.replace("[33m[1m[Pterodactyl Daemon]:[39m Checking server disk space usage, this could take a few seconds...[0m",
+        String result = line.replace("[33m[1m[Pterodactyl Daemon]:[39m Checking server disk space usage, this could take a few seconds...[0m",
                         "[33m[1m[简幻欢]:[39m 正在检查磁盘占用情况，请稍等...[0m")
                 .replace("[33m[1m[Pterodactyl Daemon]:[39m Updating process configuration files...[0m",
                         "[33m[1m[简幻欢]:[39m 已自动更新服务器端口等信息！[0m")
@@ -276,9 +283,11 @@ public class TerminalWebSocketManager {
                         "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 服务器输出控制台数据过快 -- 限流中...\u001B[0m")
                 .replace("\u001B[33m\u001B[1m[Pterodactyl Daemon]:\u001B[39m Aborting automatic restart, crash detection is disabled for this instance.\u001B[0m",
                         "\u001B[33m\u001B[1m[简幻欢]:\u001B[39m 服务器已停止运行，请检查启动脚本和服务端配置文件\u001B[0m")
-                .replaceAll("\\[\\?1[hl][=>]", "")
-                .replaceAll("\\[\\?2004[hl]", "")
-                .replaceAll("\\[[0-9;?]*[JK]", "");
+                ;
+        result = P_CURSOR_KEYS.matcher(result).replaceAll("");
+        result = P_BRACKETED_PASTE.matcher(result).replaceAll("");
+        result = P_CLEAR_LINE.matcher(result).replaceAll("");
+        return result;
     }
 
     private boolean containsClearScreenSequence(String line) {
@@ -320,7 +329,7 @@ public class TerminalWebSocketManager {
     public boolean sendCommand(int deviceId, String command) {
         if (deviceId != currentDeviceId || command == null || command.trim().isEmpty() || webSocket == null || !isSocketOpen) return false;
         try {
-            Log.d(TAG, "WS Outgoing command for device " + deviceId + ": " + command);
+            debugLog("WS Outgoing command for device " + deviceId + ": " + command);
             JSONObject cmdMsg = new JSONObject();
             cmdMsg.put("event", "send command");
             JSONArray args = new JSONArray();
@@ -341,7 +350,7 @@ public class TerminalWebSocketManager {
             JSONArray args = new JSONArray();
             args.put(requestToken);
             authMsg.put("args", args);
-            Log.d(TAG, "WS Outgoing auth: " + authMsg);
+            debugLog("WS Outgoing auth: " + authMsg);
             webSocket.send(authMsg.toString());
         } catch (Exception ignored) {}
     }
@@ -352,7 +361,7 @@ public class TerminalWebSocketManager {
             JSONObject logMsg = new JSONObject();
             logMsg.put("event", "send logs");
             logMsg.put("args", new JSONArray());
-            Log.d(TAG, "WS Outgoing logs request: " + logMsg);
+            debugLog("WS Outgoing logs request: " + logMsg);
             webSocket.send(logMsg.toString());
         } catch (Exception ignored) {}
     }
@@ -426,6 +435,15 @@ public class TerminalWebSocketManager {
     private boolean isListenerForCurrentDevice(TerminalWebSocketListener listener) {
         Integer deviceId = listenerDeviceIds.get(listener);
         return deviceId != null && deviceId == currentDeviceId;
+    }
+
+    /**
+     * 仅在 debug 构建输出日志，release 下静默。
+     */
+    private static void debugLog(String msg) {
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, msg);
+        }
     }
 
     public boolean isConnected() {

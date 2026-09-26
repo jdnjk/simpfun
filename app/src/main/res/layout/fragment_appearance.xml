@@ -78,6 +78,33 @@
             android:valueTo="24.0" />
 
         <TextView
+            android:id="@+id/tv_line_limit_header"
+            style="@style/TextAppearance.Simpfun.SectionHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="4dp"
+            android:text="终端日志行数 · 5000 行" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/dropdown_line_limit"
+            style="@style/Widget.Simpfun.TextInputLayout.Dropdown"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="终端日志行数（100 - 50000）"
+            app:startIconDrawable="@drawable/ic_terminal">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/actv_line_limit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="5000" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
             style="@style/TextAppearance.Simpfun.SectionHeader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

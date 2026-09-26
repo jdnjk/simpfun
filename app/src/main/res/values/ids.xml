@@ -4,6 +4,7 @@
     <item type="id" name="tv_left_placeholder" />
     <item type="id" name="action_terminal_ai" />
     <item type="id" name="action_terminal_copy_output" />
+    <item type="id" name="action_terminal_select_text" />
     <item type="id" name="action_file_local_pane" />
     <item type="id" name="action_file_server_pane" />
     <item type="id" name="action_file_toolbox_fix" />

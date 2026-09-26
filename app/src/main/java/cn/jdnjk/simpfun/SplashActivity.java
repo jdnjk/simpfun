@@ -217,7 +217,7 @@ public class SplashActivity extends AppCompatActivity {
                 .systemVersion(String.valueOf(Build.VERSION.SDK_INT))
                 .customParams(map) // 自定义属性键值对，用于匹配shiply前端创建任务时设置的自定义下发条件
                 .internalInitMMKVForRDelivery(true)
-                .userId(username + "/" + uid)
+                .userId(username + "_" + uid)
                 // 差量APK处理器，负责差量包下载与合成（在走SDK下载链路时生效）
                 .diffPkgHandler(new DiffPkgHandler())
                 // 差量基准包基于原始APK文件生成（本项目无渠道包，不支持渠道包差量也够用）

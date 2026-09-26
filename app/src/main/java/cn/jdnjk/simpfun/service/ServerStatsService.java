@@ -55,6 +55,10 @@ public class ServerStatsService {
         appContext = context.getApplicationContext();
         Session existing = sessions.get(deviceId);
         if (existing != null) {
+            // 从 0 恢复订阅视为重新发起，解除积分不足导致的重连封锁
+            if (existing.subscriberCount == 0) {
+                existing.insufficientCreditsBlocked = false;
+            }
             existing.subscriberCount++;
             return;
         }
@@ -101,6 +105,11 @@ public class ServerStatsService {
             public void onFailure(String errorMsg) {
                 session.connecting = false;
                 notifyDisconnected(session.deviceId, errorMsg);
+                // 积分不足（code 402）时连接不可能成功，停止自动重连
+                if (TermApi.isInsufficientCreditsError(errorMsg)) {
+                    session.insufficientCreditsBlocked = true;
+                    return;
+                }
                 scheduleReconnect(session);
             }
         });
@@ -242,7 +251,7 @@ public class ServerStatsService {
     }
 
     private void scheduleReconnect(Session session) {
-        if (session.subscriberCount <= 0 || session.connecting) return;
+        if (session.subscriberCount <= 0 || session.connecting || session.insufficientCreditsBlocked) return;
         mainHandler.postDelayed(() -> {
             Session current = sessions.get(session.deviceId);
             if (current != null && current.subscriberCount > 0 && current.webSocket == null) {
@@ -285,6 +294,8 @@ public class ServerStatsService {
         int subscriberCount;
         boolean connecting;
         boolean manualClose;
+        // 账号积分不足（code 402）时置位，阻止该服务器的自动重连
+        boolean insufficientCreditsBlocked;
         long lastStatsAt;
         long lastRxBytes;
         long lastTxBytes;

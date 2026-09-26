@@ -22,6 +22,14 @@ public class TermApi {
 
     private static final String SP_NAME = "token";
     private static final String TOKEN_KEY = "token";
+
+    /**
+     * 判断错误信息是否为「账号积分不足，无法开启服务器」（接口返回 code 402）。
+     * 该情况下连接不可能成功，调用方不应自动重连。
+     */
+    public static boolean isInsufficientCreditsError(String errorMsg) {
+        return errorMsg != null && errorMsg.contains("积分不足");
+    }
     public interface Callback {
         void onSuccess(JSONObject data);
         void onFailure(String errorMsg);

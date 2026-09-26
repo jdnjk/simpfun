@@ -36,7 +36,7 @@ import cn.jdnjk.simpfun.utils.UpdateChecker;
  * 通知栏，并带一个「取消」按钮可中止下载并清理未完成的 .apk。
  *
  * <p>两个入口（进 App 自动检查、设置页手动检查）最终都汇到
- * {@link UpdateChecker#downloadAndInstall}，由它启动本服务。
+ * {@link UpdateChecker} 的私有下载逻辑 downloadAndInstall，由它启动本服务。
  */
 public class UpdateDownloadService extends Service {
 
@@ -247,6 +247,9 @@ public class UpdateDownloadService extends Service {
     // ---------- 通知 ----------
 
     private Notification buildNotification(String title, int progress, @Nullable String contentText) {
+        // startForeground 的通知若指向不存在的渠道，Android 14+ 会直接抛
+        // CannotPostForegroundServiceNotificationException 致命崩溃，必须先确保渠道存在。
+        TaskQueueNotificationHelper.ensureChannel(this);
         String content = contentText != null ? contentText : (progress > 0 ? progress + "%" : "正在连接…");
 
         Intent cancelIntent = new Intent(this, UpdateDownloadService.class);
@@ -292,6 +295,7 @@ public class UpdateDownloadService extends Service {
     }
 
     private void notifyFailed(String message) {
+        TaskQueueNotificationHelper.ensureChannel(this);
         Intent intent = new Intent(this, SettingsActivity.class);
         PendingIntent contentPending = PendingIntent.getActivity(this, 0, intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);

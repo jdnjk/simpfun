@@ -71,6 +71,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           BUGLY_ID: ${{ secrets.BUGLY_ID }}
+          SHIPLY_ID: ${{ secrets.SHIPLY_ID }}
+          SHIPLY_KEY: ${{ secrets.SHIPLY_KEY }}
           MST_ID: ${{ secrets.MST_ID }}
 
       - name: Locate and rename APK
@@ -123,10 +125,69 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${GITHUB_REF_NAME}" "${{ steps.apk.outputs.apk_path }}" --clobber
 
-      - name: Upload ProGuard mapping as artifact
+      - name: Set up JDK 8 for Bugly tool
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
 
+      - name: Upload mapping to Bugly
+        env:
+          BUGLY_APP_ID: ${{ secrets.BUGLY_ID }}
+          BUGLY_APP_KEY: ${{ secrets.BUGLY_APPKEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BUGLY_APP_ID}" ] || [ -z "${BUGLY_APP_KEY}" ]; then
+            echo "::error::Secrets BUGLY_ID / BUGLY_APPKEY not configured. Add them in repo Settings → Secrets."
+            exit 1
+          fi
+          MAPPING_FILE="app/build/outputs/mapping/release/mapping.txt"
+          if [ ! -f "${MAPPING_FILE}" ]; then
+            echo "::error::Mapping file not found: ${MAPPING_FILE}"
+            exit 1
+          fi
+          BUNDLEID="$(grep -oP 'applicationId\s+"\K[^"]+' app/build.gradle | head -1)"
+          echo "bundleid=${BUNDLEID}"
+          BUGLY_VERSION="${{ steps.version.outputs.version_name }}.${{ steps.version.outputs.version_code }}"
+          echo "bugly version=${BUGLY_VERSION}"
+          java -jar .github/buglyqq-upload-symbol.jar \
+            -appid "${BUGLY_APP_ID}" \
+            -appkey "${BUGLY_APP_KEY}" \
+            -bundleid "${BUNDLEID}" \
+            -version "${BUGLY_VERSION}" \
+            -platform Android \
+            -inputMapping "${MAPPING_FILE}"
+
+      - name: Collect ProGuard artifacts (mapping.txt, R.txt, etc.)
+        id: proguard
+        run: |
+          set -euo pipefail
+          DIR="proguard-artifacts-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}"
+          mkdir -p "${DIR}"
+
+          # mapping 目录下所有产物: mapping.txt / usage.txt / seeds.txt / configuration.txt / resources.txt
+          MAPPING_DIR="app/build/outputs/mapping/release"
+          if [ -d "${MAPPING_DIR}" ]; then
+            find "${MAPPING_DIR}" -maxdepth 1 -name '*.txt' -exec cp -v {} "${DIR}/" \;
+          else
+            echo "::warning::Mapping dir not found: ${MAPPING_DIR} (is minifyEnabled false?)"
+          fi
+
+          # R.txt (运行时符号表)
+          R_TXT="$(find app/build/intermediates/runtime_symbol_list -path '*release*' -name R.txt 2>/dev/null | head -1 || true)"
+          if [ -n "${R_TXT}" ]; then
+            cp -v "${R_TXT}" "${DIR}/R.txt"
+          else
+            echo "::warning::R.txt not found under app/build/intermediates/runtime_symbol_list"
+          fi
+
+          echo "--- collected files ---"
+          ls -la "${DIR}"
+          echo "dir=${DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload ProGuard artifacts
         uses: actions/upload-artifact@v4
         with:
           name: proguard-mapping-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}
-          path: app/build/outputs/mapping/release/mapping.txt
+          path: ${{ steps.proguard.outputs.dir }}/
           if-no-files-found: warn

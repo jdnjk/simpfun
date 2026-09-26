@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -35,8 +36,10 @@ public class AppearanceTerminalFragment extends Fragment {
     private ServerCardStyleManager serverCardStyleManager;
     private OverviewDisplayManager overviewDisplayManager;
     private TerminalFontSizeManager terminalFontSizeManager;
+    private TerminalLineLimitManager terminalLineLimitManager;
 
     private TextView tvFontSizeHeader;
+    private TextView tvLineLimitHeader;
     private MaterialCardView optionCpuLimit;
     private MaterialSwitch switchCpuLimit;
 
@@ -48,6 +51,7 @@ public class AppearanceTerminalFragment extends Fragment {
         serverCardStyleManager = new ServerCardStyleManager(requireContext());
         overviewDisplayManager = new OverviewDisplayManager(requireContext());
         terminalFontSizeManager = TerminalFontSizeManager.getInstance(requireContext());
+        terminalLineLimitManager = TerminalLineLimitManager.getInstance(requireContext());
     }
 
     @Nullable
@@ -59,6 +63,7 @@ public class AppearanceTerminalFragment extends Fragment {
         setupThemeDropdown(root);
         setupTerminalColorDropdown(root);
         setupFontSizeSlider(root);
+        setupLineLimitDropdown(root);
         setupOverviewToggles(root);
 
         if (getActivity() instanceof SettingsActivity activity) {
@@ -122,6 +127,72 @@ public class AppearanceTerminalFragment extends Fragment {
         if (tvFontSizeHeader != null) {
             tvFontSizeHeader.setText(String.format(Locale.getDefault(),
                     "终端字体大小 · %.0fsp", value));
+        }
+    }
+
+    private void setupLineLimitDropdown(View root) {
+        tvLineLimitHeader = root.findViewById(R.id.tv_line_limit_header);
+        MaterialAutoCompleteTextView actv = root.findViewById(R.id.actv_line_limit);
+        // 快捷档位作为下拉建议；用户也可直接输入任意值
+        String[] labels = new String[TerminalLineLimitManager.OPTIONS.length];
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = String.valueOf(TerminalLineLimitManager.OPTIONS[i]);
+        }
+        actv.setSimpleItems(labels);
+
+        int current = terminalLineLimitManager.getLineLimit();
+        actv.setText(String.valueOf(current), false);
+        updateLineLimitHeader(current);
+
+        actv.setOnItemClickListener((parent, view, position, id) -> {
+            int value = TerminalLineLimitManager.OPTIONS[position];
+            terminalLineLimitManager.setLineLimit(value);
+            updateLineLimitHeader(value);
+        });
+
+        // 自定义输入：回车确认或失焦时保存，越界自动收敛到允许范围
+        actv.setOnEditorActionListener((v, actionId, event) -> {
+            applyLineLimitInput(actv, actv.getText().toString());
+            return false;
+        });
+        actv.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                applyLineLimitInput(actv, actv.getText().toString());
+            }
+        });
+    }
+
+    private void applyLineLimitInput(MaterialAutoCompleteTextView actv, String input) {
+        String cleaned = input.replace("行", "").trim();
+        int value;
+        try {
+            value = Integer.parseInt(cleaned);
+        } catch (NumberFormatException e) {
+            restoreLineLimit(actv);
+            Toast.makeText(requireContext(), "请输入有效数字（100 - "
+                    + TerminalLineLimitManager.MAX_LINE_LIMIT + "）", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        int clamped = TerminalLineLimitManager.clamp(value);
+        terminalLineLimitManager.setLineLimit(clamped);
+        actv.setText(String.valueOf(clamped), false);
+        updateLineLimitHeader(clamped);
+        if (clamped != value) {
+            Toast.makeText(requireContext(), "行数已调整到允许范围（100 - "
+                    + TerminalLineLimitManager.MAX_LINE_LIMIT + "）", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void restoreLineLimit(MaterialAutoCompleteTextView actv) {
+        int current = terminalLineLimitManager.getLineLimit();
+        actv.setText(String.valueOf(current), false);
+        updateLineLimitHeader(current);
+    }
+
+    private void updateLineLimitHeader(int value) {
+        if (tvLineLimitHeader != null) {
+            tvLineLimitHeader.setText(String.format(Locale.getDefault(),
+                    "终端日志行数 · %d 行", value));
         }
     }
 

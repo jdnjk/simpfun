@@ -5,21 +5,92 @@
               android:layout_height="match_parent"
               android:orientation="vertical">
 
-    <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_view_output"
+    <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:background="?attr/colorSurface"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:scrollbars="vertical"
-            android:fadeScrollbars="false"
-            app:fastScrollEnabled="true"
-            app:fastScrollVerticalThumbDrawable="@drawable/fastscroll_thumb"
-            app:fastScrollVerticalTrackDrawable="@drawable/fastscroll_track"
-            app:fastScrollHorizontalThumbDrawable="@drawable/fastscroll_thumb"
-            app:fastScrollHorizontalTrackDrawable="@drawable/fastscroll_track"/>
+            android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recycler_view_output"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?attr/colorSurface"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:clipToPadding="false"/>
+
+        <cn.jdnjk.simpfun.ui.ins.term.TerminalFastScrollView
+                android:id="@+id/fast_scroll_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+
+        <LinearLayout
+                android:id="@+id/select_overlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?attr/colorSurface"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+            <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="8dp">
+
+                <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="选择模式：长按拖选文本即可跨行复制"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="13sp"/>
+
+                <Button
+                        android:id="@+id/select_copy_button"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="复制所选"/>
+
+                <Button
+                        android:id="@+id/select_done_button"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="完成"/>
+            </LinearLayout>
+
+            <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+
+                <cn.jdnjk.simpfun.ui.ins.term.ScrollStateScrollView
+                        android:id="@+id/select_scroll"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fillViewport="true">
+
+                    <com.fox2code.androidansi.AnsiTextView
+                            android:id="@+id/select_text_view"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="monospace"
+                            android:padding="12dp"
+                            android:textIsSelectable="true"
+                            android:typeface="monospace"/>
+                </cn.jdnjk.simpfun.ui.ins.term.ScrollStateScrollView>
+
+                <cn.jdnjk.simpfun.ui.ins.term.TerminalFastScrollView
+                        android:id="@+id/fast_scroll_select"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"/>
+            </FrameLayout>
+        </LinearLayout>
+    </FrameLayout>
 
     <LinearLayout
             android:layout_width="match_parent"
