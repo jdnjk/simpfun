@@ -89,6 +89,8 @@ public class ProfileFragment extends Fragment {
         ivThemeMode = root.findViewById(R.id.iv_theme_mode);
 
         root.findViewById(R.id.iv_theme_mode).setOnClickListener(v -> cycleThemeMode());
+        root.findViewById(R.id.iv_announcements).setOnClickListener(v ->
+                startActivity(new Intent(context, AnnouncementListActivity.class)));
         root.findViewById(R.id.iv_settings).setOnClickListener(v ->
                 startActivity(new Intent(context, SettingsActivity.class)));
 

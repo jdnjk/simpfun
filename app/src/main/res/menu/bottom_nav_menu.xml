@@ -5,6 +5,10 @@
             android:icon="@drawable/ic_server"
             android:title="服务器" />
     <item
+            android:id="@+id/navigation_dev"
+            android:icon="@drawable/ic_code"
+            android:title="开发者" />
+    <item
             android:id="@+id/navigation_invite"
             android:icon="@drawable/ic_invite_icon"
             android:title="邀请" />

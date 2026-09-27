@@ -1,9 +1,13 @@
 package cn.jdnjk.simpfun.ui.ins.manage;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.transition.TransitionManager;
 import android.view.LayoutInflater;
@@ -386,7 +390,7 @@ public class ManageFragment extends Fragment {
 
         long remainBytes = traffic != null ? traffic.optLong("remain_bytes", -1) : -1;
         int dailyPlanGb = traffic != null ? traffic.optInt("plan", 0) : 0;
-        tvTrafficRemain.setText("上行流量: 剩余 " + formatBytes(remainBytes) + " / 每日免费 " + dailyPlanGb + "GB");
+        tvTrafficRemain.setText("上行流量: 剩余 " + formatTrafficRemain(remainBytes) + " / 每日免费 " + dailyPlanGb + "GB");
 
         String gameName = gameInfo != null ? gameInfo.optString("game_name") : "-";
         String kind = gameInfo != null ? gameInfo.optString("kind_name") : "-";
@@ -565,7 +569,7 @@ public class ManageFragment extends Fragment {
             openTrafficRecharge();
         });
 
-        btnSwitchLine.setOnClickListener(v -> switchTrafficLine());
+        btnSwitchLine.setOnClickListener(v -> showSwitchLineDialog());
         btnToggleAutoSupply.setOnClickListener(v -> toggleAutoSupply());
         btnSetResetCd.setOnClickListener(v -> showSetResetCdDialog());
 
@@ -681,7 +685,88 @@ public class ManageFragment extends Fragment {
         return minutes + "分钟";
     }
 
-    private void switchTrafficLine() {
+    private void showSwitchLineDialog() {
+        if (cachedDetail == null || !isAdded() || getContext() == null) return;
+        JSONObject traffic = cachedDetail.optJSONObject("traffic");
+        boolean moreTraffic = traffic != null && traffic.optBoolean("more_traffic", false);
+        String currentLine = moreTraffic ? "普通线路" : "精品线路";
+        String targetLine = moreTraffic ? "精品线路" : "普通线路";
+
+        View view = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_switch_line, null, false);
+        TextView tvTip = view.findViewById(R.id.tv_switch_line_tip);
+        TextView tvColCurrent = view.findViewById(R.id.tv_col_current);
+        TextView tvColTarget = view.findViewById(R.id.tv_col_target);
+        TextView tvCurrentLineName = view.findViewById(R.id.tv_current_line_name);
+        TextView tvTargetLineName = view.findViewById(R.id.tv_target_line_name);
+        MaterialButton btnCancel = view.findViewById(R.id.btn_cancel_switch_line);
+        MaterialButton btnConfirm = view.findViewById(R.id.btn_confirm_switch_line);
+
+        tvTip.setText(String.format("您即将切换到 %s。", targetLine));
+        tvColCurrent.setText("当前" + currentLine);
+        tvColTarget.setText("目标" + targetLine);
+        tvCurrentLineName.setText(moreTraffic ? "普防单线为主，BGP辅助" : "三线高防BGP");
+        tvTargetLineName.setText(moreTraffic ? "三线高防BGP" : "普防单线为主，BGP辅助");
+
+        TextView tvTargetRemain = view.findViewById(R.id.tv_target_remain_traffic);
+        long remainBytes = traffic != null ? traffic.optLong("remain_bytes", -1) : -1;
+        if (remainBytes >= 0) {
+            // 普通(more_traffic=true) -> 精品：剩余 /3；精品 -> 普通：剩余 *3
+            double converted = moreTraffic ? remainBytes / 3.0 : remainBytes * 3.0;
+            double gb = converted / 1024.0 / 1024.0 / 1024.0;
+            String valueText;
+            if (gb >= 5.0) {
+                double floored = Math.floor(gb * 100.0) / 100.0;
+                valueText = String.format(Locale.US, "%.2f GB", floored);
+            } else {
+                double mb = converted / 1024.0 / 1024.0;
+                double floored = Math.floor(mb * 100.0) / 100.0;
+                valueText = String.format(Locale.US, "%.2f MB", floored);
+            }
+            String formula = moreTraffic ? "从普通切出后按 /3 计算" : "从精品切出后按 x3 计算";
+            tvTargetRemain.setText(formula + "\n≈ " + valueText);
+        } else {
+            tvTargetRemain.setText(moreTraffic ? "从普通切出后按 /3 计算" : "从精品切出后按 x3 计算");
+        }
+
+        Dialog dialog = new Dialog(requireContext());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(view);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+        dialog.setCanceledOnTouchOutside(false);
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnConfirm.setOnClickListener(v -> {
+            dialog.dismiss();
+            doSwitchTrafficLine();
+        });
+
+        // 15 秒倒计时，期间确认按钮禁用
+        final int[] remaining = {15};
+        Handler handler = new Handler(Looper.getMainLooper());
+        Runnable countdown = new Runnable() {
+            @Override
+            public void run() {
+                if (!isAdded() || !dialog.isShowing()) return;
+                if (remaining[0] > 0) {
+                    btnConfirm.setText("我已了解并继续（" + remaining[0] + "s）");
+                    remaining[0]--;
+                    handler.postDelayed(this, 1000);
+                } else {
+                    btnConfirm.setEnabled(true);
+                    btnConfirm.setText("我已了解并继续");
+                }
+            }
+        };
+        handler.post(countdown);
+
+        dialog.setOnDismissListener(d -> handler.removeCallbacksAndMessages(null));
+        dialog.show();
+    }
+
+    private void doSwitchTrafficLine() {
         if (!(getActivity() instanceof ServerManages activity) || cachedDetail == null) return;
         JSONObject traffic = cachedDetail.optJSONObject("traffic");
         boolean moreTraffic = traffic != null && traffic.optBoolean("more_traffic", false);
@@ -1600,6 +1685,19 @@ public class ManageFragment extends Fragment {
         if (bytes < 0) return "-";
         double gb = bytes / 1024d / 1024d / 1024d;
         return String.format(Locale.getDefault(), "%.2f GB", gb);
+    }
+
+    /** 上行流量剩余：≥5GB 显示 GB，<5GB 显示 MB，向下取整保留两位小数。 */
+    private String formatTrafficRemain(long bytes) {
+        if (bytes < 0) return "-";
+        double gb = bytes / 1024d / 1024d / 1024d;
+        if (gb >= 5.0) {
+            double floored = Math.floor(gb * 100.0) / 100.0;
+            return String.format(Locale.US, "%.2f GB", floored);
+        }
+        double mb = bytes / 1024d / 1024d;
+        double floored = Math.floor(mb * 100.0) / 100.0;
+        return String.format(Locale.US, "%.2f MB", floored);
     }
 
     private String formatTime(String utc) {

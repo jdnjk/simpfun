@@ -43,6 +43,18 @@
                     app:tint="?attr/colorOnSurface" />
 
                 <ImageView
+                    android:id="@+id/iv_announcements"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:clickable="true"
+                    android:contentDescription="公告"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_announcement"
+                    android:layout_marginEnd="12dp"
+                    app:tint="?attr/colorOnSurface" />
+
+                <ImageView
                     android:id="@+id/iv_settings"
                     android:layout_width="25dp"
                     android:layout_height="25dp"

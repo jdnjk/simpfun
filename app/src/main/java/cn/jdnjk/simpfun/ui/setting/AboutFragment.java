@@ -1,5 +1,6 @@
 package cn.jdnjk.simpfun.ui.setting;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -29,6 +30,7 @@ public class AboutFragment extends Fragment {
 
     private View rowCheckUpdate;
 
+    @SuppressLint("DefaultLocale")
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,

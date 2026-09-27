@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+            android:id="@+id/nav_mirror_info"
+            android:icon="@drawable/ic_info"
+            android:title="镜像信息" />
+    <item
+            android:id="@+id/nav_mirror_versions"
+            android:icon="@drawable/ic_edit_24"
+            android:title="版本编辑" />
+    <item
+            android:id="@+id/nav_mirror_update"
+            android:icon="@drawable/ic_system_update"
+            android:title="更新版本" />
+    <item
+            android:id="@+id/nav_mirror_feedback"
+            android:icon="@drawable/ic_chat"
+            android:title="反馈" />
+</menu>

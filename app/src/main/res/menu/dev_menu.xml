@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_search_mirror"
+        android:icon="@drawable/ic_search"
+        android:title="搜索镜像"
+        app:iconTint="?attr/colorOnSurface"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_add_mirror"
+        android:icon="@drawable/ic_add_24"
+        android:title="创建镜像"
+        app:iconTint="?attr/colorOnSurface"
+        app:showAsAction="always" />
+
+</menu>

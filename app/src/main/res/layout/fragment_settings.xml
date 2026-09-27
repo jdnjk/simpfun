@@ -71,6 +71,27 @@
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
+            android:id="@+id/section_dev"
+            style="@style/TextAppearance.Simpfun.SectionHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp"
+            android:text="开发者"
+            android:visibility="gone" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/option_dev"
+            style="@style/Widget.Simpfun.Settings.Item"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <include layout="@layout/view_settings_entry_row" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
             style="@style/TextAppearance.Simpfun.SectionHeader"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

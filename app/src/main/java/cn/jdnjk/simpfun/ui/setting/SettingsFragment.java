@@ -50,6 +50,17 @@ public class SettingsFragment extends Fragment {
                 "文件与传输", "双排浏览、下载位置和 SFTP");
         bindEntry(root.findViewById(R.id.option_services), R.drawable.ic_construction,
                 "服务与工具", "MCP、排错和快捷指令");
+        View devEntry = root.findViewById(R.id.option_dev);
+        View devSection = root.findViewById(R.id.section_dev);
+        if (userInfo.getBoolean("dev", false)) {
+            devEntry.setVisibility(View.VISIBLE);
+            devSection.setVisibility(View.VISIBLE);
+            bindEntry(devEntry, R.drawable.ic_code, "开发者", "镜像版本创建相关偏好");
+            devEntry.setOnClickListener(v -> navigateTo(new DevSettingsFragment(), "dev"));
+        } else {
+            devEntry.setVisibility(View.GONE);
+            devSection.setVisibility(View.GONE);
+        }
         bindEntry(root.findViewById(R.id.option_check_update), R.drawable.ic_system_update,
                 "检查更新", "当前版本 " + BuildConfig.VERSION_NAME);
         bindEntry(root.findViewById(R.id.option_about), R.drawable.ic_info,

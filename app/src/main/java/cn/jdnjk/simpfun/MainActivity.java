@@ -22,6 +22,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import cn.jdnjk.simpfun.mcp.McpServerService;
 import cn.jdnjk.simpfun.mcp.McpSettingsManager;
+import cn.jdnjk.simpfun.ui.dev.DevFragment;
 import cn.jdnjk.simpfun.ui.invite.InviteFragment;
 import cn.jdnjk.simpfun.ui.profile.ProfileFragment;
 import cn.jdnjk.simpfun.ui.server.ServerFragment;
@@ -85,6 +86,12 @@ public class MainActivity extends AppCompatActivity {
 
         navView = findViewById(R.id.nav_view);
 
+        MenuItem devNavItem = navView.getMenu().findItem(R.id.navigation_dev);
+        if (devNavItem != null) {
+            boolean isDev = getSharedPreferences("user_info", MODE_PRIVATE).getBoolean("dev", false);
+            devNavItem.setVisible(isDev);
+        }
+
         if (savedInstanceState == null) {
             loadServerFragment();
         }
@@ -93,6 +100,10 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
             if (itemId == R.id.navigation_server) {
                 loadServerFragment();
+                return true;
+            }
+            if (itemId == R.id.navigation_dev) {
+                loadDevFragment();
                 return true;
             }
             if (itemId == R.id.navigation_invite) {
@@ -183,6 +194,14 @@ public class MainActivity extends AppCompatActivity {
         getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.nav_host_fragment, new ProfileFragment())
+                .commit();
+        showBottomNav(false);
+    }
+
+    public void loadDevFragment() {
+        getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.nav_host_fragment, new DevFragment())
                 .commit();
         showBottomNav(false);
     }
