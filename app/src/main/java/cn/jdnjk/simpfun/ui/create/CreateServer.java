@@ -2,7 +2,6 @@ package cn.jdnjk.simpfun.ui.create;
 
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
-import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -16,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.CServerApi;
+import cn.jdnjk.simpfun.utils.AnnouncementHelper;
 import cn.jdnjk.simpfun.utils.Feedback;
 import cn.jdnjk.simpfun.utils.MarkdownRenderer;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
@@ -80,7 +80,6 @@ public class CreateServer extends AppCompatActivity {
     private CollapsingToolbarLayout collapsingToolbar;
     private TextView btnAction;
     private TextInputLayout layoutSearch;
-    private EditText etSearch;
     private HorizontalScrollView hsPagination;
     private LinearLayout paginationContainer;
     private HorizontalScrollView hsPaginationBottom;
@@ -144,7 +143,7 @@ public class CreateServer extends AppCompatActivity {
         collapsingToolbar = findViewById(R.id.collapsing_toolbar);
         btnAction = findViewById(R.id.btn_action);
         layoutSearch = findViewById(R.id.layout_search);
-        etSearch = findViewById(R.id.et_search);
+        EditText etSearch = findViewById(R.id.et_search);
         hsPagination = findViewById(R.id.hs_pagination);
         paginationContainer = findViewById(R.id.pagination_container);
         hsPaginationBottom = findViewById(R.id.hs_pagination_bottom);
@@ -509,7 +508,7 @@ public class CreateServer extends AppCompatActivity {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
                 if (isCustom) {
-                    String desc = o.optString("description");
+                    String desc = cn.jdnjk.simpfun.utils.AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
                     String truncated = truncateDescription(desc);
                     boolean collapsible = !truncated.equals(desc);
                     if (collapsible && !truncated.isEmpty()) truncated = truncated + "…";
@@ -519,7 +518,7 @@ public class CreateServer extends AppCompatActivity {
                     li.expanded = false;
                     fullImageKindList.add(li);
                 } else {
-                    String desc = o.optString("description");
+                    String desc = cn.jdnjk.simpfun.utils.AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
                     String link = o.optString("link");
                     if (!TextUtils.isEmpty(link)) {
                         if (!TextUtils.isEmpty(desc)) desc = desc + "\n";
@@ -548,7 +547,7 @@ public class CreateServer extends AppCompatActivity {
                 if (o == null) continue;
                 if (isCustom) {
                     // 展示更多信息：描述 + 推荐配置 + 大小
-                    String desc = o.optString("description");
+                    String desc = AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
                     String rec = o.optString("recommend_setting");
                     String sizeFmt = formatSize(o.optString("size")); // 转换大小
                     StringBuilder sb = new StringBuilder();
@@ -557,7 +556,7 @@ public class CreateServer extends AppCompatActivity {
                     appendVersionInfoPart(sb, !TextUtils.isEmpty(sizeFmt) ? getString(R.string.create_server_size_prefix, sizeFmt) : "");
                     items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), sb.toString()));
                 } else {
-                    items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), o.optString("description")));
+                    items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"))));
                 }
             }
             replaceData(items);

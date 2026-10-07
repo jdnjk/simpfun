@@ -27,6 +27,7 @@ import cn.jdnjk.simpfun.api.UserApi;
 import cn.jdnjk.simpfun.ui.point.PointManageActivity;
 import cn.jdnjk.simpfun.ui.setting.SettingsActivity;
 import cn.jdnjk.simpfun.ui.setting.ThemeManager;
+import cn.jdnjk.simpfun.utils.AnnouncementHelper;
 import cn.jdnjk.simpfun.utils.BottomNavScrollHelper;
 
 import com.bumptech.glide.Glide;
@@ -157,11 +158,7 @@ public class ProfileFragment extends Fragment {
             text = "暂无内容";
         }
         tvAnnouncementTitle.setText(title);
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            tvAnnouncementText.setText(android.text.Html.fromHtml(text, android.text.Html.FROM_HTML_MODE_COMPACT));
-        } else {
-            tvAnnouncementText.setText(android.text.Html.fromHtml(text));
-        }
+        tvAnnouncementText.setText(AnnouncementHelper.formatAnnouncementText(text));
         tvAnnouncementText.setMovementMethod(LinkMovementMethod.getInstance());
         tvAnnouncementText.setLinksClickable(true);
         tvAnnouncementText.setTextIsSelectable(false);

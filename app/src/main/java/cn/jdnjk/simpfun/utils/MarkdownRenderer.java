@@ -35,6 +35,7 @@ import io.noties.markwon.image.DrawableUtils;
 import io.noties.markwon.image.ImageSizeResolverDef;
 import io.noties.markwon.image.ImageSpanFactory;
 import io.noties.markwon.linkify.LinkifyPlugin;
+import io.noties.markwon.SoftBreakAddsNewLinePlugin;
 
 public final class MarkdownRenderer {
 
@@ -48,6 +49,7 @@ public final class MarkdownRenderer {
         Context app = context.getApplicationContext();
         this.markwon = Markwon.builder(app)
                 .usePlugin(CorePlugin.create())
+                .usePlugin(SoftBreakAddsNewLinePlugin.create())
                 .usePlugin(HtmlPlugin.create())
                 .usePlugin(LinkifyPlugin.create())
                 .usePlugin(TablePlugin.create(app))

@@ -25,6 +25,33 @@ public final class AnnouncementHelper {
     private AnnouncementHelper() {
     }
 
+    public static String normalizeEscapedLineBreaks(String text) {
+        if (text == null || text.isEmpty() || text.indexOf('\\') < 0) {
+            return text;
+        }
+        return text.replace("\\r\\n", "\n")
+                .replace("\\n", "\n")
+                .replace("\\r", "\n");
+    }
+
+    public static CharSequence formatAnnouncementText(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        text = normalizeEscapedLineBreaks(text);
+        String lower = text.toLowerCase();
+        if (!lower.contains("<br") && !lower.contains("<p") && !lower.contains("<div")) {
+            text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br>");
+        }
+        Spanned styledText;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            styledText = Html.fromHtml(text, Html.FROM_HTML_MODE_COMPACT);
+        } else {
+            styledText = Html.fromHtml(text);
+        }
+        return styledText;
+    }
+
     public static void maybeShowAnnouncement(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_USER_INFO, Context.MODE_PRIVATE);
         if (!prefs.getBoolean(KEY_SHOW, false)) {
@@ -39,12 +66,7 @@ public final class AnnouncementHelper {
     }
 
     public static void showAnnouncementDialog(Context context, String title, String text) {
-        Spanned styledText;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            styledText = Html.fromHtml(text, Html.FROM_HTML_MODE_COMPACT);
-        } else {
-            styledText = Html.fromHtml(text);
-        }
+        CharSequence styledText = formatAnnouncementText(text);
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(context)
                 .setTitle(title)

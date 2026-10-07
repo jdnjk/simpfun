@@ -1,7 +1,5 @@
 package cn.jdnjk.simpfun.ui.profile;
 
-import android.os.Build;
-import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,6 +14,7 @@ import java.util.List;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.model.AnnouncementItem;
+import cn.jdnjk.simpfun.utils.AnnouncementHelper;
 
 public class AnnouncementAdapter extends RecyclerView.Adapter<AnnouncementAdapter.ViewHolder> {
 
@@ -52,10 +51,8 @@ public class AnnouncementAdapter extends RecyclerView.Adapter<AnnouncementAdapte
             String text = item.getText();
             if (text == null || text.isEmpty()) {
                 holder.tvText.setText("（无内容）");
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                holder.tvText.setText(Html.fromHtml(text, Html.FROM_HTML_MODE_COMPACT));
             } else {
-                holder.tvText.setText(Html.fromHtml(text));
+                holder.tvText.setText(AnnouncementHelper.formatAnnouncementText(text));
             }
             holder.tvText.setMovementMethod(LinkMovementMethod.getInstance());
             holder.tvText.setLinksClickable(true);
