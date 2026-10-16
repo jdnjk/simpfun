@@ -27,6 +27,8 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.CServerApi;
 import cn.jdnjk.simpfun.api.dev.DevApi;
 import cn.jdnjk.simpfun.model.DevBackupItem;
+import cn.jdnjk.simpfun.utils.MultiLineInputHelper;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class DevCreateMirrorActivity extends AppCompatActivity {
 
@@ -60,6 +62,10 @@ public class DevCreateMirrorActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dev_create_mirror);
 
+        // targetSdk 35 在 Android 15+ 强制 edge-to-edge，必须自行处理系统栏 inset
+        ThemeUtils.applyEdgeToEdge(this);
+        ThemeUtils.applyRootInsets(this);
+
         devApi = new DevApi();
         token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
         if (token == null) {
@@ -91,6 +97,7 @@ public class DevCreateMirrorActivity extends AppCompatActivity {
         etLink = findViewById(R.id.et_create_link);
         etOneKey = findViewById(R.id.et_create_one_key);
         etProperties = findViewById(R.id.et_create_properties);
+        MultiLineInputHelper.apply(etMirrorDescription, etOneKey, etProperties);
 
         findViewById(R.id.btn_create_change_backup).setOnClickListener(v -> showBackupStep());
         findViewById(R.id.btn_submit_create_mirror).setOnClickListener(v -> confirmCreateMirror());

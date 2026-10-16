@@ -1,46 +1,66 @@
 package cn.jdnjk.simpfun.ui.create;
 
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.view.MotionEvent;
+import android.view.animation.OvershootInterpolator;
+import android.view.ViewGroup;
 import android.view.View;
-import android.widget.*;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+
 import androidx.annotation.Nullable;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import cn.jdnjk.simpfun.R;
-import cn.jdnjk.simpfun.api.ins.CServerApi;
-import cn.jdnjk.simpfun.utils.AnnouncementHelper;
-import cn.jdnjk.simpfun.utils.Feedback;
-import cn.jdnjk.simpfun.utils.MarkdownRenderer;
-import cn.jdnjk.simpfun.utils.ThemeUtils;
-import com.bumptech.glide.Glide;
-import okhttp3.*;
+
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.TextInputLayout;
+
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
-import com.google.android.material.card.MaterialCardView;
-import com.google.android.material.textfield.TextInputLayout;
-import android.view.MenuItem;
-import android.content.Intent;
-import android.net.Uri;
-import org.jspecify.annotations.NonNull;
+
+import cn.jdnjk.simpfun.R;
+import cn.jdnjk.simpfun.api.ins.CServerApi;
+import cn.jdnjk.simpfun.utils.AnnouncementHelper;
+import cn.jdnjk.simpfun.utils.Feedback;
+import cn.jdnjk.simpfun.utils.MarkdownRenderer;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
+import okhttp3.Call;
+import okhttp3.Response;
 
 /**
- * 创建服务器向导
+ * 创建服务器向导（Material 3 Expressive）
+ * 步骤：镜像类型 → 类别 → 服务端 → 版本 → 实例规格 → 确认。
+ * 复用创建 / 重装 / 变配三种模式，API 语义不变。
  */
 public class CreateServer extends AppCompatActivity {
 
@@ -75,23 +95,33 @@ public class CreateServer extends AppCompatActivity {
 
     private Step currentStep = Step.TYPE;
     private boolean isCustom = false;
-    private ProgressBar progressBar;
+    private boolean firstRender = true;
+
+    // --- 视图 ---
     private MaterialToolbar toolbar;
-    private CollapsingToolbarLayout collapsingToolbar;
-    private TextView btnAction;
+    private LinearProgressIndicator wavyProgress;
+    private HorizontalScrollView hsBreadcrumb;
+    private LinearLayout layoutBreadcrumb;
+    private TextView tvStepTitle;
+    private TextView tvStepLabel;
+    private View contentHost;
+    private androidx.core.widget.NestedScrollView scrollContent;
+    private RecyclerView recyclerView;
+    private View layoutLoading;
     private TextInputLayout layoutSearch;
     private HorizontalScrollView hsPagination;
     private LinearLayout paginationContainer;
-    private HorizontalScrollView hsPaginationBottom;
-    private LinearLayout paginationContainerBottom;
     private LinearLayout layoutGradeFilter;
-    private android.widget.Spinner spGrade;
-    private HorizontalScrollView hsSteps;
-    private LinearLayout layoutSteps;
+    private MaterialAutoCompleteTextView actGrade;
+    private TextView tvCpuModelLink;
     private LinearLayout layoutReinstallOptions;
-    private com.google.android.material.checkbox.MaterialCheckBox cbSaveBeforeReinstall;
-    private com.google.android.material.checkbox.MaterialCheckBox cbDiffUpdate;
-    private com.google.android.material.floatingactionbutton.FloatingActionButton fabHelp;
+    private MaterialCheckBox cbSaveBeforeReinstall;
+    private MaterialCheckBox cbDiffUpdate;
+    private LinearLayout layoutConfirm;
+    private TextView tvConfirmImageTitle;
+    private TextView tvConfirmVersion;
+    private TextView tvConfirmSpecBody;
+    private MaterialButton btnAction;
 
     // 分页/搜索相关（仅第三方镜像 服务端 选择步骤使用）
     private final List<ListItem> fullImageKindList = new ArrayList<>();
@@ -103,10 +133,10 @@ public class CreateServer extends AppCompatActivity {
     private static final int DESC_MAX_CHARS = 200;
     private static final int DESC_MAX_LINES = 15;
 
-    private Integer gameId; // 选择的游戏/镜像分类
-    private Integer imageKindId; // 镜像服务端/Kind id 或 customlist 的 id
-    private Integer versionId; // 镜像版本 id
-    private Integer specId; // 实例规格 item id
+    private Integer gameId;
+    private Integer imageKindId;
+    private Integer versionId;
+    private Integer specId;
 
     private WizardMode wizardMode = WizardMode.CREATE;
     private int serverId = -1;
@@ -130,6 +160,7 @@ public class CreateServer extends AppCompatActivity {
 
     private final List<JSONObject> masterSpecList = new ArrayList<>();
     private String selectedGrade = "";
+    private final List<String> gradeOptions = new ArrayList<>();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -137,42 +168,17 @@ public class CreateServer extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_create_server);
-        RecyclerView recyclerView = findViewById(R.id.recycler_view);
-        progressBar = findViewById(R.id.progress);
-        toolbar = findViewById(R.id.toolbar);
-        collapsingToolbar = findViewById(R.id.collapsing_toolbar);
-        btnAction = findViewById(R.id.btn_action);
-        layoutSearch = findViewById(R.id.layout_search);
-        EditText etSearch = findViewById(R.id.et_search);
-        hsPagination = findViewById(R.id.hs_pagination);
-        paginationContainer = findViewById(R.id.pagination_container);
-        hsPaginationBottom = findViewById(R.id.hs_pagination_bottom);
-        paginationContainerBottom = findViewById(R.id.pagination_container_bottom);
-        layoutGradeFilter = findViewById(R.id.layout_grade_filter);
-        spGrade = findViewById(R.id.sp_grade);
-        TextView tvCpuModelLink = findViewById(R.id.tv_cpu_model_link);
-        if (tvCpuModelLink != null) {
-            tvCpuModelLink.setOnClickListener(v -> {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://yuque.com/simpfun/sfe/areas"));
-                startActivity(intent);
-            });
-        }
-        hsSteps = findViewById(R.id.hs_steps);
-        layoutSteps = findViewById(R.id.layout_steps);
-        layoutReinstallOptions = findViewById(R.id.layout_reinstall_options);
-        cbSaveBeforeReinstall = findViewById(R.id.cb_save_before_reinstall);
-        cbDiffUpdate = findViewById(R.id.cb_diff_update);
-        fabHelp = findViewById(R.id.fab_help);
+        bindViews();
 
         if (!readIntentExtras()) {
             return;
         }
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setItemAnimator(null);
         adapter = new GenericAdapter(data, this::onItemSelected);
         recyclerView.setAdapter(adapter);
 
-        toolbar.setNavigationOnClickListener(v -> onBackStep());
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_refresh) {
                 refreshCurrentStep();
@@ -183,6 +189,53 @@ public class CreateServer extends AppCompatActivity {
 
         btnAction.setOnClickListener(v -> onActionButton());
 
+        setupSearch();
+
+        tvCpuModelLink.setOnClickListener(v ->
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://yuque.com/simpfun/sfe/areas"))));
+
+        // 系统返回手势/返回键与顶部返回按钮行为一致（反向过渡）
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                onBackStep();
+            }
+        });
+
+        token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
+
+        renderCurrentStep(false);
+    }
+
+    private void bindViews() {
+        toolbar = findViewById(R.id.toolbar);
+        wavyProgress = findViewById(R.id.progress_wavy);
+        hsBreadcrumb = findViewById(R.id.hs_breadcrumb);
+        layoutBreadcrumb = findViewById(R.id.layout_breadcrumb);
+        tvStepTitle = findViewById(R.id.tv_step_title);
+        tvStepLabel = findViewById(R.id.tv_step_label);
+        contentHost = findViewById(R.id.content_host);
+        scrollContent = findViewById(R.id.scroll_content);
+        recyclerView = findViewById(R.id.recycler_view);
+        layoutLoading = findViewById(R.id.layout_loading);
+        layoutSearch = findViewById(R.id.layout_search);
+        hsPagination = findViewById(R.id.hs_pagination);
+        paginationContainer = findViewById(R.id.pagination_container);
+        layoutGradeFilter = findViewById(R.id.layout_grade_filter);
+        actGrade = findViewById(R.id.act_grade);
+        tvCpuModelLink = findViewById(R.id.tv_cpu_model_link);
+        layoutReinstallOptions = findViewById(R.id.layout_reinstall_options);
+        cbSaveBeforeReinstall = findViewById(R.id.cb_save_before_reinstall);
+        cbDiffUpdate = findViewById(R.id.cb_diff_update);
+        layoutConfirm = findViewById(R.id.layout_confirm);
+        tvConfirmImageTitle = findViewById(R.id.tv_confirm_image_title);
+        tvConfirmVersion = findViewById(R.id.tv_confirm_version);
+        tvConfirmSpecBody = findViewById(R.id.tv_confirm_spec_body);
+        btnAction = findViewById(R.id.btn_action);
+    }
+
+    private void setupSearch() {
+        android.widget.EditText etSearch = findViewById(R.id.et_search);
         // 输入即搜索：文本有变动直接触发过滤（endIcon 为 clear_text，清空时同样自动触发）
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
@@ -193,10 +246,6 @@ public class CreateServer extends AppCompatActivity {
                 applyImageKindFiltersAndPagination();
             }
         });
-
-        token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
-
-        renderCurrentStep();
     }
 
     private boolean readIntentExtras() {
@@ -239,162 +288,6 @@ public class CreateServer extends AppCompatActivity {
         return true;
     }
 
-    private void onBackStep() {
-        int currentIndex = getCurrentStepIndex();
-        if (currentIndex <= 0) {
-            finish();
-            return;
-        }
-        currentStep = getActiveSteps()[currentIndex - 1];
-        renderCurrentStep();
-    }
-
-    private void onActionButton() {
-        if (currentStep == Step.CONFIRM) {
-            if (isChangeConfigMode()) {
-                changeInstance();
-            } else {
-                createInstance();
-            }
-        } else if (currentStep == Step.REINSTALL_OPTIONS) {
-            showReinstallConfirmDialog();
-        }
-    }
-
-    private void renderCurrentStep() {
-        layoutSearch.setVisibility(View.GONE);
-        setPaginationVisible(View.GONE);
-        layoutReinstallOptions.setVisibility(View.GONE);
-
-        MenuItem refreshItem = toolbar.getMenu().findItem(R.id.action_refresh);
-        if (refreshItem != null) refreshItem.setVisible(false);
-
-        layoutGradeFilter.setVisibility(View.GONE);
-
-        renderSteps(); // 更新步骤导航
-
-        btnAction.setVisibility((currentStep == Step.CONFIRM || currentStep == Step.REINSTALL_OPTIONS) ? View.VISIBLE : View.GONE);
-        if (currentStep == Step.REINSTALL_OPTIONS) {
-            btnAction.setText(R.string.create_server_action_reinstall);
-        } else if (isChangeConfigMode() && currentStep == Step.CONFIRM) {
-            btnAction.setText(R.string.create_server_action_change_config);
-        } else {
-            btnAction.setText(R.string.create_server_action_create);
-        }
-
-        // Help FAB visibility and action
-        if ((currentStep == Step.IMAGE_KIND && isCustom) || currentStep == Step.SPEC) {
-            fabHelp.setVisibility(View.VISIBLE);
-            fabHelp.setOnClickListener(v -> showHelpDialog());
-        } else {
-            fabHelp.setVisibility(View.GONE);
-        }
-
-        switch (currentStep) {
-            case TYPE -> {
-                collapsingToolbar.setTitle("选择镜像类型");
-                replaceData(
-                        ListItem.simple("基础镜像", "官方标准镜像"),
-                        ListItem.simple("第三方镜像", "社区提供的镜像"));
-            }
-            case GAME -> {
-                collapsingToolbar.setTitle(isReinstallMode() ? "选择实例类别" : "选择镜像类别");
-                if (refreshItem != null) refreshItem.setVisible(true);
-                loadGameList();
-            }
-            case IMAGE_KIND -> {
-                collapsingToolbar.setTitle(isReinstallMode() ? "选择实例服务端" : "选择镜像服务端");
-                if (refreshItem != null) refreshItem.setVisible(true);
-                loadImageKindList();
-            }
-            case VERSION -> {
-                collapsingToolbar.setTitle(isReinstallMode() ? "选择实例版本" : "选择镜像版本");
-                if (refreshItem != null) refreshItem.setVisible(true);
-                loadVersionList();
-            }
-            case SPEC -> {
-                collapsingToolbar.setTitle(isChangeConfigMode() ? "选择目标规格" : "选择实例规格");
-                if (refreshItem != null) refreshItem.setVisible(true);
-                loadSpecList();
-            }
-            case CONFIRM -> {
-                collapsingToolbar.setTitle(isChangeConfigMode() ? "确认变配" : "确认信息");
-                loadConfirmation();
-            }
-            case REINSTALL_OPTIONS -> {
-                collapsingToolbar.setTitle("确认重装");
-                renderReinstallOptions();
-            }
-        }
-    }
-
-    private void showHelpDialog() {
-        if (currentStep == Step.IMAGE_KIND && isCustom) {
-            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("没有您需要的整合包？")
-                .setMessage("加入QQ群：1020961156，查看群公告，提交收录需求")
-                .setPositiveButton("确定", null)
-                .show();
-        } else if (currentStep == Step.SPEC) {
-            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("实例命名与计费规则")
-                .setMessage("""
-                        实例命名方式为[CPU级别.CPU厂商.具体配置.操作系统]
-                        CPU级别以字母[C,B,A,S]等分级，代表具体CPU性能，其中性能S>A>B>C，可参考具体CPU型号
-                        CPU厂商以字母[A,I]分类，代表AMD,Intel
-                        具体配置以字母[M,L,XL]等分类，代表各个配置套餐
-                        操作系统以字母[L,W]分类，代表实例操作系统(Linux,Windows)
-                        推荐在预算或内存足够的情况下，选择更高级别的CPU，以获得更流畅的体验，您也可以更换CPU厂商观察是否获得性能提升。
-
-                        实例计费方式为按天付费，当日不开服不扣积分
-                        当日开服指：服务器实例在当日24小时内启动过，无论是否是否进入服务器，服务器运行状态是否正常，只要启动即视为当日已开服
-                        超套餐额磁盘将被计费1积分/G/天
-                        若当日开服所需积分不足，则会关闭实例，若连续7天未启动实例，则会销毁实例，实例销毁前将会默认创建完整镜像，此镜像保留60天，可随时通过新建实例->备份->还原功能恢复实例文件""")
-                .setPositiveButton("了解", null)
-                .show();
-        }
-    }
-
-    private void renderSteps() {
-        layoutSteps.removeAllViews();
-        Step[] steps = getActiveSteps();
-        int currentIndex = getCurrentStepIndex();
-        for (int i = 0; i <= currentIndex; i++) {
-            Step s = steps[i];
-            String name = getStepName(s);
-
-            TextView tv = new TextView(this);
-            tv.setText(name);
-            tv.setTextSize(14);
-            tv.setPadding(dp(8), dp(4), dp(8), dp(4));
-
-            if (s == currentStep) {
-                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
-                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorPrimaryContainer, 18));
-                tv.setTypeface(null, android.graphics.Typeface.BOLD);
-            } else {
-                tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
-                tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorSurfaceContainer, 18));
-                // 可点击返回
-                tv.setOnClickListener(v -> {
-                    currentStep = s;
-                    renderCurrentStep();
-                });
-            }
-            layoutSteps.addView(tv);
-
-            // 添加分隔符
-            if (i < currentIndex) {
-                TextView divider = new TextView(this);
-                divider.setText(">");
-                divider.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOutline));
-                layoutSteps.addView(divider);
-            }
-        }
-        // 滚动到最右侧
-        hsSteps.post(() -> hsSteps.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
-    }
-
     private boolean isReinstallMode() {
         return wizardMode == WizardMode.REINSTALL;
     }
@@ -419,17 +312,211 @@ public class CreateServer extends AppCompatActivity {
         return 0;
     }
 
-    private String getStepName(Step s) {
+    private void onBackStep() {
+        int currentIndex = getCurrentStepIndex();
+        if (currentIndex <= 0) {
+            finish();
+            return;
+        }
+        currentStep = getActiveSteps()[currentIndex - 1];
+        renderCurrentStep(false);
+        animateStep(false); // 返回：从右侧滑入（反向播放进入动画）
+    }
+
+    private void onActionButton() {
+        if (currentStep == Step.CONFIRM) {
+            if (isChangeConfigMode()) {
+                changeInstance();
+            } else {
+                createInstance();
+            }
+        } else if (currentStep == Step.REINSTALL_OPTIONS) {
+            showReinstallConfirmDialog();
+        }
+    }
+
+    // --- 步骤外观（工具栏 / 进度 / 大标题 / 步骤说明） ---
+
+    private void renderCurrentStep() {
+        renderCurrentStep(true);
+    }
+
+    private void renderCurrentStep(boolean animateForward) {
+        setPaginationVisible(View.GONE);
+        layoutReinstallOptions.setVisibility(View.GONE);
+        layoutConfirm.setVisibility(View.GONE);
+        layoutGradeFilter.setVisibility(View.GONE);
+        layoutSearch.setVisibility(View.GONE);
+
+        setRefreshVisible(false);
+
+        Step[] steps = getActiveSteps();
+        int index = getCurrentStepIndex();
+        int total = steps.length;
+        int percent = Math.round((index + 1) * 100f / total);
+        wavyProgress.setProgressCompat(percent, true);
+
+        btnAction.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.VISIBLE);
+
+        String toolbarTitle = "";
+        String stepSub = "";
+        switch (currentStep) {
+            case TYPE -> {
+                toolbarTitle = isReinstallMode() ? "重装实例" : getString(R.string.cs_toolbar_create);
+                stepSub = getString(R.string.cs_sub_type);
+                showHeader(isReinstallMode() ? "选择新镜像" : getString(R.string.cs_header_start));
+                replaceData(
+                        ListItem.simple(0, "基础镜像", "官方标准镜像", R.drawable.ic_verified),
+                        ListItem.simple(0, "第三方镜像", "社区提供，请注意来源可信度", R.drawable.ic_group));
+            }
+            case GAME -> {
+                toolbarTitle = isReinstallMode() ? getString(R.string.cs_toolbar_reinstall_game) : getString(R.string.cs_toolbar_game);
+                stepSub = getString(R.string.cs_sub_game);
+                showHeader(getString(R.string.cs_header_game));
+                setRefreshVisible(true);
+                loadGameList();
+            }
+            case IMAGE_KIND -> {
+                toolbarTitle = isReinstallMode() ? getString(R.string.cs_toolbar_reinstall_kind) : getString(R.string.cs_toolbar_kind);
+                stepSub = selectedGameName;
+                showHeader(null);
+                setRefreshVisible(true);
+                loadImageKindList();
+            }
+            case VERSION -> {
+                toolbarTitle = isReinstallMode() ? getString(R.string.cs_toolbar_reinstall_version) : getString(R.string.cs_toolbar_version);
+                stepSub = selectedImageKindName;
+                showHeader(null);
+                setRefreshVisible(true);
+                loadVersionList();
+            }
+            case SPEC -> {
+                toolbarTitle = isChangeConfigMode() ? "选择目标规格" : getString(R.string.cs_toolbar_spec);
+                stepSub = isChangeConfigMode() ? getString(R.string.cs_sub_spec_change) : getString(R.string.cs_sub_spec_sort);
+                showHeader(null);
+                setRefreshVisible(true);
+                loadSpecList();
+            }
+            case CONFIRM -> {
+                toolbarTitle = isChangeConfigMode() ? getString(R.string.cs_toolbar_confirm_change) : getString(R.string.cs_toolbar_confirm);
+                stepSub = getString(R.string.cs_sub_confirm);
+                showHeader(getString(R.string.cs_header_confirm));
+                recyclerView.setVisibility(View.GONE);
+                layoutConfirm.setVisibility(View.VISIBLE);
+                loadConfirmation();
+            }
+            case REINSTALL_OPTIONS -> {
+                toolbarTitle = getString(R.string.cs_toolbar_reinstall);
+                stepSub = getString(R.string.cs_sub_reinstall);
+                showHeader(getString(R.string.cs_header_reinstall));
+                renderReinstallOptions();
+            }
+        }
+        toolbar.setTitle(toolbarTitle);
+        toolbar.setNavigationIcon(currentStep == Step.TYPE
+                ? R.drawable.ic_close : R.drawable.ic_arrow_back);
+        toolbar.setNavigationOnClickListener(v -> onBackStep());
+
+        tvStepLabel.setText(getString(R.string.cs_step_format, index + 1, total, stepSub));
+        renderBreadcrumb();
+
+        if (currentStep == Step.CONFIRM) {
+            btnAction.setText(isChangeConfigMode()
+                    ? R.string.create_server_action_change_config : R.string.create_server_action_create);
+            btnAction.setIconResource(R.drawable.ic_check);
+        } else if (currentStep == Step.REINSTALL_OPTIONS) {
+            btnAction.setText(R.string.create_server_action_reinstall);
+            btnAction.setIcon(null);
+        }
+
+        scrollContent.scrollTo(0, 0);
+        if (animateForward && !firstRender) {
+            animateStep(true); // 前进：新内容从左侧滑入
+        }
+        firstRender = false;
+    }
+
+    /** 面包屑：显示当前步骤之前的所有步骤，点击可跳回。 */
+    private void renderBreadcrumb() {
+        layoutBreadcrumb.removeAllViews();
+        Step[] steps = getActiveSteps();
+        int index = getCurrentStepIndex();
+        hsBreadcrumb.setVisibility(index > 0 ? View.VISIBLE : View.GONE);
+        if (index <= 0) return;
+
+        for (int i = 0; i < index; i++) {
+            final Step target = steps[i];
+            TextView tv = new TextView(this);
+            tv.setText(stepDisplayName(target));
+            tv.setTextSize(13);
+            tv.setPadding(dp(12), dp(5), dp(12), dp(5));
+            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(8));
+            bg.setColor(getThemeColor(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+            tv.setBackground(bg);
+
+            tv.setOnClickListener(v -> {
+                if (isSubmitting) return;
+                currentStep = target;
+                renderCurrentStep(false);
+                animateStep(false); // 跳回：反向过渡
+            });
+            layoutBreadcrumb.addView(tv);
+
+            if (i < index - 1) {
+                TextView sep = new TextView(this);
+                sep.setText("›");
+                sep.setTextSize(13);
+                sep.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOutline));
+                sep.setPadding(dp(3), dp(5), dp(3), dp(5));
+                layoutBreadcrumb.addView(sep);
+            }
+        }
+        hsBreadcrumb.post(() -> hsBreadcrumb.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
+    }
+
+    private String stepDisplayName(Step s) {
         return switch (s) {
-            case TYPE -> "类型";
+            case TYPE -> "发布者";
             case GAME -> "类别";
-            case IMAGE_KIND -> "服务端";
+            case IMAGE_KIND -> "应用";
             case VERSION -> "版本";
-            case SPEC -> "规格";
+            case SPEC -> "配置";
             case CONFIRM -> "确认";
-            case REINSTALL_OPTIONS -> "重装确认";
+            case REINSTALL_OPTIONS -> "确认重装";
         };
     }
+
+    private void showHeader(@Nullable String bigTitle) {
+        if (bigTitle == null || bigTitle.isEmpty()) {
+            tvStepTitle.setVisibility(View.GONE);
+        } else {
+            tvStepTitle.setText(bigTitle);
+            tvStepTitle.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void setRefreshVisible(boolean visible) {
+        android.view.MenuItem item = toolbar.getMenu().findItem(R.id.action_refresh);
+        if (item != null) item.setVisible(visible);
+    }
+
+    private void animateStep(boolean forward) {
+        float offset = forward ? -dp(48) : dp(48);
+        contentHost.setTranslationX(offset);
+        contentHost.setAlpha(0.4f);
+        contentHost.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(300)
+                .setInterpolator(new OvershootInterpolator(0.9f)) // 轻微回弹
+                .start();
+    }
+
+    // --- 选择与跳转 ---
 
     private void onItemSelected(ListItem item) {
         if (currentStep == Step.TYPE) {
@@ -441,9 +528,6 @@ public class CreateServer extends AppCompatActivity {
             selectedGameName = "";
             selectedImageKindName = "";
             selectedVersionName = "";
-//            if (isCustom) {
-//                Toast.makeText(this, "第三方镜像为社区提供，请注意安全与可信度", Toast.LENGTH_LONG).show();
-//            }
             currentStep = Step.GAME;
             renderCurrentStep();
             return;
@@ -485,6 +569,8 @@ public class CreateServer extends AppCompatActivity {
         renderCurrentStep();
     }
 
+    // --- 数据加载 ---
+
     private void loadGameList() {
         executeCall(CServerApi.getGameList(isCustom, token), json -> {
             List<ListItem> items = new ArrayList<>();
@@ -492,8 +578,9 @@ public class CreateServer extends AppCompatActivity {
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
-                items.add(ListItem.image(o.optInt("id"), o.optString("name"), null, o.optString("pic_path")));
+                items.add(ListItem.image(o.optInt("id"), o.optString("name"), null, o.optString("pic_path"), R.drawable.ic_sports_esports));
             }
+            if (items.isEmpty()) items.add(ListItem.info("提示", "暂无可选类别"));
             replaceData(items);
         });
     }
@@ -508,23 +595,26 @@ public class CreateServer extends AppCompatActivity {
                 JSONObject o = arr.optJSONObject(i);
                 if (o == null) continue;
                 if (isCustom) {
-                    String desc = cn.jdnjk.simpfun.utils.AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
+                    String desc = AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
                     String truncated = truncateDescription(desc);
                     boolean collapsible = !truncated.equals(desc);
                     if (collapsible && !truncated.isEmpty()) truncated = truncated + "…";
-                    ListItem li = ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), truncated);
+                    ListItem li = ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), truncated, 0);
+                    li.noIcon = true;
                     li.fullSubtitle = desc;
                     li.collapsible = collapsible;
                     li.expanded = false;
                     fullImageKindList.add(li);
                 } else {
-                    String desc = cn.jdnjk.simpfun.utils.AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
+                    String desc = AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
                     String link = o.optString("link");
                     if (!TextUtils.isEmpty(link)) {
                         if (!TextUtils.isEmpty(desc)) desc = desc + "\n";
                         desc = desc + link;
                     }
-                    items.add(ListItem.image(o.optInt("id"), o.optString("name"), desc, o.optString("pic_path")));
+                    ListItem li = ListItem.image(o.optInt("id"), o.optString("name"), desc, o.optString("pic_path"), 0);
+                    li.noIcon = true;
+                    items.add(li);
                 }
             }
             if (isCustom) {
@@ -532,6 +622,7 @@ public class CreateServer extends AppCompatActivity {
                 imageKindCurrentPage = 1;
                 applyImageKindFiltersAndPagination();
             } else {
+                if (items.isEmpty()) items.add(ListItem.info("提示", "暂无可选服务端"));
                 replaceData(items);
             }
         });
@@ -549,16 +640,22 @@ public class CreateServer extends AppCompatActivity {
                     // 展示更多信息：描述 + 推荐配置 + 大小
                     String desc = AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"));
                     String rec = o.optString("recommend_setting");
-                    String sizeFmt = formatSize(o.optString("size")); // 转换大小
+                    String sizeFmt = formatSize(o.optString("size"));
                     StringBuilder sb = new StringBuilder();
                     appendVersionInfoPart(sb, desc);
                     appendVersionInfoPart(sb, !TextUtils.isEmpty(rec) ? getString(R.string.create_server_recommended_prefix, rec) : "");
                     appendVersionInfoPart(sb, !TextUtils.isEmpty(sizeFmt) ? getString(R.string.create_server_size_prefix, sizeFmt) : "");
-                    items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), sb.toString()));
+                    ListItem li = ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), sb.toString(), 0);
+                    li.noIcon = true;
+                    items.add(li);
                 } else {
-                    items.add(ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"), AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description"))));
+                    ListItem li = ListItem.simpleWithIdMd(o.optInt("id"), o.optString("name"),
+                            AnnouncementHelper.normalizeEscapedLineBreaks(o.optString("description")), 0);
+                    li.noIcon = true;
+                    items.add(li);
                 }
             }
+            if (items.isEmpty()) items.add(ListItem.info("提示", "暂无可选版本"));
             replaceData(items);
         });
     }
@@ -680,19 +777,18 @@ public class CreateServer extends AppCompatActivity {
                 masterSpecList.add(o);
             }
         }
-        // Sort by point (price) ascending
+        // 默认按 point（积分）升序展示
         masterSpecList.sort(Comparator.comparingInt(o -> o.optInt("point")));
 
-        setupGradeSpinner();
-        selectedGrade = ""; // 默认全部
+        setupGradeMenu();
+        selectedGrade = ""; // 初次进入默认全部
         updateSpecDisplay();
     }
 
-    private void setupGradeSpinner() {
-        if (spGrade == null) return;
+    /** 从 area_grade 动态生成等级筛选选项，按 S+、S、A、B++、B+、C+ 的规则排序。 */
+    private void setupGradeMenu() {
         layoutGradeFilter.setVisibility(View.VISIBLE);
 
-        // Dynamically collect all grades
         java.util.Set<String> gradesPresent = new java.util.HashSet<>();
         for (JSONObject o : masterSpecList) {
             String g = o.optString("area_grade");
@@ -700,22 +796,18 @@ public class CreateServer extends AppCompatActivity {
         }
 
         List<String> sortedGrades = new ArrayList<>(gradesPresent);
-        // Sort grades: S > A > B > C, and modifiers ++ > + > (none) > -
         sortedGrades.sort(Comparator.comparingInt(this::getGradeScore).reversed());
 
-        List<String> spinnerItems = new ArrayList<>();
-        spinnerItems.add("全部");
-        spinnerItems.addAll(sortedGrades);
-        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, spinnerItems);
-        ad.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spGrade.setAdapter(ad);
-        spGrade.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                String val = spinnerItems.get(position);
-                selectedGrade = "全部".equals(val)?"":val;
-                updateSpecDisplay();
-            }
-            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        gradeOptions.clear();
+        gradeOptions.add(getString(R.string.cs_grade_all));
+        gradeOptions.addAll(sortedGrades);
+
+        actGrade.setSimpleItems(gradeOptions.toArray(new String[0]));
+        actGrade.setText(gradeOptions.get(0), false);
+        actGrade.setOnItemClickListener((parent, view, position, id) -> {
+            // 切换时仅过滤，不改变当前积分升序
+            selectedGrade = position == 0 ? "" : gradeOptions.get(position);
+            updateSpecDisplay();
         });
     }
 
@@ -723,13 +815,11 @@ public class CreateServer extends AppCompatActivity {
         if (grade == null) return 0;
         grade = grade.toUpperCase();
         int score = 0;
-        // Base score
         if (grade.startsWith("S")) score = 400;
         else if (grade.startsWith("A")) score = 300;
         else if (grade.startsWith("B")) score = 200;
         else if (grade.startsWith("C")) score = 100;
 
-        // Modifier score
         if (grade.contains("++")) score += 3;
         else if (grade.contains("+")) score += 2;
         else if (grade.contains("-")) score -= 1;
@@ -747,50 +837,81 @@ public class CreateServer extends AppCompatActivity {
                 if (!TextUtils.isEmpty(selectedGrade) && !selectedGrade.equalsIgnoreCase(grade)) continue;
                 int id = o.optInt("id");
                 boolean creatable = o.optBoolean("creatable", true);
-                String specName = o.optString("area_vendor") + " . " + o.optString("spec") + " . " + (o.optBoolean("area_is_windows") ? "W" : "L");
+                // 保留接口原值 area_grade / area_vendor / spec，格式为 grade.area_vendor.spec.L（Windows 为 W）
+                StringBuilder nameSb = new StringBuilder();
+                appendDotPart(nameSb, grade);
+                appendDotPart(nameSb, o.optString("area_vendor"));
+                appendDotPart(nameSb, o.optString("spec"));
+                appendDotPart(nameSb, o.optBoolean("area_is_windows") ? "W" : "L");
                 int cpu = o.optInt("cpu");
                 int ram = o.optInt("ram");
                 int disk = o.optInt("disk");
                 int traffic = o.optInt("traffic");
                 int point = o.optInt("point");
+                String os = o.optBoolean("area_is_windows") ? getString(R.string.cs_os_windows) : getString(R.string.cs_os_linux);
+                String sub = getString(R.string.cs_spec_line, cpu, ram, disk, traffic, os);
 
-                items.add(ListItem.spec(id, grade, specName, cpu, ram, disk, traffic, point, creatable));
+                items.add(ListItem.spec(id, nameSb.toString(), sub, point, creatable));
             }
         }
         replaceData(items);
     }
 
+    private void appendSpecPart(StringBuilder sb, String part) {
+        if (TextUtils.isEmpty(part)) return;
+        if (sb.length() > 0) sb.append(" · ");
+        sb.append(part);
+    }
+
+    private void appendDotPart(StringBuilder sb, String part) {
+        if (TextUtils.isEmpty(part)) return;
+        if (sb.length() > 0) sb.append(".");
+        sb.append(part);
+    }
+
+    // --- 确认页 ---
+
     private void loadConfirmation() {
         if (versionId == null || specId == null) return;
-        // 进入确认页取消搜索与分页
-        layoutSearch.setVisibility(View.GONE);
-        setPaginationVisible(View.GONE);
+        tvConfirmImageTitle.setText("-");
+        tvConfirmVersion.setText("加载中…");
+        tvConfirmSpecBody.setText("-");
+        btnAction.setVisibility(View.GONE);
         executeCall(CServerApi.getConfirmation(isCustom, versionId, specId, token), json -> {
-            List<ListItem> items = new ArrayList<>();
             JSONObject d = json.optJSONObject("data");
-            if (d != null) {
-                items.add(ListItem.info("游戏名称", d.optString("game_name")));
-                // 基础镜像使用 kind_name，自定义(第三方)使用 image_name；若对应字段为空则回退另一个
-                String displayImageName;
+            if (d == null) {
+                tvConfirmVersion.setText(getString(R.string.cs_sub_confirm));
+            } else {
+                String game = d.optString("game_name");
+                // 基础镜像使用 kind_name，第三方使用 image_name；为空时回退另一个
+                String kind;
                 if (!isCustom) {
-                    String kindName = d.optString("kind_name");
-                    if (TextUtils.isEmpty(kindName)) kindName = d.optString("image_name");
-                    displayImageName = kindName;
+                    kind = d.optString("kind_name");
+                    if (TextUtils.isEmpty(kind)) kind = d.optString("image_name");
                 } else {
-                    String imageName = d.optString("image_name");
-                    if (TextUtils.isEmpty(imageName)) imageName = d.optString("kind_name");
-                    displayImageName = imageName;
+                    kind = d.optString("image_name");
+                    if (TextUtils.isEmpty(kind)) kind = d.optString("kind_name");
                 }
-                items.add(ListItem.info("镜像名称", displayImageName));
-                items.add(ListItem.info("镜像版本", d.optString("version_name")));
-                items.add(ListItem.info("配置", getString(R.string.create_server_spec_summary, d.optInt("cpu"), d.optInt("ram"), d.optInt("disk"))));
-                items.add(ListItem.info("型号", d.optString("grade")));
-                items.add(ListItem.info("可用流量", getString(R.string.create_server_storage_gb, d.optInt("traffic"))));
-                items.add(ListItem.info("费用(积分)", String.valueOf(d.optInt("point"))));
+                StringBuilder titleSb = new StringBuilder();
+                appendSpecPart(titleSb, game);
+                appendSpecPart(titleSb, kind);
+                tvConfirmImageTitle.setText(titleSb.length() > 0 ? titleSb.toString() : "-");
+                tvConfirmVersion.setText(getString(R.string.cs_confirm_version, d.optString("version_name")));
+
+                String specBody = getString(R.string.cs_confirm_spec_line,
+                        d.optString("grade"),
+                        d.optInt("cpu"),
+                        d.optInt("ram"),
+                        d.optInt("disk"),
+                        d.optInt("traffic"),
+                        d.optInt("point"));
+                tvConfirmSpecBody.setText(specBody);
             }
-            replaceData(items);
+            btnAction.setVisibility(View.VISIBLE);
         });
     }
+
+    // --- 重装 ---
 
     private void renderReinstallOptions() {
         replaceData(
@@ -799,6 +920,7 @@ public class CreateServer extends AppCompatActivity {
                 ListItem.info("提示", "重装将替换实例镜像，请确认已备份重要文件"));
 
         layoutReinstallOptions.setVisibility(View.VISIBLE);
+        btnAction.setVisibility(View.VISIBLE);
         cbSaveBeforeReinstall.setChecked(true);
         boolean showDiff = isSameImageKindForDiff();
         cbDiffUpdate.setVisibility(showDiff ? View.VISIBLE : View.GONE);
@@ -845,7 +967,7 @@ public class CreateServer extends AppCompatActivity {
         }
         message.append("\n重装可能覆盖当前实例文件，请确认继续。");
 
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("确认重装实例")
                 .setMessage(message.toString())
                 .setNegativeButton("取消", null)
@@ -899,6 +1021,55 @@ public class CreateServer extends AppCompatActivity {
                     setResult(RESULT_OK, result);
                     finish();
                 });
+    }
+
+    private void createInstance() {
+        if (isSubmitting) return;
+        if (versionId == null || specId == null) return;
+        if (TextUtils.isEmpty(token)) {
+            Feedback.info(this, "尚未登录");
+            return;
+        }
+        isSubmitting = true;
+        btnAction.setEnabled(false);
+        showLoading(true);
+        CServerApi.createInstance(isCustom, versionId, specId, token).enqueue(new okhttp3.Callback() {
+            @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                runOnUiThread(() -> {
+                    if (isDead()) return;
+                    isSubmitting = false;
+                    btnAction.setEnabled(true);
+                    showLoading(false);
+                    Feedback.error(findViewById(android.R.id.content), "创建失败:" + e.getMessage(),
+                            "重试", CreateServer.this::createInstance);
+                });
+            }
+            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                String body = response.body().string();
+                runOnUiThread(() -> {
+                    if (isDead()) return;
+                    showLoading(false);
+                    try {
+                        JSONObject o = new JSONObject(body);
+                        if (o.optInt("code") == 200) {
+                            Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show();
+                            Intent result = new Intent();
+                            result.putExtra(EXTRA_RESULT_CREATED, true);
+                            setResult(RESULT_OK, result);
+                            finish();
+                        } else {
+                            isSubmitting = false;
+                            btnAction.setEnabled(true);
+                            Feedback.error(CreateServer.this, o.optString("msg", "创建失败"));
+                        }
+                    } catch (Exception e) {
+                        isSubmitting = false;
+                        btnAction.setEnabled(true);
+                        Feedback.error(CreateServer.this, "解析失败");
+                    }
+                });
+            }
+        });
     }
 
     private void submitInstanceAction(Call call, String defaultFailureMessage, String defaultSuccessMessage, JsonHandler onSuccess) {
@@ -972,7 +1143,7 @@ public class CreateServer extends AppCompatActivity {
         if (TextUtils.isEmpty(desc)) return "";
         String[] lines = desc.replace("\r\n", "\n").split("\n", -1);
         StringBuilder sb = new StringBuilder();
-        int chars = 0;   // 已占用字符数（含换行符）
+        int chars = 0;
         int lineCount = 0;
         for (String line : lines) {
             if (lineCount >= DESC_MAX_LINES || chars >= DESC_MAX_CHARS) break;
@@ -1003,41 +1174,7 @@ public class CreateServer extends AppCompatActivity {
         return value == null ? "" : value;
     }
 
-    private void createInstance() {
-        if (versionId == null || specId == null) return;
-        showLoading(true);
-        CServerApi.createInstance(isCustom, versionId, specId, token).enqueue(new okhttp3.Callback() {
-            @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                runOnUiThread(() -> {
-                    if (isDead()) return;
-                    showLoading(false);
-                    Feedback.error(findViewById(android.R.id.content), "创建失败:" + e.getMessage(),
-                            "重试", CreateServer.this::createInstance);
-                });
-            }
-            @Override public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                String body = response.body().string();
-                runOnUiThread(() -> {
-                    if (isDead()) return;
-                    showLoading(false);
-                    try {
-                        JSONObject o = new JSONObject(body);
-                        if (o.optInt("code") == 200) {
-                            Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show();
-                            Intent result = new Intent();
-                            result.putExtra(EXTRA_RESULT_CREATED, true);
-                            setResult(RESULT_OK, result);
-                            finish();
-                        } else {
-                            Feedback.error(CreateServer.this, o.optString("msg", "创建失败"));
-                        }
-                    } catch (Exception e) {
-                        Feedback.error(CreateServer.this, "解析失败");
-                    }
-                });
-            }
-        });
-    }
+    // --- 通用请求 ---
 
     private interface JsonHandler { void handle(JSONObject json); }
     private interface ErrorHandler { void handle(String message); }
@@ -1088,7 +1225,9 @@ public class CreateServer extends AppCompatActivity {
         return "数据解析错误, 响应:" + body;
     }
 
-    private void showLoading(boolean show) { progressBar.setVisibility(show?View.VISIBLE:View.GONE); }
+    private void showLoading(boolean show) {
+        layoutLoading.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
 
     private void replaceData(ListItem... items) {
         replaceData(Arrays.asList(items));
@@ -1110,31 +1249,187 @@ public class CreateServer extends AppCompatActivity {
         }
     }
 
+    private void refreshCurrentStep() {
+        switch (currentStep) {
+            case GAME -> loadGameList();
+            case IMAGE_KIND -> loadImageKindList();
+            case VERSION -> loadVersionList();
+            case SPEC -> loadSpecList();
+            case CONFIRM -> loadConfirmation();
+            default -> {}
+        }
+    }
+
+    // --- 第三方镜像 服务端列表本地搜索+分页 ---
+
+    private void applyImageKindFiltersAndPagination() {
+        if (!isCustom) return;
+        List<ListItem> filtered = new ArrayList<>();
+        String q = imageKindSearchQuery == null ? "" : imageKindSearchQuery.toLowerCase();
+        for (ListItem li : fullImageKindList) {
+            String desc = li.fullSubtitle != null ? li.fullSubtitle : li.subtitle;
+            if (TextUtils.isEmpty(q) || li.title.toLowerCase().contains(q) || (desc != null && desc.toLowerCase().contains(q))) {
+                filtered.add(li);
+            }
+        }
+        int total = filtered.size();
+        List<ListItem> visibleItems = new ArrayList<>();
+        if (total <= IMAGE_KIND_PAGE_SIZE) {
+            setPaginationVisible(View.GONE);
+            visibleItems.addAll(filtered);
+        } else {
+            int pages = (int) Math.ceil(total * 1.0 / IMAGE_KIND_PAGE_SIZE);
+            if (imageKindCurrentPage > pages) imageKindCurrentPage = pages;
+            int start = (imageKindCurrentPage - 1) * IMAGE_KIND_PAGE_SIZE;
+            int end = Math.min(start + IMAGE_KIND_PAGE_SIZE, total);
+            visibleItems.addAll(filtered.subList(start, end));
+            buildPaginationControls(pages);
+        }
+        if (visibleItems.isEmpty() && !filtered.isEmpty()) {
+            visibleItems.add(ListItem.info("提示", "没有匹配的镜像"));
+        }
+        replaceData(visibleItems);
+    }
+
+    private void setPaginationVisible(int visibility) {
+        hsPagination.setVisibility(visibility);
+    }
+
+    private void buildPaginationControls(int pages) {
+        paginationContainer.removeAllViews();
+        setPaginationVisible(View.VISIBLE);
+        for (int i = 1; i <= pages; i++) {
+            paginationContainer.addView(buildPageTextView(i));
+        }
+    }
+
+    private TextView buildPageTextView(int p) {
+        TextView tv = new TextView(this);
+        tv.setText(String.valueOf(p));
+        tv.setTextSize(14);
+        tv.setPadding(dp(14), dp(8), dp(14), dp(8));
+        tv.setGravity(android.view.Gravity.CENTER);
+        tv.setTypeface(null, p == imageKindCurrentPage ? Typeface.BOLD : Typeface.NORMAL);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(8));
+        if (p == imageKindCurrentPage) {
+            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
+            bg.setColor(getThemeColor(com.google.android.material.R.attr.colorPrimaryContainer));
+        } else {
+            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
+            bg.setColor(getThemeColor(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+            tv.setOnClickListener(v -> {
+                imageKindCurrentPage = p;
+                applyImageKindFiltersAndPagination();
+            });
+        }
+        tv.setBackground(bg);
+        return tv;
+    }
+
+    // --- 小工具 ---
+
+    private int dp(int v) {
+        return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private int getThemeColor(int attr) {
+        return com.google.android.material.color.MaterialColors.getColor(this, attr, 0);
+    }
+
+    private String formatSize(String sizeRaw) {
+        if (TextUtils.isEmpty(sizeRaw)) return "";
+        try {
+            long bytes = Long.parseLong(sizeRaw.trim());
+            if (bytes <= 0) return "0KB";
+            double kb = bytes / 1024.0;
+            if (kb < 1024) {
+                return ceil1(kb) + "KB";
+            }
+            double mb = kb / 1024.0;
+            if (mb < 1024) {
+                double mbUp = Math.ceil(mb * 10.0) / 10.0;
+                if (mbUp == (long) mbUp) return ((long) mbUp) + "MB";
+                return mbUp + "MB";
+            }
+            double gb = mb / 1024.0;
+            double gbUp = Math.ceil(gb * 10.0) / 10.0;
+            if (gbUp == (long) gbUp) return ((long) gbUp) + "GB";
+            return gbUp + "GB";
+        } catch (NumberFormatException e) {
+            return sizeRaw;
+        }
+    }
+
+    private String ceil1(double v) {
+        double up = Math.ceil(v * 10.0) / 10.0;
+        if (up == (long) up) return String.valueOf((long) up);
+        return String.valueOf(up);
+    }
+
     // --- 数据与适配器 ---
+
     private static class ListItem {
-        int id; String title; String subtitle; String imageUrl; boolean showImage; boolean selectable = true; boolean isGroup = false; int point = -1; boolean full = false; // full: 标记已满状态
+        int id;
+        String title;
+        String subtitle;
+        String imageUrl;
+        boolean showImage;
+        boolean selectable = true;
+        int iconRes;
+        boolean noIcon; // 应用(服务端)步骤不显示图标
+        int point = -1;
+        boolean full = false;
         boolean markdown;
-        // 第三方镜像简介折叠：fullSubtitle 保存未截断的完整简介，collapsible 标记超限可展开，expanded 为当前展开状态
+        // 第三方镜像简介折叠
         String fullSubtitle;
         boolean collapsible;
         boolean expanded;
-        // Spec specific fields
-        String grade; String specName; int cpu; int ram; int disk; int traffic;
+        // 规格字段
+        String specName;
 
-        static ListItem simple(String t, String sub){ ListItem li = new ListItem(); li.id = -1; li.title=t; li.subtitle=sub; return li; }
-        static ListItem simpleWithId(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; return li; }
-        static ListItem simpleWithIdMd(int id, String t, String sub){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.markdown=true; return li; }
-        static ListItem image(int id, String t, String sub, String url){ ListItem li = new ListItem(); li.id=id; li.title=t; li.subtitle=sub; li.imageUrl=url; li.showImage=true; li.markdown=true; return li; }
-        static ListItem info(String t, String v){ ListItem li = new ListItem(); li.id=-1; li.title=t; li.subtitle=v; li.selectable=false; li.full=false; return li; }
-        static ListItem spec(int id, String grade, String specName, int cpu, int ram, int disk, int traffic, int point, boolean creatable) {
+        static ListItem simple(int id, String t, String sub, int iconRes) {
             ListItem li = new ListItem();
             li.id = id;
-            li.grade = grade;
+            li.title = t;
+            li.subtitle = sub;
+            li.iconRes = iconRes;
+            return li;
+        }
+
+        static ListItem simpleWithId(int id, String t, String sub, int iconRes) {
+            return simple(id, t, sub, iconRes);
+        }
+
+        static ListItem simpleWithIdMd(int id, String t, String sub, int iconRes) {
+            ListItem li = simple(id, t, sub, iconRes);
+            li.markdown = true;
+            return li;
+        }
+
+        static ListItem image(int id, String t, String sub, String url, int fallbackIcon) {
+            ListItem li = simpleWithIdMd(id, t, sub, fallbackIcon);
+            li.imageUrl = url;
+            li.showImage = !TextUtils.isEmpty(url);
+            return li;
+        }
+
+        static ListItem info(String t, String v) {
+            ListItem li = new ListItem();
+            li.id = -1;
+            li.title = t;
+            li.subtitle = v;
+            li.selectable = false;
+            li.full = false;
+            return li;
+        }
+
+        static ListItem spec(int id, String specName, String sub, int point, boolean creatable) {
+            ListItem li = new ListItem();
+            li.id = id;
             li.specName = specName;
-            li.cpu = cpu;
-            li.ram = ram;
-            li.disk = disk;
-            li.traffic = traffic;
+            li.subtitle = sub;
             li.point = point;
             li.selectable = creatable;
             li.full = !creatable;
@@ -1144,28 +1439,31 @@ public class CreateServer extends AppCompatActivity {
 
     private static class GenericAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         interface OnSelect { void onSelect(ListItem item); }
-        private final List<ListItem> data; private final OnSelect onSelect;
+        private final List<ListItem> data;
+        private final OnSelect onSelect;
         private static final int TYPE_GENERIC = 0;
         private static final int TYPE_SPEC = 1;
 
-        GenericAdapter(List<ListItem> d, OnSelect os){ data=d; onSelect=os; }
+        GenericAdapter(List<ListItem> d, OnSelect os) { data = d; onSelect = os; }
 
         @Override
         public int getItemViewType(int position) {
             ListItem item = data.get(position);
-            return item.grade != null ? TYPE_SPEC : TYPE_GENERIC;
+            return item.specName != null ? TYPE_SPEC : TYPE_GENERIC;
         }
 
-        @Override public @NotNull RecyclerView.ViewHolder onCreateViewHolder(android.view.@NonNull ViewGroup parent, int viewType){
+        @Override
+        public @NotNull RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             if (viewType == TYPE_SPEC) {
                 View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_spec, parent, false);
                 return new SpecViewHolder(v);
             }
-            View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_generic, parent,false);
+            View v = android.view.LayoutInflater.from(parent.getContext()).inflate(R.layout.item_option_generic, parent, false);
             return new GenericViewHolder(v);
         }
 
-        @Override public void onBindViewHolder(RecyclerView.@NonNull ViewHolder h, int p){
+        @Override
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int p) {
             ListItem it = data.get(p);
             if (h instanceof SpecViewHolder) {
                 ((SpecViewHolder) h).bind(it, onSelect);
@@ -1173,110 +1471,136 @@ public class CreateServer extends AppCompatActivity {
                 ((GenericViewHolder) h).bind(it, onSelect);
             }
         }
-        @Override public int getItemCount(){ return data.size(); }
+
+        @Override
+        public int getItemCount() { return data.size(); }
+    }
+
+    /** 涟漪 + 轻微缩放反馈（不消费触摸事件，涟漪照常工作）。 */
+    private static void applyPressScale(View v) {
+        v.setOnTouchListener((view, ev) -> {
+            switch (ev.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN ->
+                        view.animate().scaleX(0.98f).scaleY(0.98f).setDuration(80).start();
+                case MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        view.animate().scaleX(1f).scaleY(1f).setDuration(120).start();
+            }
+            return false;
+        });
     }
 
     private static class SpecViewHolder extends RecyclerView.ViewHolder {
-        private final TextView grade, specName, cpu, ram, disk, traffic, point, status;
-        private final View container, gradeStrip;
+        private final View container, iconBg;
+        private final ImageView icon;
+        private final TextView specName, point, flagFull, subtitle;
 
         SpecViewHolder(View itemView) {
             super(itemView);
-            container = itemView;
-            grade = itemView.findViewById(R.id.item_grade);
-            gradeStrip = itemView.findViewById(R.id.item_grade_strip);
+            container = itemView.findViewById(R.id.item_root);
+            iconBg = itemView.findViewById(R.id.item_icon_bg);
+            icon = itemView.findViewById(R.id.item_icon);
             specName = itemView.findViewById(R.id.item_spec_name);
-            cpu = itemView.findViewById(R.id.item_cpu);
-            ram = itemView.findViewById(R.id.item_ram);
-            disk = itemView.findViewById(R.id.item_disk);
-            traffic = itemView.findViewById(R.id.item_traffic);
             point = itemView.findViewById(R.id.item_point);
-            status = itemView.findViewById(R.id.item_status);
-            if (container instanceof MaterialCardView card) {
-                card.setCardBackgroundColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorSurfaceContainerLow));
-            }
-            status.setText("已满");
-            status.setTextColor(getThemeColor(status.getContext(), com.google.android.material.R.attr.colorOnErrorContainer));
-            status.setBackground(roundedBackground(status.getContext(), com.google.android.material.R.attr.colorErrorContainer, 8));
+            flagFull = itemView.findViewById(R.id.item_flag_full);
+            subtitle = itemView.findViewById(R.id.item_subtitle);
+            applyPressScale(container);
         }
 
         void bind(ListItem item, GenericAdapter.OnSelect cb) {
-            grade.setText(item.grade);
-
-            // Set color based on grade
-            int colorAttr;
-            if (item.grade != null) {
-                if (item.grade.startsWith("S")) colorAttr = androidx.appcompat.R.attr.colorError;
-                else if (item.grade.startsWith("A")) colorAttr = androidx.appcompat.R.attr.colorPrimary;
-                else if (item.grade.startsWith("B")) colorAttr = com.google.android.material.R.attr.colorTertiary;
-                else colorAttr = com.google.android.material.R.attr.colorSecondary;
-            } else {
-                colorAttr = com.google.android.material.R.attr.colorSecondary;
-            }
-            int color = getThemeColor(grade.getContext(), colorAttr);
-
-            grade.setTextColor(color);
-            gradeStrip.setBackgroundColor(color);
-
             specName.setText(item.specName);
-            cpu.setText(item.cpu + "核");
-            ram.setText(item.ram + "G");
-            disk.setText(item.disk + "G");
-            traffic.setText(item.traffic + "G");
-            point.setText(String.valueOf(item.point)); // Just the number
+            subtitle.setText(item.subtitle);
+            point.setText(item.full
+                    ? getString(itemView.getContext(), R.string.cs_point_format, item.point) + " · " + itemView.getContext().getString(R.string.cs_full)
+                    : getString(itemView.getContext(), R.string.cs_point_format, item.point));
 
+            Context ctx = itemView.getContext();
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
             if (item.full) {
-                status.setVisibility(View.VISIBLE);
+                // 已满：降低视觉强调，标记已满，不可点击
+                bg.setColor(colorOf(ctx, com.google.android.material.R.attr.colorErrorContainer));
+                icon.setImageResource(R.drawable.ic_block);
+                icon.setColorFilter(colorOf(ctx, com.google.android.material.R.attr.colorOnErrorContainer));
+                flagFull.setVisibility(View.VISIBLE);
+                flagFull.setTextColor(colorOf(ctx, com.google.android.material.R.attr.colorOnErrorContainer));
+                flagFull.setBackground(roundedBg(ctx, com.google.android.material.R.attr.colorErrorContainer, 6));
                 container.setAlpha(0.6f);
+                container.setOnClickListener(null);
+                container.setClickable(false);
             } else {
-                status.setVisibility(View.GONE);
+                bg.setColor(colorOf(ctx, com.google.android.material.R.attr.colorPrimaryContainer));
+                icon.setImageResource(R.drawable.ic_dns);
+                icon.setColorFilter(colorOf(ctx, com.google.android.material.R.attr.colorOnPrimaryContainer));
+                flagFull.setVisibility(View.GONE);
                 container.setAlpha(1f);
+                container.setOnClickListener(v -> cb.onSelect(item));
             }
+            iconBg.setBackground(bg);
+        }
 
-            container.setOnClickListener(v -> {
-                if (item.selectable) cb.onSelect(item);
-            });
+        private String getString(Context ctx, int res, int value) {
+            return ctx.getString(res, value);
+        }
+
+        private int colorOf(Context ctx, int attr) {
+            return com.google.android.material.color.MaterialColors.getColor(ctx, attr, 0);
+        }
+
+        private GradientDrawable roundedBg(Context ctx, int colorAttr, int radiusDp) {
+            GradientDrawable d = new GradientDrawable();
+            d.setCornerRadius(radiusDp * ctx.getResources().getDisplayMetrics().density);
+            d.setColor(colorOf(ctx, colorAttr));
+            return d;
         }
     }
 
     private static class GenericViewHolder extends RecyclerView.ViewHolder {
-        private final TextView title; private final TextView subtitle; private final View img; private final View container;
-        private final TextView flagFull; private final TextView flagPoint; // 新增标签
-        private final TextView expandToggle; // 第三方镜像简介 展开/收起
-        GenericViewHolder(View itemView){
+        private final TextView title;
+        private final TextView subtitle;
+        private final View iconSlot;
+        private final ImageView img;
+        private final View iconBg;
+        private final ImageView icon;
+        private final View container;
+        private final TextView flagFull;
+        private final TextView expandToggle;
+
+        GenericViewHolder(View itemView) {
             super(itemView);
-            title=itemView.findViewById(R.id.item_title);
-            subtitle=itemView.findViewById(R.id.item_subtitle);
-            img=itemView.findViewById(R.id.item_image);
-            container=itemView;
-            flagFull=itemView.findViewById(R.id.item_flag_full);
-            flagPoint=itemView.findViewById(R.id.item_flag_point);
-            expandToggle=itemView.findViewById(R.id.item_expand_toggle);
-            if (container instanceof MaterialCardView card) {
-                card.setCardBackgroundColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorSurfaceContainerLow));
-                card.setStrokeColor(getThemeColor(container.getContext(), com.google.android.material.R.attr.colorOutlineVariant));
-            }
+            container = itemView.findViewById(R.id.item_root);
+            title = itemView.findViewById(R.id.item_title);
+            subtitle = itemView.findViewById(R.id.item_subtitle);
+            iconSlot = itemView.findViewById(R.id.item_icon_slot);
+            img = itemView.findViewById(R.id.item_image);
+            iconBg = itemView.findViewById(R.id.item_icon_bg);
+            icon = itemView.findViewById(R.id.item_icon);
+            flagFull = itemView.findViewById(R.id.item_flag_full);
+            expandToggle = itemView.findViewById(R.id.item_expand_toggle);
+            applyPressScale(container);
             if (flagFull != null) {
-                flagFull.setTextColor(getThemeColor(flagFull.getContext(), com.google.android.material.R.attr.colorOnErrorContainer));
-                flagFull.setBackground(roundedBackground(flagFull.getContext(), com.google.android.material.R.attr.colorErrorContainer, 6));
+                flagFull.setTextColor(com.google.android.material.color.MaterialColors.getColor(flagFull, com.google.android.material.R.attr.colorOnErrorContainer));
+                GradientDrawable d = new GradientDrawable();
+                d.setCornerRadius(6 * flagFull.getResources().getDisplayMetrics().density);
+                d.setColor(com.google.android.material.color.MaterialColors.getColor(flagFull, com.google.android.material.R.attr.colorErrorContainer));
+                flagFull.setBackground(d);
             }
-            if (flagPoint != null) {
-                flagPoint.setTextColor(getThemeColor(flagPoint.getContext(), com.google.android.material.R.attr.colorOnPrimaryContainer));
-                flagPoint.setBackground(roundedBackground(flagPoint.getContext(), com.google.android.material.R.attr.colorPrimaryContainer, 6));
-            }
+            GradientDrawable iconBgDrawable = new GradientDrawable();
+            iconBgDrawable.setShape(GradientDrawable.OVAL);
+            iconBgDrawable.setColor(com.google.android.material.color.MaterialColors.getColor(iconBg, com.google.android.material.R.attr.colorPrimaryContainer));
+            iconBg.setBackground(iconBgDrawable);
+            icon.setColorFilter(com.google.android.material.color.MaterialColors.getColor(icon, com.google.android.material.R.attr.colorOnPrimaryContainer));
         }
-        void bind(ListItem item, GenericAdapter.OnSelect cb){
+
+        void bind(ListItem item, GenericAdapter.OnSelect cb) {
             title.setText(item.title);
-            if (item.subtitle==null||item.subtitle.isEmpty()){
+            if (item.subtitle == null || item.subtitle.isEmpty()) {
                 subtitle.setVisibility(View.GONE);
                 MarkdownRenderer.clear(subtitle);
             } else {
                 subtitle.setVisibility(View.VISIBLE);
                 if (item.markdown) {
-                    android.util.Log.d("CreateServerBind", "markdown render: title=" + item.title + " sub=" + (item.subtitle == null ? "null" : item.subtitle.substring(0, Math.min(30, item.subtitle.length()))));
                     MarkdownRenderer.renderAsync(subtitle, item.subtitle);
                 } else {
-                    android.util.Log.d("CreateServerBind", "plain text: title=" + item.title);
                     MarkdownRenderer.clear(subtitle);
                     subtitle.setMovementMethod(null);
                     subtitle.setText(item.subtitle);
@@ -1303,151 +1627,27 @@ public class CreateServer extends AppCompatActivity {
                     expandToggle.setOnClickListener(null);
                 }
             }
-            if (item.showImage && img instanceof android.widget.ImageView){ img.setVisibility(View.VISIBLE); Glide.with(img.getContext()).load(item.imageUrl).into((android.widget.ImageView) img);} else { img.setVisibility(item.showImage?View.VISIBLE:View.GONE);}
-            if (item.isGroup) {
-                if (flagFull!=null) flagFull.setVisibility(View.GONE);
-                if (flagPoint!=null) flagPoint.setVisibility(View.GONE);
-                container.setAlpha(1f);
-                container.setOnClickListener(null);
+            if (item.showImage && img != null) {
+                iconSlot.setVisibility(View.VISIBLE);
+                img.setVisibility(View.VISIBLE);
+                iconBg.setVisibility(View.GONE);
+                img.setClipToOutline(true);
+                GradientDrawable outline = new GradientDrawable();
+                outline.setCornerRadius(8 * img.getResources().getDisplayMetrics().density);
+                img.setBackground(outline);
+                com.bumptech.glide.Glide.with(img.getContext()).load(item.imageUrl).into(img);
+            } else if (item.noIcon) {
+                // 应用(服务端)步骤：不显示图标，文字直接靠左
+                iconSlot.setVisibility(View.GONE);
             } else {
-                if (flagFull != null) flagFull.setVisibility(item.full?View.VISIBLE:View.GONE); // 仅 full=true 显示已满
-                if (flagPoint != null) {
-                    if (item.point >= 0 && !item.full && item.id != -1) { // 规格行且非已满显示积分
-                        flagPoint.setVisibility(View.VISIBLE);
-                        flagPoint.setText(item.point + "积分");
-                    } else {
-                        flagPoint.setVisibility(View.GONE);
-                    }
-                }
-                container.setAlpha(item.selectable?1f:0.6f);
-                container.setOnClickListener(v->{ if(item.selectable) cb.onSelect(item); });
+                iconSlot.setVisibility(View.VISIBLE);
+                img.setVisibility(View.GONE);
+                iconBg.setVisibility(View.VISIBLE);
+                if (item.iconRes != 0) icon.setImageResource(item.iconRes);
             }
+            if (flagFull != null) flagFull.setVisibility(View.GONE);
+            container.setAlpha(item.selectable ? 1f : 0.6f);
+            container.setOnClickListener(v -> { if (item.selectable) cb.onSelect(item); });
         }
-    }
-
-    private int dp(int v){ return (int)(v * getResources().getDisplayMetrics().density + 0.5f); }
-
-    private int getThemeColor(int attr) {
-        return getThemeColor(this, attr);
-    }
-
-    private static int getThemeColor(Context context, int attr) {
-        return com.google.android.material.color.MaterialColors.getColor(context, attr, 0);
-    }
-
-    private static GradientDrawable roundedBackground(Context context, int colorAttr, int radiusDp) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(getThemeColor(context, colorAttr));
-        drawable.setCornerRadius(radiusDp * context.getResources().getDisplayMetrics().density);
-        return drawable;
-    }
-
-    // 第三方镜像 服务端列表本地搜索+分页
-    private void applyImageKindFiltersAndPagination() {
-        if (!isCustom) return; // 仅第三方
-        List<ListItem> filtered = new ArrayList<>();
-        String q = imageKindSearchQuery == null ? "" : imageKindSearchQuery.toLowerCase();
-        for (ListItem li : fullImageKindList) {
-
-            String desc = li.fullSubtitle != null ? li.fullSubtitle : li.subtitle;
-            if (TextUtils.isEmpty(q) || li.title.toLowerCase().contains(q) || (desc != null && desc.toLowerCase().contains(q))) {
-                filtered.add(li);
-            }
-        }
-        int total = filtered.size();
-        List<ListItem> visibleItems = new ArrayList<>();
-        if (total <= IMAGE_KIND_PAGE_SIZE) {
-            setPaginationVisible(View.GONE);
-            visibleItems.addAll(filtered);
-        } else {
-            int pages = (int) Math.ceil(total * 1.0 / IMAGE_KIND_PAGE_SIZE);
-            if (imageKindCurrentPage > pages) imageKindCurrentPage = pages;
-            int start = (imageKindCurrentPage - 1) * IMAGE_KIND_PAGE_SIZE;
-            int end = Math.min(start + IMAGE_KIND_PAGE_SIZE, total);
-            visibleItems.addAll(filtered.subList(start, end));
-            buildPaginationControls(pages);
-        }
-        replaceData(visibleItems);
-    }
-
-    private void setPaginationVisible(int visibility) {
-        hsPagination.setVisibility(visibility);
-        hsPaginationBottom.setVisibility(visibility);
-    }
-
-    private void buildPaginationControls(int pages) {
-        paginationContainer.removeAllViews();
-        paginationContainerBottom.removeAllViews();
-        setPaginationVisible(pages > 1 ? View.VISIBLE : View.GONE);
-        if (pages <= 1) return;
-
-        for (int i = 1; i <= pages; i++) {
-            final int p = i;
-            paginationContainer.addView(buildPageTextView(p));
-            paginationContainerBottom.addView(buildPageTextView(p));
-        }
-    }
-
-    private TextView buildPageTextView(int p) {
-        TextView tv = new TextView(this);
-        tv.setText(String.valueOf(p));
-        tv.setTextSize(16);
-        tv.setPadding(dp(12), dp(8), dp(12), dp(8));
-        tv.setGravity(android.view.Gravity.CENTER);
-
-        if (p == imageKindCurrentPage) {
-            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnPrimaryContainer));
-            tv.setTypeface(null, android.graphics.Typeface.BOLD);
-            tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorPrimaryContainer, 8));
-        } else {
-            tv.setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
-            tv.setBackground(roundedBackground(this, com.google.android.material.R.attr.colorSurfaceContainer, 8));
-            tv.setOnClickListener(v -> {
-                imageKindCurrentPage = p;
-                applyImageKindFiltersAndPagination();
-            });
-        }
-        return tv;
-    }
-
-    private void refreshCurrentStep() {
-        switch (currentStep) {
-            case GAME -> loadGameList();
-            case IMAGE_KIND -> loadImageKindList();
-            case VERSION -> loadVersionList();
-            case SPEC -> loadSpecList();
-            case CONFIRM -> loadConfirmation();
-            default -> {}
-        }
-    }
-
-    private String formatSize(String sizeRaw) {
-        if (TextUtils.isEmpty(sizeRaw)) return "";
-        try {
-            long bytes = Long.parseLong(sizeRaw.trim());
-            if (bytes <= 0) return "0KB";
-            double kb = bytes / 1024.0;
-            if (kb < 1024) {
-                return ceil1(kb) + "KB"; // 小于1MB 显示KB
-            }
-            double mb = kb / 1024.0;
-            if (mb < 1024) {
-                double mbUp = Math.ceil(mb * 10.0) / 10.0;
-                if (mbUp == (long) mbUp) return ((long) mbUp) + "MB";
-                return mbUp + "MB";
-            }
-            double gb = mb / 1024.0;
-            double gbUp = Math.ceil(gb * 10.0) / 10.0;
-            if (gbUp == (long) gbUp) return ((long) gbUp) + "GB";
-            return gbUp + "GB";
-        } catch (NumberFormatException e) {
-            return sizeRaw;
-        }
-    }
-
-    private String ceil1(double v) {
-        double up = Math.ceil(v * 10.0) / 10.0;
-        if (up == (long) up) return String.valueOf((long) up);
-        return String.valueOf(up);
     }
 }

@@ -27,6 +27,8 @@ import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.dev.DevApi;
 import cn.jdnjk.simpfun.model.DevBackupItem;
 import cn.jdnjk.simpfun.model.DevVersionItem;
+import cn.jdnjk.simpfun.utils.MultiLineInputHelper;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class DevMirrorDetailActivity extends AppCompatActivity {
 
@@ -73,6 +75,10 @@ public class DevMirrorDetailActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dev_mirror_detail);
+
+        // targetSdk 35 在 Android 15+ 强制 edge-to-edge，必须自行处理系统栏 inset
+        ThemeUtils.applyEdgeToEdge(this);
+        ThemeUtils.applyRootInsets(this);
 
         devApi = new DevApi();
         token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
@@ -130,6 +136,7 @@ public class DevMirrorDetailActivity extends AppCompatActivity {
         etNewVersionRecommend = createVersionTab.findViewById(R.id.et_new_version_recommend);
         etNewVersionOneKey = createVersionTab.findViewById(R.id.et_new_version_one_key);
         etNewVersionProperties = createVersionTab.findViewById(R.id.et_new_version_properties);
+        MultiLineInputHelper.apply(etDescription, etNewVersionOneKey, etNewVersionProperties);
 
         tvFbRestore = feedbackTab.findViewById(R.id.tv_fb_restore);
         tvFbLike = feedbackTab.findViewById(R.id.tv_fb_like);

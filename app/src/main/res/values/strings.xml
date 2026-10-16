@@ -143,6 +143,25 @@
     <string name="title_buy_points">记录</string>
     <string name="tab_points">积分</string>
     <string name="tab_diamonds">钻石</string>
+
+    <!-- 明细与充值（新版） -->
+    <string name="title_record">明细</string>
+    <string name="title_recharge">充值</string>
+    <string name="tab_recharge_points">充积分</string>
+    <string name="tab_recharge_cards">签到卡</string>
+    <string name="tab_recharge_traffic">充流量</string>
+    <string name="record_empty">暂无流水记录</string>
+    <string name="record_error">加载失败，下拉重试</string>
+    <string name="section_choose_amount">选择金额</string>
+    <string name="section_recharge_mode">充值方式</string>
+    <string name="section_card_type">卡类型</string>
+    <string name="section_card_duration">时长</string>
+    <string name="section_channel">支付渠道</string>
+    <string name="section_traffic_package">流量包（消耗积分）</string>
+    <string name="section_choose_instance">选择实例</string>
+    <string name="notice_entry">充值前须知</string>
+    <string name="recharge_notice_content" formatted="false" translatable="false"><![CDATA[（下滑查看更多）<br><br>简幻欢目前仍为公益项目，<b>并非以盈利为目的</b>，初衷是给广大用户提供一个<b>「好用」</b>的服务器平台，达成<b>「人人都可免费开属于自己的服务器」</b>的目标。<br><br>然而在项目实际运行时，发现：<br>1. 部分用户有更高的性能需求，并且需要连续使用，这需要更高的成本。<br>2. 用户不会关注实际性能需求、使用需求，在无约束使用时只会选择最高配置并持续占用，给项目造成了资源和金钱的浪费。<br><br>为了能够满足不同用户的实际需求，同时节省部分项目开销，连续使用更高性能服务器将需要用户自行承担部分服务器成本，余下成本由我方承担。<br><br>即：<b>服务器成本 = 您承担一部分 + 我方承担一部分</b><br><br>若需支持我们，可考虑关闭公益模式（变更至 Pro），或直接选择普通充值，收益将会用于简幻欢的项目维护、设备升级等。<br><br>我们尽力提供更多的服务器资源，但您应当理解：出于项目预算有限，我们无法承担过多成本。项目设置了全平台范围的每日充值上限，我们不保证您能够进行充值，也不保证您所需配置有足够剩余资源。<br><br>您悉知：<b>充值为您的个人意愿，是您有更高的需求，并非本项目所提倡的。您的充值并不能覆盖服务器运行成本，也不能帮助到我们。出于项目预算有限，无法保证您能够进行充值或使用到预期配置的服务器。如果您想支持我们，可考虑变更至 Pro 或直接进行普通充值。</b>]]></string>
+
     <string name="section_recharge">积分充值</string>
     <string name="section_payment_method">支付方式</string>
     <string name="section_history_points">积分历史记录</string>
@@ -192,8 +211,8 @@
     <string name="overview_line_chart_subtitle">在总览页用折线图展示实时CPU/内存/网速</string>
 
     <!-- Create server related strings -->
-    <string name="create_server_action_create">创建</string>
-    <string name="create_server_action_reinstall">重装</string>
+    <string name="create_server_action_create">确认创建</string>
+    <string name="create_server_action_reinstall">确认重装</string>
     <string name="create_server_action_change_config">确认变配</string>
     <string name="create_server_recommended_prefix">推荐配置: %1$s</string>
     <string name="create_server_size_prefix">大小: %1$s</string>
@@ -201,6 +220,36 @@
     <string name="create_server_cpu_cores">%1$d核</string>
     <string name="create_server_storage_gb">%1$dG</string>
     <string name="create_server_points">%1$d积分</string>
+    <string name="cs_step_format">第 %1$d 步 / 共 %2$d 步 · %3$s</string>
+    <string name="cs_header_start">先选一个起点</string>
+    <string name="cs_header_game">想运行什么？</string>
+    <string name="cs_header_confirm">再核对一次</string>
+    <string name="cs_header_reinstall">确认重装</string>
+    <string name="cs_sub_type">选择镜像来源</string>
+    <string name="cs_sub_game">选择镜像类别</string>
+    <string name="cs_sub_spec_sort">按积分升序</string>
+    <string name="cs_sub_spec_change">选择目标规格</string>
+    <string name="cs_sub_confirm">信息以确认接口为准</string>
+    <string name="cs_sub_reinstall">选择重装选项</string>
+    <string name="cs_confirm_version">镜像版本 %1$s</string>
+    <string name="cs_confirm_spec_line">%1$s · %2$d 核 · %3$d GB 内存 · %4$d GB 磁盘\n%5$d GB 可用流量 · %6$d 积分</string>
+    <string name="cs_point_format">%1$d 积分</string>
+    <string name="cs_spec_line">%1$d 核 · %2$d GB 内存 · %3$d GB 磁盘 · %4$d GB 流量 · %5$s</string>
+    <string name="cs_full">已满</string>
+    <string name="cs_grade_all">全部</string>
+    <string name="cs_os_linux">Linux</string>
+    <string name="cs_os_windows">Windows</string>
+    <string name="cs_toolbar_create">创建服务器</string>
+    <string name="cs_toolbar_game">选择镜像类别</string>
+    <string name="cs_toolbar_kind">选择服务端</string>
+    <string name="cs_toolbar_version">选择版本</string>
+    <string name="cs_toolbar_spec">选择实例规格</string>
+    <string name="cs_toolbar_confirm">确认创建</string>
+    <string name="cs_toolbar_confirm_change">确认变配</string>
+    <string name="cs_toolbar_reinstall">确认重装</string>
+    <string name="cs_toolbar_reinstall_game">选择实例类别</string>
+    <string name="cs_toolbar_reinstall_kind">选择实例服务端</string>
+    <string name="cs_toolbar_reinstall_version">选择实例版本</string>
 
     <!-- File conflict dialog -->
     <string name="file_conflict_title">文件已存在</string>

@@ -5,8 +5,31 @@
     <style name="ThemeOverlay.Simpfun.BottomSheet" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog" />
 
     <style name="ShapeAppearance.Simpfun.Dialog" parent="ShapeAppearance.Material3.Corner.None">
-        <item name="cornerSize">4dp</item>
+        <item name="cornerSize">12dp</item>
     </style>
+
+    <!-- 主标签页：48dp，titleSmall emphasized，3dp 全宽顶部圆角指示条 -->
+    <style name="Widget.Simpfun.TabLayout.Primary" parent="Widget.Material3.TabLayout">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="tabIndicatorColor">?attr/colorPrimary</item>
+        <item name="tabIndicatorHeight">3dp</item>
+        <item name="tabIndicatorFullWidth">true</item>
+        <item name="tabIndicatorGravity">top</item>
+        <item name="tabIndicatorAnimationMode">elastic</item>
+        <item name="tabTextAppearance">@style/TextAppearance.Simpfun.TabLabel</item>
+        <item name="tabTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="tabSelectedTextColor">?attr/colorPrimary</item>
+        <item name="tabRippleColor">@android:color/transparent</item>
+    </style>
+
+    <style name="TextAppearance.Simpfun.TabLabel" parent="TextAppearance.Material3.TitleSmall.Emphasized" />
+
+    <!-- 15sp 加粗的分区标题 -->
+    <style name="TextAppearance.Simpfun.SectionLabel" parent="TextAppearance.Material3.TitleMedium.Emphasized">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
 
     <style name="ThemeOverlay.Simpfun.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Simpfun.Dialog</item>

@@ -17,6 +17,8 @@ import org.json.JSONObject;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.dev.DevApi;
+import cn.jdnjk.simpfun.utils.MultiLineInputHelper;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class DevVersionEditActivity extends AppCompatActivity {
 
@@ -45,6 +47,10 @@ public class DevVersionEditActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dev_version_edit);
 
+        // targetSdk 35 在 Android 15+ 强制 edge-to-edge，必须自行处理系统栏 inset
+        ThemeUtils.applyEdgeToEdge(this);
+        ThemeUtils.applyRootInsets(this);
+
         devApi = new DevApi();
         token = getSharedPreferences("token", MODE_PRIVATE).getString("token", null);
         mirrorId = getIntent().getIntExtra(EXTRA_MIRROR_ID, -1);
@@ -67,6 +73,7 @@ public class DevVersionEditActivity extends AppCompatActivity {
         etRecommend = findViewById(R.id.et_version_recommend);
         etOneKey = findViewById(R.id.et_version_one_key);
         etProperties = findViewById(R.id.et_version_properties);
+        MultiLineInputHelper.apply(etOneKey, etProperties);
 
         Intent intent = getIntent();
         switchState.setChecked(intent.getBooleanExtra(EXTRA_STATE, false));

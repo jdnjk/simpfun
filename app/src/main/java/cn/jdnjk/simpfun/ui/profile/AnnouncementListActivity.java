@@ -19,6 +19,7 @@ import java.util.List;
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.AnnouncementApi;
 import cn.jdnjk.simpfun.model.AnnouncementItem;
+import cn.jdnjk.simpfun.utils.ThemeUtils;
 
 public class AnnouncementListActivity extends AppCompatActivity {
 
@@ -31,6 +32,10 @@ public class AnnouncementListActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_announcement_list);
+
+        // targetSdk 35 在 Android 15+ 强制 edge-to-edge，必须自行处理系统栏 inset
+        ThemeUtils.applyEdgeToEdge(this);
+        ThemeUtils.applyRootInsets(this);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar_announcements);
         toolbar.setNavigationOnClickListener(v -> finish());

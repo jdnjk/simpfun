@@ -1,151 +1,116 @@
 package cn.jdnjk.simpfun.ui.point;
 
+import android.content.Context;
 import android.os.Bundle;
-import android.view.MenuItem;
-
 import android.view.View;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
-import androidx.viewpager2.adapter.FragmentStateAdapter;
-import androidx.viewpager2.widget.ViewPager2;
 
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.tabs.TabLayoutMediator;
+import java.util.List;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.utils.ThemeUtils;
 
-public class PointManageActivity extends AppCompatActivity {
+/**
+ * 明细 + 充值 宿主 Activity。
+ * 明细页常驻；充值页以从底部滑入的方式覆盖在明细页上，返回时反向播放。
+ */
+public class PointManageActivity extends AppCompatActivity implements RechargeHomeFragment.OnPayFlowListener {
 
     public static final String EXTRA_TAB = "tab";
     public static final String TAB_POINTS = "points";
     public static final String TAB_DIAMONDS = "diamonds";
 
     public static final String EXTRA_RECHARGE_TAB = "recharge_tab";
-    public static final int RECHARGE_TAB_TRAFFIC = 1;
+    /** 充值页标签：0=充积分 1=签到卡 2=充流量 */
+    public static final int RECHARGE_TAB_TRAFFIC = 2;
     public static final String EXTRA_PRESELECT_INSTANCE = "preselect_instance";
 
-    private TabLayout tabLayout;
-    private ViewPager2 viewPager;
-    private int rechargeTab = -1;
-    private int preselectInstance = -1;
+    /** SharedPreferences key：支付/购买成功后置位，ProfileFragment.onResume 据此刷新个人主页。 */
+    private static final String KEY_POINT_DIRTY = "point_dirty";
 
-    public int getRechargeTab() {
-        return rechargeTab;
-    }
-
-    public int getPreselectInstance() {
-        return preselectInstance;
-    }
-
-    public void showRecharge(boolean show) {
-        if (tabLayout != null) {
-            tabLayout.setVisibility(show ? View.GONE : View.VISIBLE);
-        }
-        if (viewPager != null) {
-            viewPager.setUserInputEnabled(!show);
-        }
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        if (toolbar != null) {
-            toolbar.setTitle(show ? "充值" : "记录");
-        }
-    }
+    private static final String TAG_RECHARGE = "recharge";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeUtils.applySavedTheme(this);
         super.onCreate(savedInstanceState);
-
         ThemeUtils.applyEdgeToEdge(this);
         setContentView(R.layout.activity_point_manage);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
-
-        tabLayout = findViewById(R.id.tab_layout);
-        viewPager = findViewById(R.id.view_pager);
-        applyWindowInsets();
-
-        viewPager.setAdapter(new FragmentStateAdapter(this) {
-            @NonNull
-            @Override
-            public Fragment createFragment(int position) {
-                if (position == 0) {
-                    return PointHistoryFragment.newInstance(PointHistoryFragment.TYPE_POINTS);
-                } else {
-                    return PointHistoryFragment.newInstance(PointHistoryFragment.TYPE_DIAMONDS);
-                }
-            }
-
-            @Override
-            public int getItemCount() {
-                return 2;
-            }
-        });
-
-        new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            if (position == 0) {
-                tab.setText(R.string.tab_points);
-            } else {
-                tab.setText(R.string.tab_diamonds);
-            }
-        }).attach();
-
-        String tab = getIntent() != null ? getIntent().getStringExtra(EXTRA_TAB) : null;
-        if (TAB_DIAMONDS.equals(tab)) {
-            viewPager.setCurrentItem(1, false);
-        } else {
-            viewPager.setCurrentItem(0, false);
-        }
-
-        if (getIntent() != null) {
-            rechargeTab = getIntent().getIntExtra(EXTRA_RECHARGE_TAB, -1);
-            preselectInstance = getIntent().getIntExtra(EXTRA_PRESELECT_INSTANCE, -1);
-        }
-    }
-
-    private void applyWindowInsets() {
-        View root = findViewById(R.id.point_manage_root);
-        View appBar = findViewById(R.id.app_bar_layout);
-        int initialAppBarTop = appBar.getPaddingTop();
-        int initialViewPagerBottom = viewPager.getPaddingBottom();
-        viewPager.setClipToPadding(false);
+        View root = findViewById(R.id.fragment_container);
         ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
-            Insets safeInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            Insets navigationInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
-            appBar.setPadding(appBar.getPaddingLeft(), initialAppBarTop + safeInsets.top, appBar.getPaddingRight(), appBar.getPaddingBottom());
-            viewPager.setPadding(viewPager.getPaddingLeft(), viewPager.getPaddingTop(), viewPager.getPaddingRight(), initialViewPagerBottom + navigationInsets.bottom);
+            Insets bars = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(bars.left, 0, bars.right, bars.bottom);
             return insets;
         });
+
+        int initialTab = TAB_DIAMONDS.equals(getIntent() != null ? getIntent().getStringExtra(EXTRA_TAB) : null) ? 1 : 0;
+        if (getSupportFragmentManager().findFragmentById(R.id.fragment_container) == null) {
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, RecordFragment.newInstance(initialTab))
+                    .commit();
+        }
+
+        if (getIntent() != null && getIntent().hasExtra(EXTRA_RECHARGE_TAB)) {
+            int rechargeTab = getIntent().getIntExtra(EXTRA_RECHARGE_TAB, 0);
+            int preselectInstance = getIntent().getIntExtra(EXTRA_PRESELECT_INSTANCE, -1);
+            openRecharge(rechargeTab, preselectInstance);
+        }
     }
 
+    /** 从底部滑入充值页；已在充值页时忽略。 */
+    public void openRecharge(int rechargeTab, int preselectInstance) {
+        if (getSupportFragmentManager().findFragmentByTag(TAG_RECHARGE) != null) return;
+        getSupportFragmentManager().beginTransaction()
+                .setCustomAnimations(R.anim.slide_in_bottom, R.anim.fade_out,
+                        R.anim.fade_in, R.anim.slide_out_bottom)
+                .add(R.id.fragment_container,
+                        RechargeHomeFragment.newInstance(rechargeTab, preselectInstance), TAG_RECHARGE)
+                .addToBackStack(TAG_RECHARGE)
+                .commit();
+    }
+
+    /** 充值流程结束后（支付成功/流量包购买成功）刷新明细，并标记个人主页待刷新。
+     *  RechargeHomeFragment 以 add 方式叠加在 RecordFragment 之上，findFragmentById
+     *  返回的是栈顶的 RechargeHomeFragment，因此必须遍历 fragments 才能找到 RecordFragment。 */
     @Override
-    public void onBackPressed() {
-        Fragment currentFragment = getSupportFragmentManager().findFragmentByTag("f" + viewPager.getCurrentItem());
-        if (currentFragment instanceof PointHistoryFragment) {
-            PointHistoryFragment historyFragment = (PointHistoryFragment) currentFragment;
-            if (historyFragment.isRechargeVisible()) {
-                historyFragment.toggleRecharge();
-                return;
+    public void onPayFlowSuccess() {
+        List<Fragment> fragments = getSupportFragmentManager().getFragments();
+        for (Fragment fragment : fragments) {
+            if (fragment instanceof RecordFragment) {
+                ((RecordFragment) fragment).refreshAll();
             }
         }
-        super.onBackPressed();
+        markPointDirty(this);
+    }
+
+    /** 标记个人主页需要在 onResume 时刷新用户资产。 */
+    public static void markPointDirty(@NonNull Context context) {
+        context.getSharedPreferences("user_info", Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_POINT_DIRTY, true).apply();
+    }
+
+    /** ProfileFragment.onResume 调用：读取并清除标记。 */
+    public static boolean consumePointDirty(@NonNull Context context) {
+        android.content.SharedPreferences sp =
+                context.getSharedPreferences("user_info", Context.MODE_PRIVATE);
+        boolean dirty = sp.getBoolean(KEY_POINT_DIRTY, false);
+        if (dirty) {
+            sp.edit().putBoolean(KEY_POINT_DIRTY, false).apply();
+        }
+        return dirty;
     }
 
     @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+    public boolean onSupportNavigateUp() {
+        getSupportFragmentManager().popBackStack();
+        return true;
     }
 }

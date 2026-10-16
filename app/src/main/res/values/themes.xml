@@ -58,4 +58,17 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
+
+    <!-- 方形小圆角（8dp）形状覆盖，用于 FAB 等 -->
+    <style name="ShapeAppearanceOverlay.Simpfun.Square" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item>
+    </style>
+
+    <!-- FAB 16dp 圆角（非胶囊） -->
+    <style name="ShapeAppearanceOverlay.Simpfun.Fab" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
 </resources>

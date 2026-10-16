@@ -1,250 +1,380 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:background="?attr/colorSurface">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fitsSystemWindows="true">
+        android:fitsSystemWindows="true"
+        app:liftOnScroll="true"
+        app:elevation="0dp"
+        android:background="?attr/colorSurface">
 
-        <com.google.android.material.appbar.CollapsingToolbarLayout
-            android:id="@+id/collapsing_toolbar"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/collapsingToolbarLayoutLargeSize"
-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
-            app:titleCollapseMode="scale"
-            app:collapsedTitleGravity="start"
-            app:expandedTitleGravity="start|bottom"
-            app:contentScrim="?attr/colorSurface"
-            style="@style/Widget.Material3.CollapsingToolbar.Large">
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorSurface"
+            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
+            app:menu="@menu/create_server_menu" />
 
-            <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar"
+        <!-- 面包屑：已走过的步骤，可点击跳回 -->
+        <HorizontalScrollView
+            android:id="@+id/hs_breadcrumb"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:visibility="gone"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="4dp">
+
+            <LinearLayout
+                android:id="@+id/layout_breadcrumb"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical" />
+        </HorizontalScrollView>
+
+        <!-- 波浪形线性进度条 -->
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress_wavy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="4dp"
+            app:trackThickness="6dp"
+            app:trackCornerRadius="50%"
+            app:waveAmplitude="3dp"
+            app:trackColor="?attr/colorSecondaryContainer"
+            app:indicatorColor="?attr/colorPrimary"
+            android:max="100"
+            android:progress="17" />
+
+        <!-- 大标题 + 步骤说明 -->
+        <LinearLayout
+            android:id="@+id/layout_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/tv_step_title"
                 android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                app:layout_collapseMode="pin"
-                app:navigationIcon="@drawable/ic_arrow_back"
-                app:menu="@menu/create_server_menu" />
+                android:layout_height="wrap_content"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                android:visibility="gone"
+                tools:text="先选一个起点" />
 
-        </com.google.android.material.appbar.CollapsingToolbarLayout>
+            <TextView
+                android:id="@+id/tv_step_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:lineHeight="22sp"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:paddingTop="6dp"
+                android:paddingBottom="8dp"
+                tools:text="第 1 步 / 共 6 步 · 选择镜像来源" />
+        </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <!-- 内容承载容器（步骤切换动画作用于此） -->
+    <FrameLayout
+        android:id="@+id/content_host"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scroll_content"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="24dp"
+            android:scrollbars="none">
 
-            <!-- 步骤导航 -->
-            <HorizontalScrollView
-                android:id="@+id/hs_steps"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:scrollbars="none"
+                android:orientation="vertical"
                 android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:visibility="visible">
-                <LinearLayout
-                    android:id="@+id/layout_steps"
-                    android:layout_width="wrap_content"
+                android:paddingEnd="16dp">
+
+                <!-- 搜索栏，仅第三方镜像服务端步骤显示 -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layout_search"
+                    style="@style/Widget.Material3.TextInputLayout.FilledBox"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"/>
-            </HorizontalScrollView>
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="12dp"
+                    android:visibility="gone"
+                    app:boxBackgroundColor="?attr/colorSurfaceContainerHigh"
+                    app:boxCornerRadiusBottomEnd="8dp"
+                    app:boxCornerRadiusBottomStart="8dp"
+                    app:boxCornerRadiusTopEnd="8dp"
+                    app:boxCornerRadiusTopStart="8dp"
+                    app:boxStrokeWidth="0dp"
+                    app:boxStrokeWidthFocused="1dp"
+                    app:endIconMode="clear_text"
+                    app:hintEnabled="false"
+                    app:startIconDrawable="@drawable/ic_search"
+                    app:startIconTint="?attr/colorOnSurfaceVariant">
 
-            <!-- 搜索栏，仅在第三方 镜像服务端 步骤显示 -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/layout_search"
-                style="@style/Widget.Material3.TextInputLayout.FilledBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="12dp"
-                android:visibility="gone"
-                app:boxBackgroundColor="?attr/colorSurfaceContainerHigh"
-                app:boxCornerRadiusBottomEnd="28dp"
-                app:boxCornerRadiusBottomStart="28dp"
-                app:boxCornerRadiusTopEnd="28dp"
-                app:boxCornerRadiusTopStart="28dp"
-                app:boxStrokeColor="?attr/colorPrimary"
-                app:boxStrokeWidth="0dp"
-                app:boxStrokeWidthFocused="1dp"
-                app:endIconMode="clear_text"
-                app:hintEnabled="false"
-                app:startIconDrawable="@drawable/ic_search"
-                app:startIconTint="?attr/colorOnSurfaceVariant">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_search"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:hint="搜索镜像名称或描述"
+                        android:imeOptions="actionSearch"
+                        android:includeFontPadding="false"
+                        android:inputType="text"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:singleLine="true"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textColorHint="?attr/colorOnSurfaceVariant" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/et_search"
+                <!-- 分页容器：第三方服务端超过10条时显示 -->
+                <HorizontalScrollView
+                    android:id="@+id/hs_pagination"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fillViewport="true"
+                    android:scrollbars="none"
+                    android:visibility="gone"
+                    android:paddingBottom="8dp">
+                    <LinearLayout
+                        android:id="@+id/pagination_container"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <!-- 规格等级筛选，仅规格步骤显示 -->
+                <LinearLayout
+                    android:id="@+id/layout_grade_filter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="4dp">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layout_grade_menu"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="200dp"
+                        android:layout_height="wrap_content"
+                        android:hint="配置等级"
+                        app:boxCornerRadiusBottomEnd="8dp"
+                        app:boxCornerRadiusBottomStart="8dp"
+                        app:boxCornerRadiusTopEnd="8dp"
+                        app:boxCornerRadiusTopStart="8dp"
+                        app:startIconDrawable="@drawable/ic_filter_list"
+                        app:startIconTint="?attr/colorOnSurfaceVariant">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/act_grade"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:textSize="15sp"
+                            android:textColor="?attr/colorOnSurface" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:id="@+id/tv_cpu_model_link"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="8dp"
+                        android:text="了解 CPU 型号与配置等级"
+                        android:textSize="14sp"
+                        android:textColor="?attr/colorPrimary"
+                        android:drawableStart="@drawable/ic_help"
+                        android:drawablePadding="6dp"
+                        android:drawableTint="?attr/colorPrimary"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackgroundBorderless" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recycler_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:overScrollMode="never"
+                    android:nestedScrollingEnabled="false" />
+
+                <!-- 重装选项（仅重装模式最后一步显示） -->
+                <LinearLayout
+                    android:id="@+id/layout_reinstall_options"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/cb_save_before_reinstall"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="在重装之前备份目前实例(消耗30积分)"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/cb_diff_update"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        android:text="差异更新(保留实例文件更新,不保证成功)"
+                        android:textColor="?attr/colorOnSurface" />
+                </LinearLayout>
+
+                <!-- 确认页卡片 -->
+                <LinearLayout
+                    android:id="@+id/layout_confirm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_image"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="?attr/colorSecondaryContainer"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <TextView
+                                android:id="@+id/tv_confirm_image_title"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textColor="?attr/colorOnSecondaryContainer"
+                                android:text="-" />
+
+                            <TextView
+                                android:id="@+id/tv_confirm_version"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:textSize="14sp"
+                                android:lineHeight="20sp"
+                                android:textColor="?attr/colorOnSecondaryContainer"
+                                android:text="-" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/card_spec"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        app:cardCornerRadius="8dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:textColor="?attr/colorOnSurface"
+                                android:text="实例配置" />
+
+                            <TextView
+                                android:id="@+id/tv_confirm_spec_body"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:textSize="14sp"
+                                android:lineHeight="20sp"
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:text="-" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+
+                <!-- 主操作按钮 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_action"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:gravity="center_vertical"
-                    android:hint="搜索镜像名称或描述"
-                    android:imeOptions="actionSearch"
-                    android:includeFontPadding="false"
-                    android:inputType="text"
-                    android:paddingTop="0dp"
-                    android:paddingBottom="0dp"
-                    android:singleLine="true"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textColorHint="?attr/colorOnSurfaceVariant" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_marginTop="20dp"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="8dp"
+                    app:iconGravity="textEnd"
+                    android:visibility="gone"
+                    style="@style/Widget.Material3.Button" />
 
-            <!-- 分页容器：超出10条时显示 -->
-            <HorizontalScrollView
-                android:id="@+id/hs_pagination"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fillViewport="true"
-                android:visibility="gone"
-                android:paddingBottom="8dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp">
-                <LinearLayout
-                    android:id="@+id/pagination_container"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
-
-            <!-- 规格等级筛选，仅在SPEC步骤显示 -->
-            <LinearLayout
-                android:id="@+id/layout_grade_filter"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:gravity="center_vertical">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="等级:"
-                    android:textSize="14sp"
-                    android:layout_marginEnd="8dp" />
-                <Spinner
-                    android:id="@+id/sp_grade"
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:spinnerMode="dropdown" />
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <TextView
-                    android:id="@+id/tv_cpu_model_link"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="具体CPU型号"
-                    android:textColor="?attr/colorPrimary"
-                    android:textSize="14sp"
-                    android:padding="8dp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground" />
             </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler_view"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:padding="16dp"
-                android:nestedScrollingEnabled="false" />
+        <FrameLayout
+            android:id="@+id/layout_loading"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
 
-            <HorizontalScrollView
-                android:id="@+id/hs_pagination_bottom"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fillViewport="true"
-                android:visibility="gone"
-                android:paddingBottom="8dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp">
-                <LinearLayout
-                    android:id="@+id/pagination_container_bottom"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"
+                app:indicatorColor="?attr/colorPrimary"
+                app:indicatorSize="48dp"
+                app:trackThickness="4dp" />
+        </FrameLayout>
 
-            <LinearLayout
-                android:id="@+id/layout_reinstall_options"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="8dp"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/cb_save_before_reinstall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="在重装之前备份目前实例(消耗30积分)"
-                    android:textColor="?attr/colorOnSurface" />
-
-                <com.google.android.material.checkbox.MaterialCheckBox
-                    android:id="@+id/cb_diff_update"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="false"
-                    android:text="差异更新(保留实例文件更新,不保证成功)"
-                    android:textColor="?attr/colorOnSurface" />
-            </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_action"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:text="创建"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:visibility="gone"
-                style="@style/Widget.Material3.Button" />
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
-    <ProgressBar
-        android:id="@+id/progress"
-        style="@android:style/Widget.DeviceDefault.Light.ProgressBar.Large"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:layout_gravity="center"
-        android:visibility="gone" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_help"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:src="@drawable/ic_help"
-        android:contentDescription="帮助"
-        android:visibility="gone"
-        app:backgroundTint="?attr/colorPrimary"
-        app:tint="?attr/colorOnPrimary" />
+    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

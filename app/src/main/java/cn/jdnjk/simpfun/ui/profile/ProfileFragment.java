@@ -129,6 +129,10 @@ public class ProfileFragment extends Fragment {
         super.onResume();
         if (isAdded()) {
             updateThemeModeDisplay();
+            // 从 PointManageActivity 返回后，若支付/购买成功过则刷新个人资产
+            if (PointManageActivity.consumePointDirty(requireContext())) {
+                refreshUserInfo();
+            }
         }
     }
 
