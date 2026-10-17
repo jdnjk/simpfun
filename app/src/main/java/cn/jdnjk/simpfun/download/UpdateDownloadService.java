@@ -16,7 +16,6 @@ import androidx.core.content.FileProvider;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -207,7 +206,15 @@ public class UpdateDownloadService extends Service {
                     response.close();
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+            // onDestroy 的 shutdownNow() 会中断在 okhttp 阻塞中的下载线程；
+            // InterruptedException 会经 okhttp 内部线程边界逃逸到此处，必须接住，否则未捕获直接 FATAL。
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+                Log.d(TAG, "下载被中断");
+                deleteCurrentApk();
+                return;
+            }
             Log.e(TAG, "下载更新失败", e);
             if (!cancelled.get()) {
                 deleteCurrentApk();
@@ -295,6 +302,11 @@ public class UpdateDownloadService extends Service {
     }
 
     private void notifyFailed(String message) {
+        // Android 14+：前台服务在退出前台状态前不得把同 ID 通知换成可滑掉的，
+        // 否则系统远程抛 CannotPostForegroundServiceNotificationException 直接崩溃。
+        // 必须先 stopForeground 移除前台通知，再发可清除的失败通知。
+        finishAfterDone();
+
         TaskQueueNotificationHelper.ensureChannel(this);
         Intent intent = new Intent(this, SettingsActivity.class);
         PendingIntent contentPending = PendingIntent.getActivity(this, 0, intent,
@@ -319,10 +331,9 @@ public class UpdateDownloadService extends Service {
         } catch (SecurityException e) {
             Log.w(TAG, "更新失败通知失败", e);
         }
-        finishAfterDone();
     }
 
-    private static String describe(IOException e) {
+    private static String describe(Exception e) {
         String m = e.getMessage();
         return m == null || m.trim().isEmpty() ? e.getClass().getSimpleName() : m;
     }

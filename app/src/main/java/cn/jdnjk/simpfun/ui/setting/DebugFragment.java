@@ -1,12 +1,11 @@
 package cn.jdnjk.simpfun.ui.setting;
 
-import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,7 +24,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
 
@@ -43,7 +41,6 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -120,6 +117,7 @@ public class DebugFragment extends Fragment {
         });
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -129,7 +127,6 @@ public class DebugFragment extends Fragment {
 
         View btnOpenSWebView = view.findViewById(R.id.btn_open_swebview);
         MaterialSwitch swBugly = view.findViewById(R.id.switch_bugly);
-        MaterialSwitch swManageScreenshotProtection = view.findViewById(R.id.switch_manage_screenshot_protection);
         EditText etToken = view.findViewById(R.id.et_token);
         EditText etWebUrl = view.findViewById(R.id.et_web_url);
         View btnSave = view.findViewById(R.id.btn_save_token);
@@ -148,7 +145,6 @@ public class DebugFragment extends Fragment {
 
         boolean buglyEnabled = spDebug.getBoolean(KEY_BUGLY_ENABLED, true);
         swBugly.setChecked(buglyEnabled);
-        swManageScreenshotProtection.setChecked(ManageScreenshotProtection.isEnabled(ctx));
 
         btnOpenSWebView.setOnClickListener(v -> {
             String input = etWebUrl.getText() == null ? null : etWebUrl.getText().toString().trim();
@@ -182,10 +178,6 @@ public class DebugFragment extends Fragment {
             if (!isChecked) {
                 try { CrashReport.closeBugly(); } catch (Throwable ignored) {}
             }
-        });
-
-        swManageScreenshotProtection.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            ManageScreenshotProtection.setEnabled(ctx, isChecked);
         });
 
         String token = spToken.getString(KEY_TOKEN, "");

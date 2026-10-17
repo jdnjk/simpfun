@@ -62,6 +62,7 @@ public class ServicesToolsFragment extends Fragment {
         setupMcpPortInput(root);
         setupMcpUrlCard(root);
         setupToolEntries(root);
+        setupScreenshotProtectionToggle(root);
 
         if (getActivity() instanceof SettingsActivity activity) {
             activity.setAppBarTitle("服务与工具");
@@ -101,7 +102,7 @@ public class ServicesToolsFragment extends Fragment {
         View row = root.findViewById(R.id.row_mcp);
         switchMcp = row.findViewById(R.id.switch_entry);
         bindToggleRow(row, R.drawable.ic_lan,
-                "允许局域网访问", "服务运行中");
+                "启用MCP功能", "在特定端口上启用MCP");
         switchMcp.setChecked(mcpSettingsManager.isEnabled());
         // 打开服务前验证账户 Token；关闭后停止前台服务
         switchMcp.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -208,6 +209,16 @@ public class ServicesToolsFragment extends Fragment {
         bindEntryRow(rowQuickCommands, R.drawable.ic_bolt,
                 "快捷指令", "新建和编辑常用服务器操作");
         rowQuickCommands.setOnClickListener(v -> showQuickCommandManagementDialog());
+    }
+
+    private void setupScreenshotProtectionToggle(View root) {
+        View row = root.findViewById(R.id.row_manage_screenshot);
+        MaterialSwitch switchProtection = row.findViewById(R.id.switch_entry);
+        bindToggleRow(row, R.drawable.ic_shield_24,
+                "实例管理页面截屏", "关闭后允许对实例管理页面截图和录屏");
+        switchProtection.setChecked(ManageScreenshotProtection.isEnabled(requireContext()));
+        switchProtection.setOnCheckedChangeListener((buttonView, isChecked) ->
+                ManageScreenshotProtection.setEnabled(requireContext(), isChecked));
     }
 
     private void showQuickCommandManagementDialog() {

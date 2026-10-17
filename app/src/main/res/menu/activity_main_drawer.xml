@@ -22,7 +22,7 @@
                 android:title="备份"/>
         <item
                 android:id="@+id/nav_rollback"
-                android:icon="@drawable/ic_backup"
+                android:icon="@drawable/ic_history"
                 android:title="回档"/>
         <item
                 android:id="@+id/nav_manage"
@@ -38,7 +38,7 @@
                 android:title="队列任务"/>
         <item
                 android:id="@+id/nav_plans"
-                android:icon="@drawable/tasks"
+                android:icon="@drawable/plans"
                 android:title="计划任务"/>
     </group>
 </menu>

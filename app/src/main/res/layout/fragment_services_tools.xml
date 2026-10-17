@@ -132,5 +132,26 @@
                 layout="@layout/view_settings_entry_row" />
         </com.google.android.material.card.MaterialCardView>
 
+        <TextView
+            style="@style/TextAppearance.Simpfun.SectionHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="12dp"
+            android:text="隐私" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/option_manage_screenshot"
+            style="@style/Widget.Simpfun.Settings.Item"
+            android:clickable="false"
+            android:focusable="false"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Simpfun.Item.Single">
+
+            <include
+                android:id="@+id/row_manage_screenshot"
+                layout="@layout/view_settings_toggle_row" />
+        </com.google.android.material.card.MaterialCardView>
+
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

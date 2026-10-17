@@ -99,6 +99,70 @@ public final class TaskQueueNotificationHelper {
         NotificationManagerCompat.from(context.getApplicationContext()).cancel(notificationId);
     }
 
+    /** MC 自动安装：任务队列 / 安装文件写入进度。 */
+    @SuppressLint("MissingPermission")
+    public static void showInstallProgress(@NonNull Context context, int notificationId, int deviceId,
+            @Nullable String text) {
+        Context appContext = context.getApplicationContext();
+        ensureChannel(appContext);
+        if (!hasNotificationPermission(appContext)) {
+            return;
+        }
+        String safe = isBlank(text) ? "正在等待任务队列…" : text.trim();
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(appContext, CHANNEL_ID_TASK_QUEUE)
+                .setSmallIcon(R.drawable.ic_upload_24)
+                .setContentTitle("MC 自动安装")
+                .setContentText(safe)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(safe))
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+                .setContentIntent(buildContentIntent(appContext, notificationId, deviceId));
+        builder.setProgress(0, 0, true);
+        NotificationManagerCompat.from(appContext).notify(notificationId, builder.build());
+    }
+
+    @SuppressLint("MissingPermission")
+    public static void showInstallComplete(@NonNull Context context, int notificationId, int deviceId) {
+        Context appContext = context.getApplicationContext();
+        ensureChannel(appContext);
+        if (!hasNotificationPermission(appContext)) {
+            return;
+        }
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(appContext, CHANNEL_ID_TASK_QUEUE)
+                .setSmallIcon(R.drawable.ic_upload_24)
+                .setContentTitle("MC 自动安装配置完成")
+                .setContentText("安装文件已写入并自动开机，正在执行自动安装")
+                .setAutoCancel(true)
+                .setOngoing(false)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(buildContentIntent(appContext, notificationId, deviceId));
+        NotificationManagerCompat.from(appContext).notify(notificationId, builder.build());
+    }
+
+    @SuppressLint("MissingPermission")
+    public static void showInstallFailed(@NonNull Context context, int notificationId, int deviceId,
+            @Nullable String errorMsg) {
+        Context appContext = context.getApplicationContext();
+        ensureChannel(appContext);
+        if (!hasNotificationPermission(appContext)) {
+            return;
+        }
+        String safeError = isBlank(errorMsg) ? "安装流程失败" : errorMsg.trim();
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(appContext, CHANNEL_ID_TASK_QUEUE)
+                .setSmallIcon(R.drawable.ic_upload_24)
+                .setContentTitle("MC 自动安装失败")
+                .setContentText(safeError)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(safeError))
+                .setAutoCancel(true)
+                .setOngoing(false)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_ERROR)
+                .setContentIntent(buildContentIntent(appContext, notificationId, deviceId));
+        NotificationManagerCompat.from(appContext).notify(notificationId, builder.build());
+    }
+
     @SuppressLint("MissingPermission")
     public static void showDownloadProgress(@NonNull Context context, int notificationId, int deviceId, int navId,
             @Nullable String fileName, int progress, @Nullable String speedText, boolean indeterminate) {

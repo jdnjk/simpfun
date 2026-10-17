@@ -2,10 +2,14 @@ package cn.jdnjk.simpfun.ui.create;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -13,24 +17,27 @@ import android.view.MotionEvent;
 import android.view.animation.OvershootInterpolator;
 import android.view.ViewGroup;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 
 import androidx.annotation.Nullable;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.WindowCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
@@ -44,12 +51,19 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
 import cn.jdnjk.simpfun.R;
 import cn.jdnjk.simpfun.api.ins.CServerApi;
+import cn.jdnjk.simpfun.api.ins.McInstallApi;
+import cn.jdnjk.simpfun.api.ins.PowerApi;
+import cn.jdnjk.simpfun.api.ins.TasksApi;
+import cn.jdnjk.simpfun.api.ins.file.FileCallback;
+import cn.jdnjk.simpfun.api.ins.file.FilesEditorApi;
+import cn.jdnjk.simpfun.notification.TaskQueueNotificationHelper;
 import cn.jdnjk.simpfun.utils.AnnouncementHelper;
 import cn.jdnjk.simpfun.utils.Feedback;
 import cn.jdnjk.simpfun.utils.MarkdownRenderer;
@@ -82,7 +96,7 @@ public class CreateServer extends AppCompatActivity {
     public static final String EXTRA_CURRENT_CUSTOM = "extra_current_custom";
 
     private enum Step {
-        TYPE, GAME, IMAGE_KIND, VERSION, SPEC, CONFIRM, REINSTALL_OPTIONS
+        TYPE, GAME, IMAGE_KIND, VERSION, MC_VERSION, LOADER, LOADER_VERSION, SPEC, CONFIRM, REINSTALL_OPTIONS
     }
 
     private enum WizardMode {
@@ -92,6 +106,36 @@ public class CreateServer extends AppCompatActivity {
     private static final Step[] CREATE_STEPS = {Step.TYPE, Step.GAME, Step.IMAGE_KIND, Step.VERSION, Step.SPEC, Step.CONFIRM};
     private static final Step[] REINSTALL_STEPS = {Step.TYPE, Step.GAME, Step.IMAGE_KIND, Step.VERSION, Step.REINSTALL_OPTIONS};
     private static final Step[] CHANGE_CONFIG_STEPS = {Step.SPEC, Step.CONFIRM};
+
+    private static final int MCJE_GAME_ID = 1;
+    private static final int AUTOINSTALL_KIND_ID = 140;
+    private static final int MC_INSTALL_NOTIF_ID = 920100;
+    private static final long MC_POLL_INTERVAL_MS = 5000L;
+    private static final long MC_POLL_FIRST_DELAY_MS = 3000L;
+    private static final int MC_POLL_MAX_FAILURES = 5;
+
+    private boolean mcAutoInstall = false;
+    private String mcVersion = "";
+    private String mcLoader = "vanilla";
+    private String mcLoaderVersion = "";
+    private String chosenInstaller = null;
+    private int autoInstallVersionId = -1;
+    private String autoInstallVersionName = "";
+    private String mcLatestRelease = "";
+    private String mcLatestSnapshot = "";
+    private String mcVersionQuery = "";
+    private String mcCategory = "全部";
+    private String mcLoaderQuery = "";
+    private final List<ListItem> mcVersionItems = new ArrayList<>();
+    private final List<ListItem> mcLoaderVersionItems = new ArrayList<>();
+    private boolean mcMonitoring = false;
+    private int mcMonitorInstanceId = -1;
+    private int mcPollFailures = 0;
+    private boolean mcNotifEnabled = false;
+    @Nullable
+    private Runnable pendingMcAction;
+    private final Handler mcMonitorHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mcPollRunnable = this::pollMcTasks;
 
     private Step currentStep = Step.TYPE;
     private boolean isCustom = false;
@@ -121,7 +165,9 @@ public class CreateServer extends AppCompatActivity {
     private TextView tvConfirmImageTitle;
     private TextView tvConfirmVersion;
     private TextView tvConfirmSpecBody;
+    private TextView tvNotFoundLink;
     private MaterialButton btnAction;
+    private android.widget.EditText etSearch;
 
     // 分页/搜索相关（仅第三方镜像 服务端 选择步骤使用）
     private final List<ListItem> fullImageKindList = new ArrayList<>();
@@ -154,6 +200,8 @@ public class CreateServer extends AppCompatActivity {
     private boolean currentCustom = false;
 
     private String token;
+
+    private ActivityResultLauncher<String> notifPermLauncher;
 
     private final List<ListItem> data = new ArrayList<>();
     private GenericAdapter adapter;
@@ -194,10 +242,29 @@ public class CreateServer extends AppCompatActivity {
         tvCpuModelLink.setOnClickListener(v ->
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://yuque.com/simpfun/sfe/areas"))));
 
-        // 系统返回手势/返回键与顶部返回按钮行为一致（反向过渡）
+        tvNotFoundLink.setOnClickListener(v -> {
+            if (isSubmitting || isRapidNavClick()) return;
+            if (currentStep == Step.MC_VERSION) {
+                showMcManualVersionDialog();
+            } else if (currentStep == Step.VERSION && isMcjeBasic()) {
+                enterMcCustomFlow();
+            }
+        });
+
+        notifPermLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+            Runnable action = pendingMcAction;
+            pendingMcAction = null;
+            mcNotifEnabled = granted;
+            if (action != null) action.run();
+        });
+
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                if (mcMonitoring) {
+                    showMcMonitorExitDialog();
+                    return;
+                }
                 onBackStep();
             }
         });
@@ -231,19 +298,29 @@ public class CreateServer extends AppCompatActivity {
         tvConfirmImageTitle = findViewById(R.id.tv_confirm_image_title);
         tvConfirmVersion = findViewById(R.id.tv_confirm_version);
         tvConfirmSpecBody = findViewById(R.id.tv_confirm_spec_body);
+        tvNotFoundLink = findViewById(R.id.tv_not_found_link);
         btnAction = findViewById(R.id.btn_action);
+        etSearch = findViewById(R.id.et_search);
     }
 
     private void setupSearch() {
-        android.widget.EditText etSearch = findViewById(R.id.et_search);
         // 输入即搜索：文本有变动直接触发过滤（endIcon 为 clear_text，清空时同样自动触发）
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
             @Override public void afterTextChanged(Editable s) {
-                imageKindSearchQuery = s.toString().trim();
-                imageKindCurrentPage = 1;
-                applyImageKindFiltersAndPagination();
+                String query = s.toString().trim();
+                if (currentStep == Step.MC_VERSION) {
+                    mcVersionQuery = query;
+                    applyMcVersionFilters();
+                } else if (currentStep == Step.LOADER_VERSION) {
+                    mcLoaderQuery = query;
+                    applyMcLoaderVersionFilters();
+                } else {
+                    imageKindSearchQuery = query;
+                    imageKindCurrentPage = 1;
+                    applyImageKindFiltersAndPagination();
+                }
             }
         });
     }
@@ -288,6 +365,17 @@ public class CreateServer extends AppCompatActivity {
         return true;
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mcMonitoring) {
+            // 监听中途退出：残留的常驻进度通知必须清掉
+            TaskQueueNotificationHelper.cancel(this, MC_INSTALL_NOTIF_ID);
+        }
+        mcMonitoring = false;
+        mcMonitorHandler.removeCallbacksAndMessages(null);
+    }
+
     private boolean isReinstallMode() {
         return wizardMode == WizardMode.REINSTALL;
     }
@@ -297,11 +385,18 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private Step[] getActiveSteps() {
-        return switch (wizardMode) {
-            case CREATE -> CREATE_STEPS;
-            case REINSTALL -> REINSTALL_STEPS;
-            case CHANGE_CONFIG -> CHANGE_CONFIG_STEPS;
-        };
+        if (wizardMode == WizardMode.CHANGE_CONFIG) return CHANGE_CONFIG_STEPS;
+        if (!mcAutoInstall) return wizardMode == WizardMode.REINSTALL ? REINSTALL_STEPS : CREATE_STEPS;
+        List<Step> steps = new ArrayList<>();
+        for (Step s : (wizardMode == WizardMode.REINSTALL ? REINSTALL_STEPS : CREATE_STEPS)) {
+            steps.add(s);
+            if (s == Step.VERSION) {
+                steps.add(Step.MC_VERSION);
+                steps.add(Step.LOADER);
+                if (chosenInstaller != null) steps.add(Step.LOADER_VERSION);
+            }
+        }
+        return steps.toArray(new Step[0]);
     }
 
     private int getCurrentStepIndex() {
@@ -312,12 +407,22 @@ public class CreateServer extends AppCompatActivity {
         return 0;
     }
 
+    private long lastNavClickMs = 0L;
+
+    private boolean isRapidNavClick() {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastNavClickMs < 600L) return true;
+        lastNavClickMs = now;
+        return false;
+    }
+
     private void onBackStep() {
         int currentIndex = getCurrentStepIndex();
         if (currentIndex <= 0) {
             finish();
             return;
         }
+        if (isRapidNavClick()) return;
         currentStep = getActiveSteps()[currentIndex - 1];
         renderCurrentStep(false);
         animateStep(false); // 返回：从右侧滑入（反向播放进入动画）
@@ -327,6 +432,8 @@ public class CreateServer extends AppCompatActivity {
         if (currentStep == Step.CONFIRM) {
             if (isChangeConfigMode()) {
                 changeInstance();
+            } else if (mcAutoInstall) {
+                askMcNotificationThen(this::createInstance);
             } else {
                 createInstance();
             }
@@ -347,6 +454,8 @@ public class CreateServer extends AppCompatActivity {
         layoutConfirm.setVisibility(View.GONE);
         layoutGradeFilter.setVisibility(View.GONE);
         layoutSearch.setVisibility(View.GONE);
+        tvNotFoundLink.setVisibility(View.GONE);
+        tvCpuModelLink.setVisibility(View.VISIBLE);
 
         setRefreshVisible(false);
 
@@ -391,6 +500,33 @@ public class CreateServer extends AppCompatActivity {
                 setRefreshVisible(true);
                 loadVersionList();
             }
+            case MC_VERSION -> {
+                toolbarTitle = "选择MC版本";
+                stepSub = selectedImageKindName;
+                showHeader(null);
+                setRefreshVisible(true);
+                layoutSearch.setVisibility(View.VISIBLE);
+                etSearch.setHint("搜索MC版本");
+                if (etSearch.length() > 0) etSearch.setText("");
+                setupMcCategoryMenu();
+                loadMcVersionManifest();
+            }
+            case LOADER -> {
+                toolbarTitle = "选择模组安装器";
+                stepSub = selectedVersionName;
+                showHeader(null);
+                renderMcLoaderChoices();
+            }
+            case LOADER_VERSION -> {
+                toolbarTitle = "选择安装器版本";
+                stepSub = loaderDisplayName(chosenInstaller == null ? mcLoader : chosenInstaller);
+                showHeader(null);
+                setRefreshVisible(true);
+                layoutSearch.setVisibility(View.VISIBLE);
+                etSearch.setHint("搜索安装器版本");
+                if (etSearch.length() > 0) etSearch.setText("");
+                loadMcLoaderVersions();
+            }
             case SPEC -> {
                 toolbarTitle = isChangeConfigMode() ? "选择目标规格" : getString(R.string.cs_toolbar_spec);
                 stepSub = isChangeConfigMode() ? getString(R.string.cs_sub_spec_change) : getString(R.string.cs_sub_spec_sort);
@@ -417,8 +553,28 @@ public class CreateServer extends AppCompatActivity {
         toolbar.setNavigationIcon(currentStep == Step.TYPE
                 ? R.drawable.ic_close : R.drawable.ic_arrow_back);
         toolbar.setNavigationOnClickListener(v -> onBackStep());
+        // 长按顶栏返回键直接退出当前向导（导航按钮是 Toolbar 的第一个子 View）
+        toolbar.post(() -> {
+            View nav = toolbar.getChildAt(0);
+            if (nav != null) {
+                nav.setOnLongClickListener(v -> {
+                    finish();
+                    return true;
+                });
+            }
+        });
 
         tvStepLabel.setText(getString(R.string.cs_step_format, index + 1, total, stepSub));
+        // 版本页（MinecraftJE）最右侧显示“没有你要的版本?”入口；MC 版本页显示手动填写入口
+        if (currentStep == Step.VERSION && isMcjeBasic()) {
+            tvNotFoundLink.setText("没有找到你要的版本?");
+            tvNotFoundLink.setVisibility(View.VISIBLE);
+        } else if (currentStep == Step.MC_VERSION) {
+            tvNotFoundLink.setText("手动填写版本号");
+            tvNotFoundLink.setVisibility(View.VISIBLE);
+        } else {
+            tvNotFoundLink.setVisibility(View.GONE);
+        }
         renderBreadcrumb();
 
         if (currentStep == Step.CONFIRM) {
@@ -459,7 +615,7 @@ public class CreateServer extends AppCompatActivity {
             tv.setBackground(bg);
 
             tv.setOnClickListener(v -> {
-                if (isSubmitting) return;
+                if (isSubmitting || isRapidNavClick()) return;
                 currentStep = target;
                 renderCurrentStep(false);
                 animateStep(false); // 跳回：反向过渡
@@ -484,6 +640,9 @@ public class CreateServer extends AppCompatActivity {
             case GAME -> "类别";
             case IMAGE_KIND -> "应用";
             case VERSION -> "版本";
+            case MC_VERSION -> "MC版本";
+            case LOADER -> "安装器";
+            case LOADER_VERSION -> "安装器版本";
             case SPEC -> "配置";
             case CONFIRM -> "确认";
             case REINSTALL_OPTIONS -> "确认重装";
@@ -519,8 +678,10 @@ public class CreateServer extends AppCompatActivity {
     // --- 选择与跳转 ---
 
     private void onItemSelected(ListItem item) {
+        if (isSubmitting || isRapidNavClick()) return;
         if (currentStep == Step.TYPE) {
             isCustom = item.title.contains("第三方");
+            resetMcSelection();
             gameId = null;
             imageKindId = null;
             versionId = null;
@@ -559,6 +720,33 @@ public class CreateServer extends AppCompatActivity {
                 versionId = item.id;
                 selectedVersionName = item.title;
                 specId = null;
+                resetMcSelection();
+                currentStep = isReinstallMode() ? Step.REINSTALL_OPTIONS : Step.SPEC;
+            }
+            case MC_VERSION -> {
+                if (TextUtils.isEmpty(item.value)) return;
+                mcVersion = item.value;
+                selectedVersionName = item.value;
+                chosenInstaller = null;
+                mcLoader = "vanilla";
+                mcLoaderVersion = "";
+                specId = null;
+                currentStep = Step.LOADER;
+            }
+            case LOADER -> {
+                if ("skip".equals(item.value)) {
+                    chosenInstaller = null;
+                    mcLoader = "vanilla";
+                    mcLoaderVersion = "";
+                    currentStep = isReinstallMode() ? Step.REINSTALL_OPTIONS : Step.SPEC;
+                } else {
+                    chosenInstaller = item.value;
+                    currentStep = Step.LOADER_VERSION;
+                }
+            }
+            case LOADER_VERSION -> {
+                mcLoader = chosenInstaller == null ? "vanilla" : chosenInstaller;
+                mcLoaderVersion = item.value == null ? "" : item.value;
                 currentStep = isReinstallMode() ? Step.REINSTALL_OPTIONS : Step.SPEC;
             }
             case SPEC -> {
@@ -569,10 +757,29 @@ public class CreateServer extends AppCompatActivity {
         renderCurrentStep();
     }
 
+    private void resetMcSelection() {
+        mcAutoInstall = false;
+        mcVersion = "";
+        mcLoader = "vanilla";
+        mcLoaderVersion = "";
+        chosenInstaller = null;
+        autoInstallVersionId = -1;
+        autoInstallVersionName = "";
+        mcLatestRelease = "";
+        mcLatestSnapshot = "";
+        mcVersionQuery = "";
+        mcLoaderQuery = "";
+        mcCategory = "全部";
+        mcVersionItems.clear();
+        mcLoaderVersionItems.clear();
+    }
+
     // --- 数据加载 ---
 
     private void loadGameList() {
+        replaceData(new ArrayList<ListItem>());
         executeCall(CServerApi.getGameList(isCustom, token), json -> {
+            if (currentStep != Step.GAME) return;
             List<ListItem> items = new ArrayList<>();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
@@ -587,6 +794,7 @@ public class CreateServer extends AppCompatActivity {
 
     private void loadImageKindList() {
         if (gameId == null) return;
+        replaceData(new ArrayList<ListItem>());
         executeCall(CServerApi.getImageKindList(isCustom, gameId, token), json -> {
             List<ListItem> items = new ArrayList<>();
             fullImageKindList.clear();
@@ -617,6 +825,7 @@ public class CreateServer extends AppCompatActivity {
                     items.add(li);
                 }
             }
+            if (currentStep != Step.IMAGE_KIND) return;
             if (isCustom) {
                 layoutSearch.setVisibility(!fullImageKindList.isEmpty() ? View.VISIBLE : View.GONE);
                 imageKindCurrentPage = 1;
@@ -630,7 +839,9 @@ public class CreateServer extends AppCompatActivity {
 
     private void loadVersionList() {
         if (imageKindId == null) return;
+        replaceData(new ArrayList<ListItem>());
         executeCall(CServerApi.getVersionList(isCustom, imageKindId, token), json -> {
+            if (currentStep != Step.VERSION) return;
             List<ListItem> items = new ArrayList<>();
             JSONArray arr = json.optJSONArray("list");
             if (arr != null) for (int i = 0; i < arr.length(); i++) {
@@ -655,14 +866,25 @@ public class CreateServer extends AppCompatActivity {
                     items.add(li);
                 }
             }
+            // 第三方镜像版本按 id 降序排列
+            if (isCustom) {
+                Collections.sort(items, (a, b) -> Integer.compare(b.id, a.id));
+            }
             if (items.isEmpty()) items.add(ListItem.info("提示", "暂无可选版本"));
             replaceData(items);
         });
     }
 
     private void loadSpecList() {
+        replaceData(new ArrayList<ListItem>()); // 先清空，避免上一步列表残留
         if (isChangeConfigMode()) {
             loadChangeConfigSpecList();
+            return;
+        }
+        if (mcAutoInstall) {
+            // Powered by AutoInstall
+            ensureAutoInstallVersion(() ->
+                    executeCall(CServerApi.getSpecList(true, autoInstallVersionId, AUTOINSTALL_KIND_ID, token), this::handleSpecList));
             return;
         }
         if (versionId == null || imageKindId == null) return;
@@ -768,6 +990,7 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private void handleSpecList(JSONObject json) {
+        if (currentStep != Step.SPEC) return;
         masterSpecList.clear();
         JSONArray arr = json.optJSONArray("list");
         if (arr != null) {
@@ -872,12 +1095,17 @@ public class CreateServer extends AppCompatActivity {
     // --- 确认页 ---
 
     private void loadConfirmation() {
+        if (mcAutoInstall) {
+            loadMcConfirmation();
+            return;
+        }
         if (versionId == null || specId == null) return;
         tvConfirmImageTitle.setText("-");
         tvConfirmVersion.setText("加载中…");
         tvConfirmSpecBody.setText("-");
         btnAction.setVisibility(View.GONE);
         executeCall(CServerApi.getConfirmation(isCustom, versionId, specId, token), json -> {
+            if (currentStep != Step.CONFIRM) return; // 响应落页时步骤已切换则丢弃
             JSONObject d = json.optJSONObject("data");
             if (d == null) {
                 tvConfirmVersion.setText(getString(R.string.cs_sub_confirm));
@@ -908,6 +1136,317 @@ public class CreateServer extends AppCompatActivity {
                 tvConfirmSpecBody.setText(specBody);
             }
             btnAction.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void loadMcConfirmation() {
+        if (specId == null) return;
+        tvConfirmImageTitle.setText("MinecraftJE · AutoInstall");
+        tvConfirmVersion.setText("加载中…");
+        tvConfirmSpecBody.setText("-");
+        btnAction.setVisibility(View.GONE);
+        ensureAutoInstallVersion(() ->
+                executeCall(CServerApi.getConfirmation(true, autoInstallVersionId, specId, token), json -> {
+                    if (currentStep != Step.CONFIRM) return; // 响应落页时步骤已切换则丢弃
+                    JSONObject d = json.optJSONObject("data");
+                    if (d != null) {
+                        String specBody = getString(R.string.cs_confirm_spec_line,
+                                d.optString("grade"),
+                                d.optInt("cpu"),
+                                d.optInt("ram"),
+                                d.optInt("disk"),
+                                d.optInt("traffic"),
+                                d.optInt("point"));
+                        tvConfirmSpecBody.setText(specBody);
+                    }
+                    String title = "MinecraftJE · AutoInstall";
+                    if (!TextUtils.isEmpty(autoInstallVersionName)) title += " · " + autoInstallVersionName;
+                    tvConfirmImageTitle.setText(title);
+
+                    StringBuilder versionLine = new StringBuilder();
+                    if (d != null) {
+                        versionLine.append(getString(R.string.cs_confirm_version, d.optString("version_name")));
+                        versionLine.append("\n");
+                    }
+                    versionLine.append("MC 版本: ").append(mcVersion);
+                    if (!"vanilla".equals(mcLoader)) {
+                        versionLine.append(" · ").append(loaderDisplayName(mcLoader));
+                        if (!TextUtils.isEmpty(mcLoaderVersion)) versionLine.append(" ").append(mcLoaderVersion);
+                    } else {
+                        versionLine.append(" · 原版（不安装模组）");
+                    }
+                    tvConfirmVersion.setText(versionLine.toString());
+                    btnAction.setVisibility(View.VISIBLE);
+                }));
+    }
+
+    private void loadMcVersionManifest() {
+        showLoading(true);
+        replaceData(new ArrayList<ListItem>());
+        McInstallApi.fetchVersionManifest(new McInstallApi.ManifestCallback() {
+            @Override
+            public void onSuccess(JSONObject manifest) {
+                if (isDead()) return;
+                showLoading(false);
+                if (currentStep != Step.MC_VERSION) return;
+                JSONObject latest = manifest.optJSONObject("latest");
+                mcLatestRelease = latest == null ? "" : latest.optString("release");
+                mcLatestSnapshot = latest == null ? "" : latest.optString("snapshot");
+
+                mcVersionItems.clear();
+                if (!TextUtils.isEmpty(mcLatestRelease)) {
+                    mcVersionItems.add(mcLatestItem("latest.release", "最新正式版", mcLatestRelease));
+                }
+                if (!TextUtils.isEmpty(mcLatestSnapshot)) {
+                    mcVersionItems.add(mcLatestItem("latest.snapshot", "最新快照版", mcLatestSnapshot));
+                }
+                JSONArray arr = manifest.optJSONArray("versions");
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject o = arr.optJSONObject(i);
+                        if (o == null) continue;
+                        String id = o.optString("id");
+                        String type = o.optString("type");
+                        ListItem li = new ListItem();
+                        li.title = id;
+                        li.value = id;
+                        li.noIcon = true;
+                        li.subtitle = switch (type) {
+                            case "release" -> "正式版";
+                            case "snapshot" -> "快照版";
+                            case "old_beta" -> "旧测试版";
+                            case "old_alpha" -> "旧Alpha版";
+                            default -> type;
+                        };
+                        li.category = "release".equals(type) ? "release" : ("snapshot".equals(type) ? "snapshot" : "");
+                        mcVersionItems.add(li);
+                    }
+                }
+                applyMcVersionFilters();
+            }
+
+            @Override
+            public void onFailure(String message) {
+                if (isDead()) return;
+                showLoading(false);
+                if (currentStep != Step.MC_VERSION) return;
+                mcVersionItems.clear();
+                replaceData(ListItem.info("提示", "获取 MC 版本列表失败，请点击右上角刷新重试"));
+                Feedback.error(findViewById(android.R.id.content), "获取 MC 版本列表失败: " + message,
+                        "重试", CreateServer.this::loadMcVersionManifest);
+            }
+        });
+    }
+
+    private ListItem mcLatestItem(String title, String label, String version) {
+        ListItem li = new ListItem();
+        li.title = title;
+        li.value = version;
+        li.subtitle = label + " · " + version;
+        li.category = "latest";
+        li.noIcon = true;
+        return li;
+    }
+
+    private void applyMcVersionFilters() {
+        String q = mcVersionQuery == null ? "" : mcVersionQuery.toLowerCase();
+        List<ListItem> out = new ArrayList<>();
+        for (ListItem li : mcVersionItems) {
+            boolean matchQuery = q.isEmpty()
+                    || (li.title != null && li.title.toLowerCase().contains(q))
+                    || (li.value != null && li.value.toLowerCase().contains(q));
+            if (!matchQuery) continue;
+            boolean matchCategory = switch (mcCategory) {
+                case "最新版本" -> "latest".equals(li.category);
+                case "正式版" -> "release".equals(li.category);
+                case "快照版" -> "snapshot".equals(li.category);
+                default -> true;
+            };
+            if (matchCategory) out.add(li);
+        }
+        if (out.isEmpty() && !mcVersionItems.isEmpty()) {
+            out.add(ListItem.info("提示", "没有匹配的版本"));
+        }
+        replaceData(out);
+    }
+
+    private void setupMcCategoryMenu() {
+        layoutGradeFilter.setVisibility(View.VISIBLE);
+        tvCpuModelLink.setVisibility(View.GONE);
+        List<String> options = Arrays.asList("全部", "最新版本", "正式版", "快照版");
+        actGrade.setSimpleItems(options.toArray(new String[0]));
+        actGrade.setText(mcCategory, false);
+        actGrade.setOnItemClickListener((parent, view, position, id) -> {
+            mcCategory = options.get(position);
+            applyMcVersionFilters();
+        });
+    }
+
+    private void showMcManualVersionDialog() {
+        final EditText input = new EditText(this);
+        input.setHint("例如 1.20.1 或 26.3");
+        input.setSingleLine(true);
+        int pad = dp(20);
+        input.setPadding(pad, dp(12), pad, dp(4));
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("手动填写版本")
+                .setMessage("输入要安装的 Minecraft 版本号，将原样写入 inst.json。")
+                .setView(input)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String v = input.getText() == null ? "" : input.getText().toString().trim();
+                    if (TextUtils.isEmpty(v)) {
+                        Feedback.info(this, "版本号不能为空");
+                        return;
+                    }
+                    mcVersion = v;
+                    selectedVersionName = v;
+                    chosenInstaller = null;
+                    mcLoader = "vanilla";
+                    mcLoaderVersion = "";
+                    specId = null;
+                    currentStep = Step.LOADER;
+                    renderCurrentStep();
+                })
+                .show();
+    }
+
+    private boolean isMcjeBasic() {
+        return !isCustom && gameId != null && gameId == MCJE_GAME_ID;
+    }
+
+    private void enterMcCustomFlow() {
+        mcAutoInstall = true;
+        mcVersion = "";
+        chosenInstaller = null;
+        mcLoader = "vanilla";
+        mcLoaderVersion = "";
+        versionId = null;
+        specId = null;
+        selectedVersionName = "";
+        currentStep = Step.MC_VERSION;
+        renderCurrentStep();
+    }
+
+    private void renderMcLoaderChoices() {
+        ListItem skip = new ListItem();
+        skip.value = "skip";
+        skip.title = "不安装（保持原版）";
+        skip.subtitle = "不选择任何模组安装器";
+        skip.iconRes = R.drawable.ic_block;
+        replaceData(
+                skip,
+                mcChoice("forge", "Forge", "Java模组服务端", "forge.png"),
+                mcChoice("fabric", "Fabric", "Java模组服务端", "fabric.png"),
+                mcChoice("neoforge", "NeoForge", "社区驱动的模组服务端，基于Forge", "neoforged.png"));
+    }
+
+    private ListItem mcChoice(String value, String title, String sub, String picName) {
+        ListItem li = new ListItem();
+        li.value = value;
+        li.title = title;
+        li.subtitle = sub;
+        li.imageUrl = "https://api.simpfun.cn/static/images/minecraft/" + picName;
+        li.showImage = true;
+        return li;
+    }
+
+    private void loadMcLoaderVersions() {
+        if (chosenInstaller == null || TextUtils.isEmpty(mcVersion)) return;
+        mcLoaderVersionItems.clear();
+        mcLoaderQuery = "";
+        replaceData(new ArrayList<ListItem>()); // 先清空，避免残留上一步的安装器选项
+        showLoading(true);
+        McInstallApi.VersionListCallback cb = new McInstallApi.VersionListCallback() {
+            @Override
+            public void onSuccess(JSONArray items) {
+                if (isDead()) return;
+                showLoading(false);
+                if (currentStep != Step.LOADER_VERSION) return; // 已切走则丢弃
+                for (int i = 0; i < items.length(); i++) {
+                    JSONObject o = items.optJSONObject(i);
+                    if (o == null) continue;
+                    String name = o.optString("name");
+                    if (TextUtils.isEmpty(name)) continue;
+                    ListItem li = new ListItem();
+                    li.title = name;
+                    li.value = name;
+                    li.subtitle = o.optString("tag", "");
+                    li.noIcon = true;
+                    mcLoaderVersionItems.add(li);
+                }
+                applyMcLoaderVersionFilters();
+            }
+
+            @Override
+            public void onFailure(String message) {
+                if (isDead()) return;
+                showLoading(false);
+                if (currentStep != Step.LOADER_VERSION) return;
+                mcLoaderVersionItems.clear();
+                replaceData(ListItem.info("提示", "该版本暂未有此安装器，请返回上一步更换安装器或 MC 版本"));
+                Feedback.error(findViewById(android.R.id.content), "获取安装器版本失败: " + message,
+                        "重试", CreateServer.this::loadMcLoaderVersions);
+            }
+        };
+        switch (chosenInstaller) {
+            case "forge" -> McInstallApi.fetchForgeVersions(mcVersion, cb);
+            case "fabric" -> McInstallApi.fetchFabricVersions(mcVersion, cb);
+            case "neoforge" -> McInstallApi.fetchNeoForgeVersions(mcVersion, cb);
+            default -> replaceData(ListItem.info("提示", "未知安装器"));
+        }
+    }
+
+    private void applyMcLoaderVersionFilters() {
+        String q = mcLoaderQuery == null ? "" : mcLoaderQuery.toLowerCase();
+        List<ListItem> out = new ArrayList<>();
+        for (ListItem li : mcLoaderVersionItems) {
+            if (q.isEmpty() || (li.title != null && li.title.toLowerCase().contains(q))) {
+                out.add(li);
+            }
+        }
+        if (out.isEmpty() && !mcLoaderVersionItems.isEmpty()) {
+            out.add(ListItem.info("提示", "没有匹配的版本"));
+        }
+        replaceData(out);
+    }
+
+    private String loaderDisplayName(String loader) {
+        return switch (loader == null ? "" : loader) {
+            case "forge" -> "Forge";
+            case "fabric" -> "Fabric";
+            case "neoforge" -> "NeoForge";
+            default -> "Vanilla";
+        };
+    }
+
+    private void ensureAutoInstallVersion(Runnable ready) {
+        if (autoInstallVersionId > 0) {
+            ready.run();
+            return;
+        }
+        executeCall(CServerApi.getVersionList(true, AUTOINSTALL_KIND_ID, token), json -> {
+            JSONArray arr = json.optJSONArray("list");
+            int maxId = -1;
+            JSONObject best = null;
+            if (arr != null) {
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    if (o == null) continue;
+                    int id = o.optInt("id", -1);
+                    if (id > maxId) {
+                        maxId = id;
+                        best = o;
+                    }
+                }
+            }
+            if (best == null || maxId <= 0) {
+                Feedback.error(findViewById(android.R.id.content), "未获取到 AutoInstall 镜像版本，请刷新重试");
+                return;
+            }
+            autoInstallVersionId = maxId;
+            autoInstallVersionName = best.optString("name");
+            ready.run();
         });
     }
 
@@ -949,8 +1488,12 @@ public class CreateServer extends AppCompatActivity {
     }
 
     private void showReinstallConfirmDialog() {
-        if (versionId == null) {
+        if (!mcAutoInstall && versionId == null) {
             Feedback.info(this, "请选择实例版本");
+            return;
+        }
+        if (mcAutoInstall && TextUtils.isEmpty(mcVersion)) {
+            Feedback.info(this, "请选择 MC 版本");
             return;
         }
 
@@ -958,6 +1501,15 @@ public class CreateServer extends AppCompatActivity {
         boolean diff = cbDiffUpdate.getVisibility() == View.VISIBLE && cbDiffUpdate.isChecked();
         StringBuilder message = new StringBuilder();
         message.append("目标镜像: ").append(buildTargetImageText()).append("\n");
+        if (mcAutoInstall) {
+            message.append("MC 版本: ").append(mcVersion);
+            if (!"vanilla".equals(mcLoader)) {
+                message.append(" · ").append(loaderDisplayName(mcLoader));
+                if (!TextUtils.isEmpty(mcLoaderVersion)) message.append(" ").append(mcLoaderVersion);
+            }
+            message.append("\n");
+            message.append("重装完成后将自动等待任务队列并写入 inst.json\n");
+        }
         message.append("重装前备份: ").append(save ? "是" : "否").append("\n");
         if (save) {
             message.append("将扣费30积分用于备份\n");
@@ -971,18 +1523,37 @@ public class CreateServer extends AppCompatActivity {
                 .setTitle("确认重装实例")
                 .setMessage(message.toString())
                 .setNegativeButton("取消", null)
-                .setPositiveButton("确认重装", (dialog, which) -> reinstallInstance(save, diff))
+                .setPositiveButton("确认重装", (dialog, which) -> {
+                    if (mcAutoInstall) {
+                        askMcNotificationThen(() -> reinstallInstance(save, diff));
+                    } else {
+                        reinstallInstance(save, diff);
+                    }
+                })
                 .show();
     }
 
     private void reinstallInstance(boolean save, boolean diff) {
         if (isSubmitting) return;
-        if (serverId <= 0 || versionId == null || versionId <= 0) {
+        if (serverId <= 0) {
+            Feedback.error(this, "重装参数无效");
+            return;
+        }
+        if (!mcAutoInstall && (versionId == null || versionId <= 0)) {
             Feedback.error(this, "重装参数无效");
             return;
         }
         if (TextUtils.isEmpty(token)) {
             Feedback.info(this, "尚未登录");
+            return;
+        }
+
+        if (mcAutoInstall) {
+            ensureAutoInstallVersion(() -> submitInstanceAction(
+                    CServerApi.reinstallInstance(serverId, autoInstallVersionId, false, save, true, token),
+                    "重装失败",
+                    "重装请求已提交",
+                    json -> startMcInstallMonitor(serverId)));
             return;
         }
 
@@ -1025,15 +1596,26 @@ public class CreateServer extends AppCompatActivity {
 
     private void createInstance() {
         if (isSubmitting) return;
-        if (versionId == null || specId == null) return;
         if (TextUtils.isEmpty(token)) {
             Feedback.info(this, "尚未登录");
             return;
         }
+        if (mcAutoInstall) {
+            if (specId == null) return;
+            ensureAutoInstallVersion(this::submitCreateInstance);
+            return;
+        }
+        if (versionId == null || specId == null) return;
+        submitCreateInstance();
+    }
+
+    private void submitCreateInstance() {
         isSubmitting = true;
         btnAction.setEnabled(false);
         showLoading(true);
-        CServerApi.createInstance(isCustom, versionId, specId, token).enqueue(new okhttp3.Callback() {
+        int versionIdForSubmit = mcAutoInstall ? autoInstallVersionId : versionId;
+        boolean customForSubmit = mcAutoInstall || isCustom;
+        CServerApi.createInstance(customForSubmit, versionIdForSubmit, specId, token).enqueue(new okhttp3.Callback() {
             @Override public void onFailure(@NotNull Call call, @NotNull IOException e) {
                 runOnUiThread(() -> {
                     if (isDead()) return;
@@ -1052,6 +1634,20 @@ public class CreateServer extends AppCompatActivity {
                     try {
                         JSONObject o = new JSONObject(body);
                         if (o.optInt("code") == 200) {
+                            if (mcAutoInstall) {
+                                Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show();
+                                int newId = extractNewInstanceId(o);
+                                if (newId > 0) {
+                                    startMcInstallMonitor(newId);
+                                } else {
+                                    // 拿不到新实例 ID，无法继续监听任务队列与写入 inst.json
+                                    Feedback.error(CreateServer.this,
+                                            "创建成功，但未能获取新实例 ID，请稍后手动在文件管理中检查 inst.json");
+                                    isSubmitting = false;
+                                    btnAction.setEnabled(true);
+                                }
+                                return;
+                            }
                             Toast.makeText(CreateServer.this, "创建成功", Toast.LENGTH_SHORT).show();
                             Intent result = new Intent();
                             result.putExtra(EXTRA_RESULT_CREATED, true);
@@ -1070,6 +1666,188 @@ public class CreateServer extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private int extractNewInstanceId(JSONObject json) {
+        int id = firstPositiveInt(json, "ins_id", "new_id", "id");
+        if (id <= 0) {
+            JSONObject d = json.optJSONObject("data");
+            if (d != null) id = firstPositiveInt(d, "ins_id", "new_id", "id");
+        }
+        return id;
+    }
+
+    private int firstPositiveInt(JSONObject o, String... keys) {
+        for (String key : keys) {
+            int v = o.optInt(key, -1);
+            if (v > 0) return v;
+        }
+        return -1;
+    }
+
+    private void askMcNotificationThen(Runnable proceed) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("开启进度通知？")
+                .setMessage("将在通知栏显示任务队列与安装文件写入进度，可随时忽略。")
+                .setNegativeButton("不开启", (dialog, which) -> {
+                    mcNotifEnabled = false;
+                    proceed.run();
+                })
+                .setPositiveButton("开启", (dialog, which) -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                            && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED) {
+                        pendingMcAction = proceed;
+                        notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+                    } else {
+                        mcNotifEnabled = true;
+                        proceed.run();
+                    }
+                })
+                .show();
+    }
+
+    private void startMcInstallMonitor(int instanceId) {
+        mcMonitoring = true;
+        mcMonitorInstanceId = instanceId;
+        mcPollFailures = 0;
+        isSubmitting = true;
+
+        layoutConfirm.setVisibility(View.GONE);
+        layoutReinstallOptions.setVisibility(View.GONE);
+        btnAction.setVisibility(View.GONE);
+        recyclerView.setVisibility(View.VISIBLE);
+        replaceData(ListItem.info("安装进度",
+                "镜像任务已提交，正在等待任务队列完成…\n（开启通知后可在通知栏查看进度，也可在任务队列页查看）"));
+
+        showMcInstallNotif("正在等待任务队列完成…");
+        mcMonitorHandler.postDelayed(mcPollRunnable, MC_POLL_FIRST_DELAY_MS);
+    }
+
+    private void pollMcTasks() {
+        if (!mcMonitoring || isDead()) return;
+        new TasksApi().getTasks(getApplicationContext(), mcMonitorInstanceId, new TasksApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                if (!mcMonitoring || isDead()) return;
+                mcPollFailures = 0;
+                int running = data.optInt("running", 0);
+                int waiting = data.optInt("waiting", 0);
+                if (running <= 0 && waiting <= 0) {
+                    writeMcInstJson();
+                } else {
+                    showMcInstallNotif("任务队列 · 运行中 " + running + " · 等待 " + waiting);
+                    mcMonitorHandler.postDelayed(mcPollRunnable, MC_POLL_INTERVAL_MS);
+                }
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (!mcMonitoring || isDead()) return;
+                mcPollFailures++;
+                if (mcPollFailures >= MC_POLL_MAX_FAILURES) {
+                    mcMonitoring = false;
+                    isSubmitting = false;
+                    showMcInstallFailedNotif("任务队列查询失败: " + errorMsg);
+                    Feedback.error(findViewById(android.R.id.content), "任务队列查询失败: " + errorMsg,
+                            "重试", () -> startMcInstallMonitor(mcMonitorInstanceId));
+                } else {
+                    mcMonitorHandler.postDelayed(mcPollRunnable, MC_POLL_INTERVAL_MS);
+                }
+            }
+        });
+    }
+
+    private void writeMcInstJson() {
+        if (!mcMonitoring || isDead()) return;
+        showMcInstallNotif("任务队列完成，正在写入安装文件");
+        try {
+            JSONObject inst = new JSONObject();
+            inst.put("version", mcVersion);
+            inst.put("loader", mcLoader == null || mcLoader.isEmpty() ? "vanilla" : mcLoader);
+            inst.put("loaderVersion", mcLoaderVersion == null ? "" : mcLoaderVersion);
+            inst.put("download", "bmclapi");
+            inst.put("maxconnections", 12);
+            inst.put("maxretries", 3);
+            inst.put("argsment", "-Xmx$(( (${SERVER_MEMORY:-4096}) - 1500 ))M -Xms$(( (${SERVER_MEMORY:-4096}) - 1500 ))M");
+
+            new FilesEditorApi().saveFileContent(getApplicationContext(), mcMonitorInstanceId,
+                    "/inst.json", inst.toString(), new FileCallback() {
+                        @Override
+                        public void onSuccess(JSONObject data) {
+                            if (isDead()) return;
+                            powerOnMcInstance();
+                        }
+
+                        @Override
+                        public void onFailure(String errorMsg) {
+                            if (isDead()) return;
+                            showMcInstallFailedNotif("写入 inst.json 失败: " + errorMsg);
+                            Feedback.error(findViewById(android.R.id.content), "写入 inst.json 失败: " + errorMsg,
+                                    "重试", CreateServer.this::writeMcInstJson);
+                        }
+                    });
+        } catch (Exception e) {
+            showMcInstallFailedNotif("inst.json 生成失败: " + e.getMessage());
+            Feedback.error(findViewById(android.R.id.content), "inst.json 生成失败: " + e.getMessage(),
+                    "重试", CreateServer.this::writeMcInstJson);
+        }
+    }
+
+    private void powerOnMcInstance() {
+        if (!mcMonitoring || isDead()) return;
+        showMcInstallNotif("inst.json 已写入，正在开机…");
+        new PowerApi(this).powerControl(token, mcMonitorInstanceId, PowerApi.Action.START, new PowerApi.Callback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                if (isDead()) return;
+                mcMonitoring = false;
+                isSubmitting = false;
+                showMcInstallCompleteNotif();
+                Toast.makeText(CreateServer.this,
+                        "已开机，实例将自动安装 " + mcVersion, Toast.LENGTH_LONG).show();
+                Intent result = new Intent();
+                result.putExtra(EXTRA_RESULT_CREATED, true);
+                setResult(RESULT_OK, result);
+                finish();
+            }
+
+            @Override
+            public void onFailure(String errorMsg) {
+                if (isDead()) return;
+                showMcInstallFailedNotif("自动开机失败: " + errorMsg + "，请手动开机");
+                Feedback.error(findViewById(android.R.id.content), "自动开机失败: " + errorMsg,
+                        "重试", CreateServer.this::powerOnMcInstance);
+            }
+        });
+    }
+
+    private void showMcMonitorExitDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("退出安装向导？")
+                .setMessage("安装任务已在服务器侧进行，退出后本页停止跟踪进度，可稍后在任务队列页查看。")
+                .setNegativeButton("继续等待", null)
+                .setPositiveButton("退出", (dialog, which) -> {
+                    mcMonitoring = false;
+                    mcMonitorHandler.removeCallbacks(mcPollRunnable);
+                    finish();
+                })
+                .show();
+    }
+
+    private void showMcInstallNotif(String text) {
+        if (!mcNotifEnabled) return;
+        TaskQueueNotificationHelper.showInstallProgress(this, MC_INSTALL_NOTIF_ID, mcMonitorInstanceId, text);
+    }
+
+    private void showMcInstallCompleteNotif() {
+        if (!mcNotifEnabled) return;
+        TaskQueueNotificationHelper.showInstallComplete(this, MC_INSTALL_NOTIF_ID, mcMonitorInstanceId);
+    }
+
+    private void showMcInstallFailedNotif(String error) {
+        if (!mcNotifEnabled) return;
+        TaskQueueNotificationHelper.showInstallFailed(this, MC_INSTALL_NOTIF_ID, mcMonitorInstanceId, error);
     }
 
     private void submitInstanceAction(Call call, String defaultFailureMessage, String defaultSuccessMessage, JsonHandler onSuccess) {
@@ -1254,6 +2032,9 @@ public class CreateServer extends AppCompatActivity {
             case GAME -> loadGameList();
             case IMAGE_KIND -> loadImageKindList();
             case VERSION -> loadVersionList();
+            case MC_VERSION -> loadMcVersionManifest();
+            case LOADER -> renderMcLoaderChoices();
+            case LOADER_VERSION -> loadMcLoaderVersions();
             case SPEC -> loadSpecList();
             case CONFIRM -> loadConfirmation();
             default -> {}
@@ -1388,6 +2169,8 @@ public class CreateServer extends AppCompatActivity {
         boolean expanded;
         // 规格字段
         String specName;
+        String value;
+        String category;
 
         static ListItem simple(int id, String t, String sub, int iconRes) {
             ListItem li = new ListItem();

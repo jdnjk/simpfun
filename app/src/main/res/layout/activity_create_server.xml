@@ -81,16 +81,40 @@
                 android:visibility="gone"
                 tools:text="先选一个起点" />
 
-            <TextView
-                android:id="@+id/tv_step_label"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
-                android:lineHeight="22sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:paddingTop="6dp"
-                android:paddingBottom="8dp"
-                tools:text="第 1 步 / 共 6 步 · 选择镜像来源" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tv_step_label"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="15sp"
+                    android:lineHeight="22sp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="8dp"
+                    tools:text="第 1 步 / 共 6 步 · 选择镜像来源" />
+
+                <TextView
+                    android:id="@+id/tv_not_found_link"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="没有找到你要的版本?"
+                    android:textSize="14sp"
+                    android:textColor="?attr/colorPrimary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:visibility="gone"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="2dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="8dp" />
+            </LinearLayout>
         </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
