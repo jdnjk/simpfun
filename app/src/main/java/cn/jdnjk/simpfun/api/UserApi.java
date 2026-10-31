@@ -84,7 +84,7 @@ public class UserApi {
                                 if (callback != null) callback.onFailure();
                             }
                         } else if (code == 403 || response.code() == 403) {
-                            Toast.makeText(context, "账号验证失败，请重新登录", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, ApiError.getMessage(jsonObject, "账号验证失败，请重新登录"), Toast.LENGTH_SHORT).show();
                             if (callback != null) callback.onFailure();
                         } else {
                             String msg = jsonObject.optString("msg", response.isSuccessful() ? "未知错误" : "服务器返回错误: " + response.code());
@@ -202,12 +202,12 @@ public class UserApi {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
+                if (!response.isSuccessful()) {
+                    String errorMsg = ApiError.getMessage(response);
+                    mainHandler.post(() -> invokeCallback(callback, false, errorMsg));
+                    return;
+                }
                 mainHandler.post(() -> {
-                    if (!response.isSuccessful()) {
-                        invokeCallback(callback, false, "HTTP 错误: " + response.code());
-                        return;
-                    }
-
                     String responseBody = null;
                     try {
                         responseBody = Objects.requireNonNull(response.body()).string();
@@ -302,7 +302,8 @@ public class UserApi {
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 if (!response.isSuccessful()) {
-                    mainHandler.post(() -> callback.onFailure("服务器返回错误: " + response.code()));
+                    String errorMsg = ApiError.getMessage(response, "服务器返回错误: " + response.code());
+                    mainHandler.post(() -> callback.onFailure(errorMsg));
                     return;
                 }
                 try {

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.Nullable;
 import cn.jdnjk.simpfun.api.ApiClient;
+import cn.jdnjk.simpfun.api.ApiError;
 import okhttp3.*;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
@@ -37,7 +38,8 @@ public class FileBaseApi {
                             if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")) {
                                 hint = "（服务器返回错误页面，文件可能不是文本文件）";
                             }
-                            invokeCallback(callback, null, false, "HTTP 错误: " + response.code() + hint);
+                            invokeCallback(callback, null, false,
+                                    ApiError.getMessage(responseBody, "HTTP 错误: " + response.code() + hint));
                             return;
                         }
 

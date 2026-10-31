@@ -2,6 +2,7 @@ package cn.jdnjk.simpfun.api.ins.file;
 
 import android.content.Context;
 import cn.jdnjk.simpfun.api.ApiClient;
+import cn.jdnjk.simpfun.api.ApiError;
 import okhttp3.*;
 import okio.BufferedSink;
 import okio.ForwardingSink;
@@ -180,7 +181,8 @@ public class FileTransferApi extends FileBaseApi {
                         String responseBody = response.body() == null ? "" : response.body().string();
 
                         if (!response.isSuccessful()) {
-                            invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
+                            invokeCallback(callback, null, false,
+                                    ApiError.getMessage(responseBody, "HTTP 错误: " + response.code()));
                             return;
                         }
 
@@ -269,17 +271,13 @@ public class FileTransferApi extends FileBaseApi {
                         response.close();
                         return;
                     }
+                    if (!response.isSuccessful()) {
+                        String errorMsg = ApiError.getMessage(response, "文件上传HTTP错误: " + response.code());
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(
+                                () -> invokeCallback(callback, null, false, errorMsg));
+                        return;
+                    }
                     new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                        if (!response.isSuccessful()) {
-                            try {
-                                String errorBody = response.body() != null ? response.body().string() : "";
-                                invokeCallback(callback, null, false, "文件上传HTTP错误: " + response.code() + " - " + errorBody);
-                            } catch (Exception e) {
-                                invokeCallback(callback, null, false, "文件上传HTTP错误: " + response.code());
-                            }
-                            return;
-                        }
-
                         try {
                             String responseBody = response.body() != null ? response.body().string() : "";
                             if (responseBody.isEmpty()) {
@@ -293,7 +291,7 @@ public class FileTransferApi extends FileBaseApi {
                                 if (code == 200) {
                                     invokeCallback(callback, jsonResponse, true, null);
                                 } else {
-                                    String errorMsg = jsonResponse.optString("message", "上传失败");
+                                    String errorMsg = ApiError.getMessage(jsonResponse, "上传失败");
                                     invokeCallback(callback, null, false, errorMsg);
                                 }
                             }
@@ -424,7 +422,8 @@ public class FileTransferApi extends FileBaseApi {
             public void onResponse(@NotNull Call call, @NotNull Response response) {
                 try (Response closeable = response) {
                     if (!closeable.isSuccessful()) {
-                        mainHandler.post(() -> callback.onFailure("HTTP 错误: " + closeable.code()));
+                        String errorMsg = ApiError.getMessage(closeable);
+                        mainHandler.post(() -> callback.onFailure(errorMsg));
                         return;
                     }
                     if (closeable.body() == null) {
@@ -433,8 +432,8 @@ public class FileTransferApi extends FileBaseApi {
                     }
                     JSONObject json = new JSONObject(closeable.body().string());
                     if (json.optInt("code", -1) != 200) {
-                        String errorMsg = json.optString("message", "未知错误");
-                        mainHandler.post(() -> callback.onFailure("服务器错误: " + errorMsg));
+                        String errorMsg = ApiError.getMessage(json, "未知错误");
+                        mainHandler.post(() -> callback.onFailure(errorMsg));
                         return;
                     }
                     String link = json.optString("link", null);

@@ -327,7 +327,8 @@ public class TerminalWebSocketManager {
     }
 
     public boolean sendCommand(int deviceId, String command) {
-        if (deviceId != currentDeviceId || command == null || command.trim().isEmpty() || webSocket == null || !isSocketOpen) return false;
+        // 空字符串表示只按回车，交互式服务端会用它确认默认值；不能按空命令拦截。
+        if (deviceId != currentDeviceId || command == null || webSocket == null || !isSocketOpen) return false;
         try {
             debugLog("WS Outgoing command for device " + deviceId + ": " + command);
             JSONObject cmdMsg = new JSONObject();

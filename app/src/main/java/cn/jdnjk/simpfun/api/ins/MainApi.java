@@ -6,6 +6,7 @@ import android.os.Looper;
 import android.util.Log;
 
 import cn.jdnjk.simpfun.api.ApiClient;
+import cn.jdnjk.simpfun.api.ApiError;
 import okhttp3.Call;
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
@@ -237,12 +238,12 @@ public class MainApi {
 
             @Override
             public void onResponse(@NotNull Call call, @NotNull Response response) {
+                if (!response.isSuccessful()) {
+                    String errorMsg = ApiError.getMessage(response);
+                    mainHandler.post(() -> invokeCallback(callback, errorMsg));
+                    return;
+                }
                 mainHandler.post(() -> {
-                    if (!response.isSuccessful()) {
-                        invokeCallback(callback, "HTTP 错误: " + response.code());
-                        return;
-                    }
-
                     String responseBody = null;
                     try {
                         responseBody = Objects.requireNonNull(response.body()).string();

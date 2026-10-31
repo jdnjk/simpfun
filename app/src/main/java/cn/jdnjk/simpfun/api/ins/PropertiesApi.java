@@ -15,6 +15,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 import cn.jdnjk.simpfun.api.ApiClient;
+import cn.jdnjk.simpfun.api.ApiError;
 import okhttp3.Call;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
@@ -84,7 +85,7 @@ public class PropertiesApi {
             public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
                 String body = response.body().string();
                 if (!response.isSuccessful()) {
-                    invokeCallback(callback, null, false, "HTTP 错误: " + response.code());
+                    invokeCallback(callback, null, false, ApiError.getMessage(body, "HTTP 错误: " + response.code()));
                     return;
                 }
                 try {

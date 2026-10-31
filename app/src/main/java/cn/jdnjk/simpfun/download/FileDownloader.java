@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import cn.jdnjk.simpfun.api.ApiError;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -129,7 +130,8 @@ public final class FileDownloader {
                     if (!closeable.isSuccessful()) {
                         target.deletePartial();
                         if (!handle.isCanceled()) {
-                            mainHandler.post(() -> callback.onFailure("HTTP 错误: " + closeable.code()));
+                            String errorMsg = ApiError.getMessage(closeable);
+                            mainHandler.post(() -> callback.onFailure(errorMsg));
                         }
                         return;
                     }

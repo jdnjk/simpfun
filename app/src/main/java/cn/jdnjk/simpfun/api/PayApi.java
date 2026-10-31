@@ -129,7 +129,7 @@ public class PayApi {
                             if (response.isSuccessful()) {
                                 mainHandler.post(() -> callback.onSuccess(jsonObject));
                             } else {
-                                String msg = jsonObject.optString("msg", "请求失败: " + response.code());
+                                String msg = ApiError.getMessage(jsonObject, "请求失败: " + response.code());
                                 mainHandler.post(() -> callback.onFailure(msg));
                             }
                         } catch (JSONException e) {

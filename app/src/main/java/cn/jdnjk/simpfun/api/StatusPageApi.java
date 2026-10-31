@@ -86,7 +86,7 @@ public class StatusPageApi {
             String bodyString = Objects.requireNonNull(response.body()).string();
             if (call.isCanceled()) return;
             if (!response.isSuccessful()) {
-                postLiveFailure(callback, "HTTP " + response.code());
+                postLiveFailure(callback, ApiError.getMessage(bodyString, "HTTP " + response.code()));
                 return;
             }
 
@@ -183,7 +183,7 @@ public class StatusPageApi {
             String bodyString = Objects.requireNonNull(response.body()).string();
             if (call.isCanceled()) return;
             if (!response.isSuccessful()) {
-                postFailure(callback, "HTTP " + response.code());
+                postFailure(callback, ApiError.getMessage(bodyString, "HTTP " + response.code()));
                 return;
             }
 

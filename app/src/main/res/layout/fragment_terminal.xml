@@ -98,15 +98,18 @@
             android:orientation="horizontal"
             android:padding="8dp">
 
-        <EditText
+        <cn.jdnjk.simpfun.ui.ins.term.TerminalCommandEditText
                 android:id="@+id/edit_text_command"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:hint="输入命令..."
-                android:imeOptions="actionSend"
-                android:singleLine="true"
-                android:inputType="text"
+                android:imeOptions="actionSend|flagNoExtractUi"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:minLines="1"
+                android:maxLines="1"
+                android:scrollHorizontally="false"
+                android:gravity="top|start"
                 android:minHeight="48dp"/>
 
         <ImageButton

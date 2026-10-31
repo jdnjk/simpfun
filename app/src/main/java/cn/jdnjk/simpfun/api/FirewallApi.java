@@ -130,7 +130,7 @@ public class FirewallApi {
                     String body = Objects.requireNonNull(response.body()).string();
                     if (call.isCanceled()) return;
                     if (!response.isSuccessful()) {
-                        postFailure(callback, "HTTP " + response.code());
+                        postFailure(callback, ApiError.getMessage(body, "HTTP " + response.code()));
                         return;
                     }
                     csrfToken = findGroup(body, CSRF_TOKEN_PATTERN);
@@ -258,7 +258,7 @@ public class FirewallApi {
             String bodyString = Objects.requireNonNull(response.body()).string();
             if (call.isCanceled()) return;
             if (!response.isSuccessful()) {
-                handler.onFailure("HTTP " + response.code());
+                handler.onFailure(ApiError.getMessage(bodyString, "HTTP " + response.code()));
                 return;
             }
             JSONObject json = new JSONObject(bodyString);

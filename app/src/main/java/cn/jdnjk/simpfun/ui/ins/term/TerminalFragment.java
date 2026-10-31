@@ -6,7 +6,9 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannedString;
 import android.util.Log;
+import android.util.LruCache;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -46,7 +48,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.Locale;
 
 import cn.jdnjk.simpfun.R;
@@ -66,16 +67,6 @@ import cn.jdnjk.simpfun.utils.MarkdownRenderer;
 public class TerminalFragment extends Fragment implements TerminalWebSocketListener {
     private static final int MAX_AI_ANALYZE_CHARS = 12000;
 
-    // 预编译的 ANSI 清理正则（原先每行调用 String.replaceAll 都会重新编译 Pattern，刷屏时是主线程热点）
-    private static final Pattern P_OSC = Pattern.compile("\\x1B\\][^\\x07]*(?:\\x07|\\x1B\\\\)");
-    private static final Pattern P_SOS = Pattern.compile("\\x1B[P\\^_]([\\s\\S]*?)(?:\\x1B\\\\|\\x07)");
-    private static final Pattern P_CSI_MOVE = Pattern.compile("\\x1B\\[[0-9;:]*[ABCDGHEFSTfJK]");
-    private static final Pattern P_CSI_PRIVATE = Pattern.compile("\\x1B\\[\\?[0-9;:]*[hl]");
-    private static final Pattern P_ESC_SHORT = Pattern.compile("\\x1B[=>78]");
-    private static final Pattern P_CTRL_DISPLAY = Pattern.compile("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1A\\x1C-\\x1F\\x7F]");
-    private static final Pattern P_CSI_ANY = Pattern.compile("\\x1B\\[[0-9;:?>=]*[ -/]*[@-~]");
-    private static final Pattern P_ESC_ANY = Pattern.compile("\\x1B[ -/]*[@-~]");
-    private static final Pattern P_CTRL_ALL = Pattern.compile("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]");
     private static final String[] AI_LOG_FAULT_TYPES = new String[]{
             "Unable to start",
             "Server crashed",
@@ -117,7 +108,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     // 用户手指按在终端上（可能正在长按选择文本）时推迟 flush，
     // 避免 notify 导致正在选择的 item 被回收重建、放大镜冻结
     private boolean isTouchingRecyclerView = false;
-    private static final long FLUSH_DELAY_MS = 100;
+    private boolean pendingConsoleClear = false;
     private final Runnable bufferFlushRunnable = this::flushBufferedLines;
     private boolean shouldMaintainFocus = false;
     private boolean isAppInForeground = false;
@@ -161,6 +152,8 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         layoutManager.setOrientation(RecyclerView.VERTICAL);
         layoutManager.setStackFromEnd(true);
         recyclerViewOutput.setLayoutManager(layoutManager);
+        // 终端是即时输出，不应给每行增删/覆盖播放淡入淡出动画。
+        recyclerViewOutput.setItemAnimator(null);
         int lineLimit = TerminalLineLimitManager.getInstance(requireContext()).getLineLimit();
         terminalAdapter = new LinesAdapter(requireContext(), lineLimit);
         recyclerViewOutput.setAdapter(terminalAdapter);
@@ -227,32 +220,33 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             public void onRequestDisallowInterceptTouchEvent(boolean disallowIntercept) {
             }
         });
+        // 聚焦/点击时允许按内容增高至 6 行，失焦收回单行；短命令仍只占一行。
         editTextCommand.setOnFocusChangeListener((v, hasFocus) -> {
             shouldMaintainFocus = hasFocus;
-            if (!hasFocus) {
-                editTextCommand.clearFocus();
-            }
+            editTextCommand.setMaxLines(hasFocus ? 6 : 1);
         });
+        editTextCommand.setOnClickListener(v -> editTextCommand.setMaxLines(6));
 
         editTextCommand.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND || actionId == EditorInfo.IME_ACTION_GO ||
                 actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_NULL) {
-                shouldMaintainFocus = true;
-                sendCommand();
+                // 空输入也能发送后，必须避免按键抬起/长按重复发送额外回车。
+                if (event == null || (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0)) {
+                    shouldMaintainFocus = true;
+                    sendCommand();
+                }
                 return true;
             }
             return false;
         });
 
         editTextCommand.setOnKeyListener((v, keyCode, event) -> {
-            if (keyCode == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
-                shouldMaintainFocus = true;
-                sendCommand();
-                mainHandler.postDelayed(() -> {
-                    if (isViewAvailable() && editTextCommand != null) {
-                        editTextCommand.requestFocus();
-                    }
-                }, 50);
+            if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    shouldMaintainFocus = true;
+                    sendCommand();
+                }
+                // 同时消费抬起事件，防止 TextView 再触发一次 editor action。
                 return true;
             }
             return false;
@@ -269,7 +263,12 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
 
     @Override
     public void onConsoleCleared() {
-        clearTerminalOutput();
+        // 清屏和紧随其后的重绘在同一帧提交，避免先画一帧空白再显示内容。
+        pendingLines.clear();
+        lastLinePartial = false;
+        pendingOverwriteCount = 0;
+        pendingConsoleClear = true;
+        scheduleBufferFlush();
     }
 
     @Override
@@ -311,24 +310,11 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     }
 
     private static String normalizeAnsiForDisplay(String line) {
-        if (line == null || line.isEmpty()) return "";
-        String s = line;
-        s = P_OSC.matcher(s).replaceAll("");
-        s = P_SOS.matcher(s).replaceAll("");
-        s = P_CSI_MOVE.matcher(s).replaceAll("");
-        s = P_CSI_PRIVATE.matcher(s).replaceAll("");
-        s = P_ESC_SHORT.matcher(s).replaceAll("");
-        s = P_CTRL_DISPLAY.matcher(s).replaceAll("");
-        return s;
+        return TerminalTextFormatter.normalizeForDisplay(line);
     }
 
     private static String stripAnsiForLogs(String line) {
-        if (line == null || line.isEmpty()) return "";
-        String s = normalizeAnsiForDisplay(line);
-        s = P_CSI_ANY.matcher(s).replaceAll("");
-        s = P_ESC_ANY.matcher(s).replaceAll("");
-        s = P_CTRL_ALL.matcher(s).replaceAll("");
-        return s;
+        return TerminalTextFormatter.stripAnsiForLogs(line);
     }
 
     private void registerWebSocketListener() {
@@ -441,9 +427,10 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
                 aiMenu.setIcon(R.drawable.ic_ai_assistant);
                 aiMenu.add(Menu.NONE, R.id.action_terminal_copy_output, 0, "复制终端内容");
                 aiMenu.add(Menu.NONE, R.id.action_terminal_select_text, 1, isSelectionMode ? "退出选择模式" : "跨行选择复制");
-                aiMenu.add(Menu.NONE, R.id.action_ai_history, 2, "AI历史记录");
-                aiMenu.add(Menu.NONE, R.id.action_ai_troubleshoot, 3, "AI疑难解答");
-                aiMenu.add(Menu.NONE, R.id.action_ai_analyze, 4, "AI故障分析");
+                aiMenu.add(Menu.NONE, R.id.action_terminal_share_log, 2, "分享日志");
+                aiMenu.add(Menu.NONE, R.id.action_ai_history, 3, "AI历史记录");
+                aiMenu.add(Menu.NONE, R.id.action_ai_troubleshoot, 4, "AI疑难解答");
+                aiMenu.add(Menu.NONE, R.id.action_ai_analyze, 5, "AI故障分析");
                 aiMenu.getItem().setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
 
                 // 快捷指令 — 递归嵌套 SubMenu，仅终端页出现
@@ -636,6 +623,10 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             showTerminalOutputDialog();
             return true;
         }
+        if (itemId == R.id.action_terminal_share_log) {
+            showLogShareDialog();
+            return true;
+        }
         if (itemId == R.id.action_terminal_select_text) {
             if (isSelectionMode) {
                 exitSelectionMode();
@@ -668,6 +659,18 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             handleAiAnalyze(deviceId);
         }
         return true;
+    }
+
+    private void showLogShareDialog() {
+        if (!isViewAvailable() || terminalAdapter == null) return;
+        String snapshot = pendingConsoleClear
+                ? stripAnsiForLogs(String.join("\n", pendingLines))
+                : terminalAdapter.getTerminalOutputSnapshot(pendingLines);
+        if (snapshot.trim().isEmpty()) {
+            showToast("终端暂无日志可分享");
+            return;
+        }
+        LogShareDialogFragment.open(getChildFragmentManager(), getCurrentDeviceId(), snapshot);
     }
 
     private void showTerminalOutputDialog() {
@@ -721,7 +724,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         TerminalColorUtils.applyTerminalFontSize(context, selectTextView);
         selectTextView.setTypeface(Typeface.MONOSPACE);
         try {
-            AnsiParser.setAnsiText(selectTextView, snapshot, 0);
+            AnsiParser.setAnsiText(selectTextView, normalizeAnsiForDisplay(snapshot), 0);
         } catch (Exception e) {
             selectTextView.setText(stripAnsiForLogs(snapshot));
         }
@@ -1153,10 +1156,8 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
 
     private void sendCommand() {
         if (!isViewAvailable() || editTextCommand == null) return;
-        String command = editTextCommand.getText().toString().trim();
-        if (command.isEmpty()) {
-            return;
-        }
+        // 保留原始内容（包括空输入和前后空格），空输入用于发送回车。
+        String command = editTextCommand.getText().toString();
 
         shouldMaintainFocus = true;
         int deviceId = getCurrentDeviceId();
@@ -1285,30 +1286,27 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
     }
 
     private void scheduleBufferFlush() {
-        if (!isViewAvailable() || terminalAdapter == null) return;
+        if (!isViewAvailable() || terminalAdapter == null || recyclerViewOutput == null) return;
         if (!isBufferUpdateScheduled) {
             isBufferUpdateScheduled = true;
-            long renderDelay = FLUSH_DELAY_MS;
-            mainHandler.postDelayed(bufferFlushRunnable, renderDelay);
+            // 合并同一帧内的输出，不额外等待固定的 100ms。
+            recyclerViewOutput.postOnAnimation(bufferFlushRunnable);
         }
     }
 
     private void flushBufferedLines() {
-        // 触摸中（可能正在长按选择文本）：推迟到抬手后再 flush，
-        // 避免 notify 导致正在选择的 item 被回收重建、放大镜冻结
-        if (isTouchingRecyclerView && isViewAvailable()) {
-            mainHandler.postDelayed(bufferFlushRunnable, FLUSH_DELAY_MS);
-            return;
-        }
-        if (isViewAvailable()) {
-            updateOutputWithFocusPreservation();
-        }
         isBufferUpdateScheduled = false;
+        // 触摸中保留待显示内容，抬手时再调度；不再用定时器反复空转。
+        if (isTouchingRecyclerView || !isViewAvailable()) return;
+        updateOutputWithFocusPreservation();
     }
 
     private void clearTerminalOutput() {
-        mainHandler.removeCallbacks(bufferFlushRunnable);
+        if (recyclerViewOutput != null) {
+            recyclerViewOutput.removeCallbacks(bufferFlushRunnable);
+        }
         isBufferUpdateScheduled = false;
+        pendingConsoleClear = false;
         pendingLines.clear();
         lastLinePartial = false;
         pendingOverwriteCount = 0;
@@ -1323,8 +1321,12 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
 
         // P3：仅当用户本来就停在底部（且未处于选择模式）时才跟随滚动，
         // 回看历史时不被打断
-        boolean followTail = isTerminalAtBottom() && !isSelectionMode;
+        boolean followTail = (pendingConsoleClear || isTerminalAtBottom()) && !isSelectionMode;
 
+        if (pendingConsoleClear) {
+            terminalAdapter.clear();
+            pendingConsoleClear = false;
+        }
         if (!pendingLines.isEmpty()) {
             List<String> batch = new ArrayList<>(pendingLines);
             pendingLines.clear();
@@ -1334,23 +1336,18 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         }
 
         if (followTail) {
-            recyclerViewOutput.post(() -> {
-                if (!isViewAvailable() || terminalAdapter == null || recyclerViewOutput == null) return;
-                scrollToBottom();
-                restoreCommandFocusIfNeeded(hadFocus);
-            });
-        } else {
-            restoreCommandFocusIfNeeded(hadFocus);
+            // 在本次 layout 前设定目标，避免先画旧位置、下一帧才跳到底部。
+            scrollToBottom();
         }
+        restoreCommandFocusIfNeeded(hadFocus);
     }
 
     private void restoreCommandFocusIfNeeded(boolean hadFocus) {
         if ((hadFocus || shouldMaintainFocus) && isViewAvailable() && editTextCommand != null) {
-            editTextCommand.post(() -> {
-                if (!isViewAvailable() || editTextCommand == null) return;
+            if (!editTextCommand.hasFocus()) {
                 editTextCommand.requestFocus();
-                shouldMaintainFocus = false;
-            });
+            }
+            shouldMaintainFocus = false;
         }
     }
 
@@ -1398,8 +1395,11 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             selectFastScroll = null;
         }
         if (recyclerViewOutput != null) {
+            recyclerViewOutput.removeCallbacks(bufferFlushRunnable);
             recyclerViewOutput.setAdapter(null);
         }
+        pendingConsoleClear = false;
+        isTouchingRecyclerView = false;
         super.onDestroyView();
     }
 
@@ -1450,6 +1450,13 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         private static final int MIN_LINES = 100;
         private final List<String> lines = new ArrayList<>();
         private final Context context;
+        // 只缓存近期可见行，滚动/复用时不重复运行正则和 ANSI 解析；按字符数限制内存。
+        private final LruCache<String, CharSequence> renderedLines = new LruCache<>(256 * 1024) {
+            @Override
+            protected int sizeOf(String key, CharSequence value) {
+                return Math.max(1, key.length() + value.length());
+            }
+        };
         private int maxLines;
 
         LinesAdapter(Context context, int maxLines) {
@@ -1473,6 +1480,7 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         @Override
         public LineVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             AnsiTextView tv = new AnsiTextView(parent.getContext());
+            tv.setTypeface(Typeface.MONOSPACE);
             tv.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
             tv.setPadding(tv.getPaddingLeft() + 8, tv.getPaddingTop() + 2, tv.getPaddingRight() + 8, tv.getPaddingBottom() + 2);
             // 行内不做文本选择：每行是独立 TextView 无法跨行，复制统一走
@@ -1485,11 +1493,20 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
         @Override
         public void onBindViewHolder(@NonNull LineVH holder, int position) {
             String line = lines.get(position);
-            try {
-                AnsiParser.setAnsiText(holder.textView, normalizeAnsiForDisplay(line), 0);
-            } catch (Exception ignored) {
-                holder.textView.setText(stripAnsiForLogs(line));
+            CharSequence rendered = renderedLines.get(line);
+            if (rendered == null) {
+                String display = normalizeAnsiForDisplay(line);
+                try {
+                    rendered = display.indexOf('\u001B') < 0 && !display.contains("\\e[") ? display
+                            : new SpannedString(AnsiParser.parseAsSpannable(display, 0));
+                } catch (Exception ignored) {
+                    rendered = stripAnsiForLogs(line);
+                }
+                if ((long) line.length() + rendered.length() <= renderedLines.maxSize()) {
+                    renderedLines.put(line, rendered);
+                }
             }
+            holder.textView.setText(rendered);
         }
 
         @Override
@@ -1551,29 +1568,34 @@ public class TerminalFragment extends Fragment implements TerminalWebSocketListe
             addLines(newLines, 0);
         }
 
-        /** P5：replaceCount 为 1 时先替换当前最后一行（\r 覆盖），再插入新行 */
+        /** 进度行原位更新；追加时只通知最终保留的行，避免删后重插造成闪烁。 */
         void addLines(List<String> newLines, int replaceCount) {
-            if ((newLines == null || newLines.isEmpty()) && replaceCount == 0) return;
             if (newLines == null || newLines.isEmpty()) return;
 
             int oldSize = lines.size();
-            if (replaceCount > 0 && oldSize > 0) {
-                int removed = Math.min(replaceCount, oldSize);
-                lines.subList(oldSize - removed, oldSize).clear();
-                notifyItemRangeRemoved(oldSize - removed, removed);
-                oldSize -= removed;
-            } else if (replaceCount > 0 && oldSize == 0) {
-                // 没有可替换的行，直接插入
+            int replacements = Math.min(Math.max(0, replaceCount), Math.min(oldSize, newLines.size()));
+            for (int i = 0; i < replacements; i++) {
+                lines.set(oldSize - replacements + i, newLines.get(i));
+            }
+            if (replacements > 0) {
+                notifyItemRangeChanged(oldSize - replacements, replacements);
             }
 
-            lines.addAll(newLines);
-            int overflow = Math.max(0, lines.size() - maxLines);
-            if (overflow > 0) {
-                lines.subList(0, overflow).clear();
-                notifyItemRangeRemoved(0, overflow);
+            int appendCount = newLines.size() - replacements;
+            int overflow = Math.max(0, oldSize + appendCount - maxLines);
+            int removed = Math.min(oldSize, overflow);
+            if (removed > 0) {
+                lines.subList(0, removed).clear();
+                notifyItemRangeRemoved(0, removed);
             }
-            int insertStart = lines.size() - newLines.size();
-            notifyItemRangeInserted(Math.max(0, insertStart), newLines.size());
+            // 单批超过上限时，直接跳过必定被裁掉的新行，不发越界的插入通知。
+            int appendStart = replacements + (overflow - removed);
+            int inserted = newLines.size() - appendStart;
+            if (inserted > 0) {
+                int insertStart = lines.size();
+                lines.addAll(newLines.subList(appendStart, newLines.size()));
+                notifyItemRangeInserted(insertStart, inserted);
+            }
         }
 
         void clear() {
